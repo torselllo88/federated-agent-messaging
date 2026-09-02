@@ -1,0 +1,98 @@
+# federated-agent-messaging
+
+Research repository for a publication investigating whether a mature federated messaging infrastructure with persistent replicated interaction spaces can serve directly as shared communication infrastructure for human and autonomous AI participants.
+
+**Reference implementation:** Matrix / Synapse.
+**Scope status:** FROZEN as of 2026-09-02 — see [`docs/research-scope.md`](docs/research-scope.md).
+
+---
+
+## Central hypothesis
+
+> A mature federated messaging infrastructure with persistent replicated interaction spaces can serve as a shared multi-party communication substrate in which humans and autonomous AI agents participate as persistent communication actors across federation domains.
+
+The hypothesis concerns **communication architecture**. It does not assume the substrate provides reasoning, agent execution, discovery, external identity, reputation, payment or economic settlement.
+
+## What is frozen
+
+| Frozen | Reference |
+|---|---|
+| Central hypothesis | [`research-scope.md` §5](docs/research-scope.md) |
+| Core architectural requirements C1–C5 | §6 |
+| Research questions RQ1–RQ3 (RQ4 secondary) | §9 |
+| Experimental program E0–E4 | §12 |
+| Explicit non-goals | §17 |
+| Testbed technology baseline and topology | [`testbed-architecture.md` §4, §41](docs/testbed-architecture.md) |
+| Architecture acceptance criteria A1–A13 | [`testbed-architecture.md` §39](docs/testbed-architecture.md) |
+| Workloads, metrics, replication counts | [`experimental-protocol.md` §21–§23, §47](docs/experimental-protocol.md) |
+| Statistical treatment and outlier policy | [`experimental-protocol.md` §29–§34](docs/experimental-protocol.md) |
+
+Implementation findings do not automatically expand scope. An interesting capability outside C1–C5 is logged as an observation, limitation, discussion point or follow-up candidate — see §19 and the observations log in [`docs/evidence-matrix.md`](docs/evidence-matrix.md).
+
+## Repository layout
+
+```
+README.md
+docs/
+    research-scope.md          FROZEN v1.0 — hypothesis, C1-C5, RQ1-RQ4, E0-E4, non-goals
+    testbed-architecture.md    FROZEN v1.0 — topology, components, instrumentation, A1-A13
+    experimental-protocol.md   FROZEN v1.0 — procedures, workloads, metrics, analysis rules
+    evidence-matrix.md         empty — requirement → experiment → artifact traceability
+testbed/                       empty — reproducible testbed implementation
+experiments/                   empty — experiment definitions e0..e4
+scripts/                       empty — bootstrap, verification and analysis
+LICENSE
+.gitignore
+```
+
+[`testbed-architecture.md` §31](docs/testbed-architecture.md) defines the layout the implementation should converge toward — `infrastructure/`, `src/fam/`, `results/` and a `docker-compose.yml` / `Makefile` at the root. The current tree is the pre-implementation subset; empty directories are not committed merely to match that diagram.
+
+## Current status
+
+| Item | State |
+|---|---|
+| Research scope | frozen |
+| Testbed architecture | frozen |
+| Experimental protocol | frozen — pre-specified before data collection |
+| Testbed implementation | not started — acceptance criteria A1–A13 defined |
+| Experiments E0–E4 | not started — 89 formal runs specified, plus one E4 session |
+| Evidence collected | none |
+| Related-work review | not started — mandatory before submission (§16, §20) |
+
+## Experimental program
+
+Only E0–E4 are on the pre-submission critical path.
+
+| ID | Experiment | Validates |
+|---|---|---|
+| **E0** | Same-domain functional baseline | C1, C2, instrumentation, baseline performance |
+| **E1** | Federated persistent multi-party interaction | C4, C5 — primary feasibility experiment |
+| **E2** | Autonomous runtime interruption and recovery | C3 |
+| **E3** | Controlled federation overhead | RQ3 |
+| **E4** | LLM-backed functional validation | D3 |
+
+## Claim discipline
+
+Several individual elements of this architecture have substantial prior art — XMPP/SPADE-style multi-agent communication, classical shared-state and coordination systems, existing Matrix-based LLM assistants, and contemporary federated agent-messaging protocols. The scope document records these explicitly (§2, §20) and lists what the manuscript **shall not** claim novelty for (§16).
+
+The intended differentiation is the systematic formulation and controlled empirical evaluation of persistent replicated interaction spaces as a shared communication substrate across human and autonomous participants belonging to federation domains. This remains a **target contribution**, not an unconditional first-of-kind claim. Phrases such as "the first" shall not appear unless independently justified by the final literature review.
+
+## Industrial reference boundary
+
+Chums Chat is the industrial implementation that motivated the research abstraction. It is **not** part of the reproducible artifact.
+
+This repository shall contain only public specifications, public APIs, open-source infrastructure and independently written research code. No proprietary Chums code, and no code derived from proprietary implementation details, may be committed here. Industrial evidence, where publication permission exists, is kept separate from controlled testbed evidence and is not directly compared with it unless the environments and workload definitions make that comparison methodologically valid (§15).
+
+**The paper must remain reproducible without access to Chums.**
+
+## Reproducibility intent
+
+The testbed models administrative independence between federation domains using separate homeserver instances, separate server identities, separate credentials and native federation — all within controlled research infrastructure. The publication states this distinction explicitly: what is demonstrated is protocol and deployment separation, not organizational independence proven through separately owned real-world infrastructure (§13).
+
+Where both homeservers run inside the same controlled infrastructure, performance results are not presented as estimates of real-world Internet or geographically distributed federation latency (§9 RQ3).
+
+## Licence
+
+Apache License 2.0 — see [`LICENSE`](LICENSE).
+
+Chosen as a single permissive licence covering both research code and documentation, with an explicit patent grant appropriate to an industrially adjacent project. If the target venue requires a different arrangement for the prose — CC-BY-4.0 is common — that is a one-file change plus a note here.

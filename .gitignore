@@ -1,0 +1,140 @@
+# ---------------------------------------------------------------------------
+# Secrets and credentials — never commit.
+# The research artifact must contain no keys, tokens or access credentials.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.seed
+*.secret
+secrets.*
+credentials.*
+**/signing.key
+**/*.signing.key
+
+# ---------------------------------------------------------------------------
+# Homeserver runtime state.
+# Generated per deployment; never part of the reproducible artifact.
+# Configuration TEMPLATES are tracked — instantiated configs are not.
+# ---------------------------------------------------------------------------
+**/homeserver.yaml
+**/*.log.config
+**/media_store/
+**/uploads/
+**/homeserver.db
+**/homeserver.db-*
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib60/
+parts/
+sdist/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+env/
+ENV/
+.python-version
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# ---------------------------------------------------------------------------
+# Node (only if a harness or visualisation needs it)
+# ---------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Containers and local infrastructure overrides
+# ---------------------------------------------------------------------------
+docker-compose.override.yml
+docker-compose.local.yml
+.docker/
+
+# ---------------------------------------------------------------------------
+# Experiment output.
+#
+# NOTE: processed results ARE evidence and SHOULD be committed —
+# they are what the evidence matrix points at. Only bulky, regenerable
+# or environment-specific output is excluded here.
+# ---------------------------------------------------------------------------
+**/raw-logs/
+**/tmp/
+*.pcap
+*.pcapng
+*.tar.gz
+*.zip
+*.dump
+core.*
+
+# ---------------------------------------------------------------------------
+# Manuscript build artifacts (if LaTeX is added later)
+# ---------------------------------------------------------------------------
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.synctex.gz
+*.toc
+*.nav
+*.snm
+*.vrb
+
+# ---------------------------------------------------------------------------
+# Editors and OS
+# ---------------------------------------------------------------------------
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# Proprietary-material guard (see docs/research-scope.md §15).
+# Belt-and-braces only — the real control is review, not a pattern list.
+# ---------------------------------------------------------------------------
+chums/
+chums-*/
+**/proprietary/
