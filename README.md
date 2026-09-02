@@ -3,7 +3,7 @@
 Research repository for a publication investigating whether a mature federated messaging infrastructure with persistent replicated interaction spaces can serve directly as shared communication infrastructure for human and autonomous AI participants.
 
 **Reference implementation:** Matrix / Synapse.
-**Scope status:** FROZEN as of 2026-09-02 — see [`docs/research-scope.md`](docs/research-scope.md).
+**Scope status:** FROZEN, v1.1 as of 2026-09-02 — see [`docs/research-scope.md`](docs/research-scope.md) and [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 
 ---
 
@@ -26,6 +26,7 @@ The hypothesis concerns **communication architecture**. It does not assume the s
 | Architecture acceptance criteria A1–A13 | [`testbed-architecture.md` §39](docs/testbed-architecture.md) |
 | Workloads, metrics, replication counts | [`experimental-protocol.md` §21–§23, §47](docs/experimental-protocol.md) |
 | Statistical treatment and outlier policy | [`experimental-protocol.md` §29–§34](docs/experimental-protocol.md) |
+| Stated limitations of the evidence | [`evidence-matrix.md` §8](docs/evidence-matrix.md) |
 
 Implementation findings do not automatically expand scope. An interesting capability outside C1–C5 is logged as an observation, limitation, discussion point or follow-up candidate — see §19 and the observations log in [`docs/evidence-matrix.md`](docs/evidence-matrix.md).
 
@@ -34,10 +35,13 @@ Implementation findings do not automatically expand scope. An interesting capabi
 ```
 README.md
 docs/
-    research-scope.md          FROZEN v1.0 — hypothesis, C1-C5, RQ1-RQ4, E0-E4, non-goals
-    testbed-architecture.md    FROZEN v1.0 — topology, components, instrumentation, A1-A13
-    experimental-protocol.md   FROZEN v1.0 — procedures, workloads, metrics, analysis rules
-    evidence-matrix.md         empty — requirement → experiment → artifact traceability
+    research-scope.md          FROZEN v1.1 — hypothesis, C1-C5, RQ1-RQ4, E0-E4, non-goals
+    testbed-architecture.md    FROZEN v1.1 — topology, components, instrumentation, A1-A13
+    experimental-protocol.md   FROZEN v1.1 — procedures, workloads, metrics, analysis rules
+    evidence-matrix.md         scaffolded — requirement → experiment → artifact traceability
+    CHANGELOG.md               v1.0 → v1.1 methodology changes, with rationale
+results/
+    README.md                  external raw-data artifact record
 testbed/                       empty — reproducible testbed implementation
 experiments/                   empty — experiment definitions e0..e4
 scripts/                       empty — bootstrap, verification and analysis
@@ -47,6 +51,8 @@ LICENSE
 
 [`testbed-architecture.md` §31](docs/testbed-architecture.md) defines the layout the implementation should converge toward — `infrastructure/`, `src/fam/`, `results/` and a `docker-compose.yml` / `Makefile` at the root. The current tree is the pre-implementation subset; empty directories are not committed merely to match that diagram.
 
+Raw experiment data is deliberately **not** in this tree. Formal runs write to `$FAM_RESULTS_DIR` outside the repository; what is tracked is run manifests (each carrying the SHA-256 of its raw file), result schemas, processed datasets and analysis code. The final raw dataset is archived separately and identified by digest.
+
 ## Current status
 
 | Item | State |
@@ -55,7 +61,7 @@ LICENSE
 | Testbed architecture | frozen |
 | Experimental protocol | frozen — pre-specified before data collection |
 | Testbed implementation | not started — acceptance criteria A1–A13 defined |
-| Experiments E0–E4 | not started — 89 formal runs specified, plus one E4 session |
+| Experiments E0–E4 | not started — 129 formal runs specified, plus 3 E4 sessions |
 | Evidence collected | none |
 | Related-work review | not started — mandatory before submission (§16, §20) |
 

@@ -1,9 +1,10 @@
-# Research Scope Freeze v1.0 FINAL
+# Research Scope Freeze v1.1 FINAL
 
 **Project:** Federated Agent Messaging
 **Repository:** `federated-agent-messaging`
 **Date:** 2026-09-02
 **Status:** FROZEN
+**Amends:** v1.0 — see [`CHANGELOG.md`](CHANGELOG.md)
 **Purpose:** Fix the research hypothesis, contribution boundary, architectural requirements, research questions, evidence requirements, and experimental scope of the first publication.
 
 ---
@@ -285,6 +286,15 @@ Membership and accessible history remain available across ordinary participant d
 
 The core study does not require multiple autonomous agents.
 
+**Empirical support**
+
+C4 is evidenced by two experiments jointly and is not fully established by either alone:
+
+- **E1** validates the structural / substrate portion — a persistent three-participant space spanning two federation domains — using programmatically controlled standard Matrix user accounts;
+- **E4** completes validation using an actual human with a standard Matrix client in the same three-party federated interaction topology.
+
+The requirement is about actual humans and autonomous participants. It is **NOT** weakened to "human-role participant". Full empirical support for C4 requires E1 **and** E4.
+
 ### C5 — Federated Persistent Interaction Space
 
 A persistent interaction space **SHALL** extend across distinct federation domains using the messaging substrate's native federation mechanism.
@@ -361,6 +371,10 @@ Controlled communication experiments use deterministic execution.
 
 A separate functional scenario validates compatibility with an LLM-backed runtime.
 
+D3 as a general architectural property remains secondary and is **NOT** experimentally established by this study.
+
+E4 is mandatory, but only as evidence that the communication architecture can host an LLM-backed execution layer. It is not a validation of D3 in general.
+
 ---
 
 ## 8. Secondary Correctness Properties
@@ -428,7 +442,7 @@ Primary measurements are:
 
 - end-to-end interaction latency;
 - p50, p95, and p99 latency;
-- achievable throughput under the tested workload;
+- observed throughput under the tested bounded-concurrency workload;
 - delivery or interaction failure rate.
 
 Secondary measurements **MAY** include:
@@ -491,7 +505,7 @@ The central hypothesis is considered empirically supported within the bounded sc
 
 1. an autonomous runtime operates under a stable messaging identity;
 2. normal operation requires no privileged messaging-server integration;
-3. at least three mixed participants share a persistent interaction space;
+3. at least three mixed participants share a persistent interaction space — the structural case established programmatically in E1, with at least one instance in E4 containing an actual human;
 4. participants belonging to at least two federation domains access the same federated interaction space;
 5. persistent events traverse native federation and remain accessible through the participating domains;
 6. interaction survives temporary termination and restart of the autonomous runtime;
@@ -542,11 +556,13 @@ All participate in the same persistent room.
 
 Validate:
 
-- C4;
+- the structural portion of C4 — see §6 C4, *Empirical support*;
 - C5;
 - cross-domain membership;
 - bidirectional event propagation;
 - visibility of persistent interaction state through both domains.
+
+E1 uses programmatically controlled standard Matrix user accounts. C4 is completed by E4.
 
 This is the primary feasibility experiment supporting the architectural contribution.
 
@@ -605,7 +621,10 @@ Replace the deterministic decision function with a minimal LLM-backed execution 
 
 **Purpose**
 
-Demonstrate that the architecture is compatible with an actual contemporary AI-agent execution layer rather than only with deterministic automation.
+Two purposes:
+
+1. demonstrate that the architecture is compatible with an actual contemporary AI-agent execution layer rather than only with deterministic automation;
+2. complete the validation of C4, by placing an actual human in the same three-party federated topology E1 exercises programmatically.
 
 E4 is:
 
@@ -613,7 +632,7 @@ E4 is:
 - not a model-quality experiment;
 - not a performance benchmark.
 
-A minimal successful scenario is sufficient.
+A minimal successful scenario is sufficient for purpose 1. Purpose 2 additionally requires that the room contain three participants across two federation domains, at least one of them an actual person.
 
 ---
 
@@ -786,6 +805,8 @@ Normal agent participation uses ordinary messaging interfaces.
 **3. Persistent mixed-participant space**
 At least three mixed participants share a persistent interaction space.
 
+Established jointly: E1 for the structural case using programmatically controlled standard accounts, E4 for at least one instance containing an actual human (§6 C4, *Empirical support*).
+
 **4. Actual federation**
 The space spans at least two separately configured federation domains using native federation.
 
@@ -800,6 +821,8 @@ The same-domain and federated interaction paths are quantitatively compared unde
 
 **8. AI-runtime compatibility**
 At least one functional scenario uses an LLM-backed execution layer.
+
+This establishes LLM-runtime compatibility only. It does not establish D3 as a general architectural property.
 
 No additional experimental capability is necessary for the first publication.
 

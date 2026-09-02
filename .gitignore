@@ -88,10 +88,16 @@ docker-compose.local.yml
 # ---------------------------------------------------------------------------
 # Experiment output.
 #
-# NOTE: processed results ARE evidence and SHOULD be committed —
-# they are what the evidence matrix points at. Only bulky, regenerable
-# or environment-specific output is excluded here.
+# Formal raw data is written OUTSIDE this tree, under $FAM_RESULTS_DIR
+# (testbed-architecture.md 22, experimental-protocol.md 37). The guard below
+# catches a stray local write; it is not where the data is supposed to go.
+#
+# Tracked and expected here: results/manifests/, results/schemas/,
+# results/processed/, results/figures/. Those ARE the evidence the matrix
+# points at. Only bulky, regenerable or environment-specific output is
+# excluded.
 # ---------------------------------------------------------------------------
+results/raw/
 **/raw-logs/
 **/tmp/
 *.pcap

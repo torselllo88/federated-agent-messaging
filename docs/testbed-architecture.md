@@ -1,10 +1,11 @@
-# Testbed Architecture v1.0 FINAL
+# Testbed Architecture v1.1 FINAL
 
 **Project:** Federated Agent Messaging
 **Repository:** `federated-agent-messaging`
 **Date:** 2026-09-02
 **Status:** FROZEN IMPLEMENTATION ARCHITECTURE
-**Depends on:** [`research-scope.md`](research-scope.md) (FROZEN, v1.0)
+**Amends:** v1.0 — see [`CHANGELOG.md`](CHANGELOG.md)
+**Depends on:** [`research-scope.md`](research-scope.md) (FROZEN, v1.1)
 **Blocks:** [`experimental-protocol.md`](experimental-protocol.md)
 **Purpose:** Define the minimum reproducible technical system required to evaluate C1–C5 and execute experiments E0–E4 without introducing additional research scope.
 
@@ -63,7 +64,9 @@ It **SHALL NOT** receive:
 
 Communication between federation domains **SHALL** use native Matrix Server-Server federation.
 
-No custom relay, application bridge, synchronization service, or experiment-side forwarding mechanism is permitted.
+The prohibition applies at the Matrix / application layer. Application bridges, custom event relays, synchronization services and experiment-side forwarding mechanisms are **NOT** permitted.
+
+Transparent TLS termination or transport-layer proxying is permitted as deployment scaffolding, provided it does not interpret, synthesize, transform or replace native Matrix Client-Server or Server-Server communication semantics.
 
 ### 2.5 Deterministic experimental core
 
@@ -223,7 +226,18 @@ It does not claim that the homeservers are owned by separate real-world organiza
 
 ## 6. Direct Federation Transport
 
-No reverse proxy or dedicated federation gateway is part of the mandatory architecture.
+No dedicated federation gateway is part of the mandatory architecture, and the default deployment exposes Synapse federation directly.
+
+A transparent TLS-termination proxy **MAY** be introduced as deployment scaffolding if direct Synapse TLS proves impractical, provided it performs no Matrix-level processing.
+
+Prohibited in all cases:
+
+- an application bridge;
+- protocol transformation;
+- event rewriting, filtering or re-signing;
+- any component participating in Matrix semantics.
+
+Such a proxy is deployment scaffolding, not part of the proposed architecture, and **SHALL** be recorded in the environment manifest when present.
 
 Each Synapse instance **SHALL** expose:
 
@@ -266,13 +280,23 @@ to the respective homeserver containers.
 
 Federation traffic **SHALL** use TLS.
 
-A private research certificate authority **MAY** be generated automatically during bootstrap.
+A private research certificate authority **SHALL** be generated automatically during bootstrap.
 
 Certificates **SHALL** contain the relevant federation-domain names.
 
-Both Synapse instances **MAY** be configured to trust the private CA for federation traffic.
+Both Synapse instances **SHALL** be configured to trust the private CA for federation traffic. Where a private federation CA is used, trust in it is a functional precondition rather than an option; Synapse provides `federation_custom_ca_list` for exactly this case.
 
-The private CA exists solely to permit reproducible native federation inside the controlled environment.
+For E4, the Client-Server endpoint used by the standard Matrix client **SHALL** be reachable over HTTPS, and the private CA **SHALL** be trusted in the browser or desktop client the human participant uses.
+
+The human's client runs on an ordinary remote workstation rather than on the testbed host, so E4 additionally requires that:
+
+- the Domain-A Client-Server endpoint is reachable from that workstation, not only from inside the Docker network;
+- `hs-a.test` resolves to the testbed host from that workstation;
+- the private CA is installed in that workstation's trust store.
+
+A standard client will otherwise refuse the connection and E4 cannot execute. This exposure exists for E4 only and **SHALL** be recorded in the environment manifest.
+
+The private CA exists solely to permit reproducible native federation and standard-client access inside the controlled environment.
 
 It is not part of the proposed agent architecture.
 
@@ -351,7 +375,7 @@ For E1, the minimum multi-party topology is:
 
 ```text
 @human-a:hs-a.test
-@human-b:hs-a.test
+@human-b:hs-b.test
 @agent:hs-b.test
 ```
 
@@ -359,7 +383,11 @@ All three participants **SHALL** join the same room.
 
 The room **SHALL** be created by an ordinary user on Domain A.
 
-The Domain B agent **SHALL** join through ordinary Matrix mechanisms and native federation.
+The Domain B participants **SHALL** join through ordinary Matrix mechanisms and native federation.
+
+Human B is deliberately placed on Domain B. It supplies an independent ordinary-client view of that domain, so cross-domain state is verified through a standard participant interface rather than through the agent's own self-report.
+
+One consequence **SHALL** be recorded explicitly in the protocol and in the manuscript. Because Human B and the agent share Domain B, requests sent by Human B traverse a same-domain path; only Human A's requests exercise a cross-domain request/response loop. Both directions of federated event propagation are still exercised, and the two request classes **SHALL** be accounted for separately.
 
 The room **SHALL** use:
 
@@ -386,21 +414,21 @@ This makes workload generation reproducible.
 
 ### 11.2 Real human participant
 
-At least one functional validation in E4 **SHALL** involve an actual human using an ordinary Matrix client.
+Every E4 session **SHALL** involve an actual human using an ordinary Matrix client. The protocol requires three independent sessions (protocol §41).
 
 For example:
 
 ```text
-Element or another standard Matrix client
-        ↓
-Domain A
-        ↓
-federated room
-        ↓
-Domain B
-        ↓
-LLM-backed agent
+@actual-human:hs-a.test      real person, Element or another standard client
+         |
+         v
+   three-party federated persistent room
+         ^                        ^
+         |                        |
+@human-role-b:hs-b.test    @llm-agent:hs-b.test
 ```
+
+The three-party shape is required, not incidental: it is what completes C4 with an actual person present (scope §6 C4, *Empirical support*).
 
 This scenario is functional evidence only.
 
@@ -423,6 +451,7 @@ flowchart LR
     EXEC["Executor"]
     SEND["Response Sender"]
     STATE["Transport Checkpoint"]
+    TELEM["Telemetry Writer"]
 
     MATRIX --> RECOVERY
     RECOVERY --> FILTER
@@ -431,9 +460,15 @@ flowchart LR
 
     MATRIX <--> STATE
     RECOVERY <--> STATE
+
+    RECOVERY -.-> |"recovery set, pagination"| TELEM
+    FILTER -.-> |"dedup, skip reason"| TELEM
+    EXEC -.-> |"processing outcome"| TELEM
 ```
 
 No part of this runtime executes inside Synapse.
+
+The telemetry writer records what no external observer can see. It uses no privileged interface — it is the runtime's own record of its own behaviour — and therefore does not affect C2.
 
 ---
 
@@ -449,6 +484,7 @@ select_relevant_event()
 execute(event)
 send_response()
 checkpoint()
+record_observation()
 ```
 
 Names may differ in code.
@@ -561,7 +597,27 @@ A dedicated bootstrap process **MAY**:
 - create test accounts;
 - provision initial passwords/tokens;
 - verify homeserver health;
-- verify federation connectivity.
+- verify federation transport and bootstrap readiness, and nothing beyond it.
+
+### Bounds on federation verification
+
+Verifying federation connectivity means only establishing that the federation transport works:
+
+- both homeservers reachable;
+- required DNS and name resolution;
+- the TCP/TLS federation path;
+- normal server identity and signing-key discovery.
+
+Bootstrap and environment verification **MUST NOT** perform:
+
+- federated room creation or join as a federation test;
+- cross-domain room membership propagation checks;
+- persistent room-event propagation checks;
+- federated history-visibility checks.
+
+Those behaviours are what E1 evaluates for C5. Prevalidating them during bootstrap would let a genuine C5 failure surface as an environment problem instead of an experimental finding, so they **SHALL** remain experimentally observable.
+
+This section is normatively identical to protocol §4.1.
 
 After provisioning completes, bootstrap credentials **SHALL NOT** be made available to:
 
@@ -610,6 +666,29 @@ and:
 ```text
 FAM/1 ACK E3 FED-017 00421
 ```
+
+### Fixed payload size
+
+For E3, request and response message bodies **SHALL** each be exactly:
+
+```text
+256 bytes, UTF-8 encoded
+```
+
+The body is an ASCII-only deterministic correlation prefix followed by a fixed padding character:
+
+```text
+FAM/1 REQUEST E3 FED-017 00421 xxxxxxxx...x
+FAM/1 ACK E3 FED-017 00421 xxxxxxxx...x
+```
+
+ASCII-only matters: encoded byte length then equals character length, the padding count is computable without encoding ambiguity, and both topologies carry byte-identical payloads.
+
+The implementation **SHALL** assert the exact encoded body length before sending. A body that is not exactly 256 bytes is a defect, not a tolerance.
+
+The requirement applies to the `m.room.message` body only. It does not apply to the complete Matrix event or federation PDU, whose JSON, signatures and transaction framing add further overhead.
+
+RQ3 therefore characterizes one small-message workload class. Payload-size sensitivity is **NOT** studied and **SHALL** be stated as a limitation.
 
 Structured experiment metadata **SHALL** remain primarily in the measurement output rather than requiring a custom Matrix semantic schema.
 
@@ -673,10 +752,12 @@ timeline complete?
            ↓
       de-duplicate by event_id
            ↓
-      process in substrate-consistent order
+      process each logical request exactly once
 ```
 
 No server-side or database-level history access is permitted.
+
+Recovery correctness is defined by event-set equality and exactly-once logical processing. Matrix room history is an event graph, not a globally ordered queue, and this study asserts no ordering property.
 
 ---
 
@@ -746,6 +827,8 @@ During E2:
 
 A complete loss of agent-local transport state is not required.
 
+Cold restart — recovery with no retained synchronization checkpoint — is **NOT** evaluated. The core E2 case is restart with a retained transport checkpoint. This **SHALL** be stated as an explicit limitation rather than left implicit.
+
 ---
 
 ## 22. Observability Architecture
@@ -778,17 +861,52 @@ Example:
   "experiment": "E3",
   "topology": "federated",
   "run_id": "run-017",
+  "block_id": "block-01",
   "sequence_id": 421,
   "room_id": "!...",
   "request_txn_id": "fam-e3-run017-request-00421",
   "request_event_id": "$...",
   "response_txn_id": "fam-e3-run017-response-00421",
   "response_event_id": "$...",
-  "request_started_ns": 123456789,
-  "response_received_ns": 123999999,
+  "initiated_monotonic_ns": 123456789,
+  "completed_monotonic_ns": 123999999,
+  "window_start_ns": 123000000,
+  "window_end_ns": 183000000,
+  "phase": "window",
   "status": "ok"
 }
 ```
+
+`initiated_monotonic_ns` is T0 and `completed_monotonic_ns` is T3 as defined in §23. The schema carries no second clock.
+
+The record carries execution facts only. Whether an interaction counts toward a reported metric is derived during analysis under the frozen analysis specification, never stored here (protocol §22).
+
+### Two observation streams
+
+Instrumentation produces two append-only streams per run, joined by `run_id`:
+
+| Stream | Written by | Contains |
+|---|---|---|
+| Interaction stream | Experiment runner | One record per logical interaction, as above |
+| Agent telemetry stream | Agent runtime | What no external observer can see: recovered event set, whether history pagination was invoked, deduplication decisions, per-request processing outcomes, skip reasons |
+
+The agent telemetry stream is required because E2's acceptance criteria are agent-side facts.
+
+Ordinary-client observation of a remote domain is **NOT** taken from agent telemetry. It comes from Human B, an ordinary participant on Domain B.
+
+### Result location
+
+For the entire formal campaign, **every** run-generated artifact **SHALL** be written outside the tracked working tree, at a path supplied by:
+
+```text
+FAM_RESULTS_DIR
+```
+
+That covers raw interaction streams, agent telemetry, per-run manifests, E4 evidence artifacts and environment outputs. Nothing is written into the working tree while formal data collection is in progress.
+
+During the campaign the repository tracks schemas and analysis code only. Archival copies of manifests, processed datasets and figures are imported in a separate post-experiment commit once all formal runs are complete (§34).
+
+Each run manifest **SHALL** record the SHA-256 of **both** of its raw streams — the runner interaction stream and the agent telemetry stream — so the externally archived dataset is verifiable file by file rather than only as a single blob.
 
 The schema **SHALL** be versioned before publication data collection begins.
 
@@ -813,6 +931,10 @@ RTT = T3 - T0
 ```
 
 This metric requires no synchronization between container clocks.
+
+T3 **SHALL** be stamped at the very start of the runner callback for the matching ACK: after the `/sync` response has been parsed, before any application-level processing of the event.
+
+Because `/sync` returns batches, several ACKs may share a nearly identical T3. That is a property of the transport, it applies identically to both topologies, and the definition above makes it deterministic rather than implementation-dependent.
 
 The agent **MAY** additionally record:
 
@@ -857,7 +979,7 @@ Purpose:
 
 ```text
 @human-a:hs-a.test
-@human-b:hs-a.test
+@human-b:hs-b.test
 @agent:hs-b.test
 ```
 
@@ -1090,7 +1212,9 @@ federated-agent-messaging/
 ├── docs/
 │   ├── research-scope.md
 │   ├── testbed-architecture.md
-│   └── experimental-protocol.md
+│   ├── experimental-protocol.md
+│   ├── evidence-matrix.md
+│   └── CHANGELOG.md
 │
 ├── infrastructure/
 │   ├── synapse-a/
@@ -1116,7 +1240,8 @@ federated-agent-messaging/
 ├── scripts/
 │   ├── bootstrap.py
 │   ├── verify_environment.py
-│   └── collect_environment.py
+│   ├── collect_environment.py
+│   └── verify_digests.py
 │
 ├── experiments/
 │   ├── e0_baseline.py
@@ -1126,10 +1251,14 @@ federated-agent-messaging/
 │   └── e4_llm_human_smoke.py
 │
 └── results/
-    ├── raw/
-    ├── processed/
-    └── figures/
+    ├── README.md      tracked - external raw-data artifact record
+    ├── schemas/       tracked - versioned result and manifest schemas
+    ├── manifests/     imported post-campaign - archival copies, one per formal run
+    ├── processed/     imported post-campaign - validated datasets derived from raw
+    └── figures/       imported post-campaign
 ```
+
+Raw run-by-run data is **NOT** in this tree. It is written under `$FAM_RESULTS_DIR` outside the working tree (§22) and archived separately.
 
 Empty directories **SHALL NOT** be committed merely to match this diagram.
 
@@ -1151,7 +1280,11 @@ make e2
 make e3
 
 make e4
+
+make analyse
 ```
+
+`make analyse` runs after the campaign. It reads `$FAM_RESULTS_DIR`, verifies manifest digests through `scripts/verify_digests.py`, and produces the processed datasets and figures that are then imported (§34). It is not part of any formal run.
 
 `make setup` **MAY** perform privileged local environment initialization.
 
@@ -1184,11 +1317,13 @@ PostgreSQL version
 Docker version
 Docker Compose version
 
+formal-run host identifier
 host OS
 host kernel
 host CPU
 logical CPU count
 available RAM
+virtualization / container runtime
 
 topology
 room configuration
@@ -1201,7 +1336,17 @@ run completion time
 
 Secrets **SHALL NOT** appear in result metadata.
 
-A sanitized environment manifest **SHOULD** be generated automatically.
+A sanitized environment manifest **SHALL** be generated automatically by the bootstrap / environment-verifier tooling rather than by the experiment runner. The runner has no access to server configuration, and that restriction is itself part of the C2 evidence.
+
+During the formal campaign the environment manifest is written under `$FAM_RESULTS_DIR` with every other run-generated artifact (§22).
+
+Configuration hashes **SHALL** be the SHA-256 of the canonicalized, secret-stripped configuration document.
+
+The testbed and the automated formal-experiment infrastructure — Synapse, PostgreSQL, the agent runtime, the experiment runner and all E0–E3 execution — **SHALL** run on the same dedicated Linux host, identified in `protocol-lock.json`. Development and pilot work **MAY** happen on a Windows/WSL2 workstation.
+
+Two reasons, not one. A virtualized desktop container runtime introduces scheduling noise of the same order as the effect E3 measures; and splitting the formal set across hosts would leave C1–C5 and RQ3 evidenced on different environments, with two environment manifests to reconcile.
+
+The requirement does not extend to the physical human client in E4. The testbed and the LLM-backed agent stay on the designated deployment; the actual human **MAY** use a standard Matrix client from an external workstation, whose host or device and client version are recorded in the E4 manifest. E4 contributes no measurements, so that client's network path does not affect any reported result.
 
 ---
 
@@ -1232,7 +1377,27 @@ Every processed result **SHOULD** retain references to:
 - source experiment;
 - source run;
 - source raw file;
-- analysis code version.
+- `analysis_spec_version` — the frozen analysis specification;
+- `analysis_code_commit` — its implementation.
+
+Raw data lives outside the tracked working tree (§22). The final raw dataset **SHALL** be archived separately and identified by SHA-256, with per-file digests recorded in the run manifests.
+
+### Post-campaign import
+
+`HEAD` **SHALL** remain on the protocol-lock commit for the entire formal campaign.
+
+Only after all formal runs are complete are archival copies of manifests, processed datasets and figures imported into the tracked `results/` directories, in a separate post-experiment commit.
+
+Every imported artifact **SHALL** retain:
+
+- `protocol_git_commit` — the lock commit under which the data was produced;
+- the SHA-256 provenance of the raw streams it derives from;
+- `analysis_spec_version` — the frozen analysis specification it was produced under;
+- `analysis_code_commit` — the commit of the analysis-code implementation that produced it.
+
+The commit that performs the import is none of these four. Keeping them distinct is what lets a later reader tell whether a figure changed because the data changed, because the analysis specification was revised, or only because its implementation was corrected.
+
+`protocol_version` and `analysis_spec_version` are independent counters; protocol §3 Phase 4 defines what each governs.
 
 ---
 
@@ -1308,7 +1473,9 @@ The mandatory testbed **SHALL NOT** include:
 - WAN latency emulation;
 - multi-region cloud deployment;
 - Kubernetes;
-- production observability infrastructure.
+- production observability infrastructure;
+- cold-restart recovery with no retained transport checkpoint;
+- payload-size sensitivity.
 
 ---
 
@@ -1319,17 +1486,20 @@ The mandatory testbed **SHALL NOT** include:
 | Stable Matrix account across runtime restart | C1 |
 | External non-privileged client runtime | C2 |
 | `/sync` + history gap recovery | C3 |
-| Persistent three-participant room | C4 |
+| Persistent three-participant room | C4 — structural portion, via E1 |
 | Two native federating Synapse domains | C5 |
 | Direct homeserver federation | C5 |
 | Structurally equivalent benchmark rooms | RQ3 |
 | Deterministic executor | RQ3 control |
 | Single monotonic runner clock | RQ3 validity |
 | `txnId` + `event_id` tracking | Delivery correctness |
-| Standard human Matrix client | Human-participant validation |
+| Standard human Matrix client with an actual person | C4 — completion, via E4 |
 | LLM executor substitution | E4 / D3 |
 | No custom events | Prevents D2 scope creep |
 | Privileged bootstrap separated from runner | C2 evidence |
+| Ordinary Domain-B participant (Human B) | C5 evidence without agent self-report |
+| Agent telemetry stream | C3 evidence: recovery set, pagination, dedup |
+| Fixed 256-byte payload | RQ3 workload-class control |
 
 ---
 
@@ -1372,12 +1542,14 @@ The agent can authenticate, join, receive, send, disconnect, and reconnect using
 A room version 12 space contains:
 
 ```text
-Human A
-Human B
-Agent B
+@human-a:hs-a.test
+@human-b:hs-b.test
+@agent:hs-b.test
 ```
 
-across two federation domains.
+across two federation domains, with an ordinary participant present on each side.
+
+This establishes C4's structural portion. A13 completes C4 with an actual person.
 
 ### A7 — Bidirectional federation
 
@@ -1400,6 +1572,8 @@ After runtime restart, the agent retrieves relevant missed events.
 If synchronization exposes a limited timeline, it closes the history gap using standard Matrix history APIs.
 
 Duplicate events are removed using `event_id`.
+
+Correctness is event-set equality plus exactly-once processing. No ordering property is asserted.
 
 ### A10 — Deterministic idempotent communication
 
@@ -1431,9 +1605,13 @@ The runner produces machine-readable records sufficient to calculate:
 - throughput;
 - delivery/failure rate.
 
+The agent independently produces its telemetry stream, joinable by `run_id`, sufficient to evaluate E2's recovery and exactly-once criteria.
+
 ### A13 — Human + LLM validation
 
-An actual human using a standard Matrix client can communicate through the federated room with the LLM-backed remote agent.
+An actual human using a standard Matrix client can communicate, through a three-party federated room, with the LLM-backed remote agent.
+
+The room contains the actual human on Domain A, a programmatic human-role participant on Domain B and the LLM agent on Domain B, so that C4's "at least one human participant" is satisfied literally. The protocol requires this across three independent sessions in three distinct rooms, 3/3 passing (protocol §41).
 
 ---
 
@@ -1469,7 +1647,8 @@ The following decisions are frozen for the core implementation:
 2 Synapse homeservers
 2 PostgreSQL databases
 native Matrix federation
-direct homeserver TLS federation
+direct homeserver TLS federation (transparent TLS proxy permitted as scaffolding)
+private federation CA trusted by both homeservers
 Matrix room version 12
 Python 3.12
 matrix-nio
@@ -1477,6 +1656,10 @@ ordinary Client-Server agent access
 deterministic E0–E3 executor
 LLM-backed E4 executor
 plaintext rooms
+single dedicated Linux host for all formal E0–E3 runs
+fixed 256-byte E3 message body
+runner interaction stream + agent telemetry stream
+all run-generated artifacts written outside the tracked working tree
 JSONL result records
 Docker Compose deployment
 ```
