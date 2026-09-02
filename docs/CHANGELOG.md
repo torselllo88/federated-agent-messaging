@@ -57,6 +57,7 @@ v1.0 was reviewed as a corpus for internal contradictions, unimplementable requi
 | 37 | Fresh benchmark room per E3 run made mandatory; setup rate limits non-binding | protocol | validity |
 | 38 | `analysis_spec_version` removed from `protocol_lock_mismatch`; execution-time provenance added | protocol | reproducibility |
 | 39 | Bootstrap federation verification bounded to transport and bootstrap readiness | arch | validity |
+| 40 | Room-configuration assertion enumerated in each experiment procedure | protocol | implementation clarity |
 
 ---
 
@@ -156,6 +157,9 @@ The class listed `analysis_spec_version` among the identities that must match th
 
 **39 — Bootstrap federation verification bounded.**
 The architecture listed "verify federation connectivity" among bootstrap responsibilities without bounds, while the protocol had just forbidden pre-testing room-level federation. A bootstrap written to the architecture could reasonably have tested federation by creating a room and joining across domains — prevalidating precisely the behaviour E1 exists to evaluate. Bootstrap verification is now limited to reachability, name resolution, the TCP/TLS federation path and signing-key discovery, with room join, membership propagation, event propagation and history visibility explicitly excluded and reserved for E1/C5.
+
+**40 — Room-configuration assertion enumerated in each experiment procedure.**
+Asserting room version 12, disabled encryption and the remaining frozen room configuration immediately after creating a fresh room was already required globally, but appeared in no experiment's step list. An implementation task working from a single experiment procedure could satisfy every enumerated step and still skip the assertion. E0, E1, E2 and E4 now carry it as an explicit numbered step after room creation; E3 already referenced it at the point where its fresh benchmark room is created. No experimental scope changed — the requirement is the same one, made visible where implementers actually read.
 
 **26 — Manifest split into a common envelope with two type variants.**
 v1.0's single run manifest mandated concurrency, warm-up settings, measurement windows and drain timestamps — none of which exist for E4, whose evidence is a model identifier, a transcript and a screenshot. Forcing E4 into the benchmark shape would have left a manifest full of empty measurement fields, which is an invitation to fill them in. Manifests now share a common envelope and take one of two bodies: `automated_experiment_manifest` for E0–E3 and `human_llm_validation_manifest` for E4.

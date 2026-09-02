@@ -298,6 +298,8 @@ A newly created room that does not match the frozen room configuration because o
 
 A previous run's room **SHALL NOT** be used to satisfy these checks.
 
+This rule is global, and the E0, E1, E2 and E4 procedures each enumerate it as an explicit step immediately after room creation, so an implementation working from a single experiment's step list cannot miss it. E3 creates a fresh benchmark room per formal run under the same rule (§18).
+
 ---
 
 ## 5. Synapse Rate-Limit Policy
@@ -655,17 +657,18 @@ Each run **SHALL** use a fresh Matrix room.
 ### Procedure per run
 
 1. create a fresh room version 12 room on Domain A;
-2. join Human A;
-3. join Local Agent;
-4. send 20 sequential deterministic requests;
-5. verify 20 matching ACKs;
-6. record the agent Matrix identity;
-7. stop the agent runtime;
-8. restart the same runtime;
-9. authenticate using the same Matrix identity;
-10. confirm room membership remains present;
-11. send 20 additional requests;
-12. verify 20 matching ACKs.
+2. assert the room version is exactly 12, encryption is disabled, and all other frozen room configuration matches (§4.2);
+3. join Human A;
+4. join Local Agent;
+5. send 20 sequential deterministic requests;
+6. verify 20 matching ACKs;
+7. record the agent Matrix identity;
+8. stop the agent runtime;
+9. restart the same runtime;
+10. authenticate using the same Matrix identity;
+11. confirm room membership remains present;
+12. send 20 additional requests;
+13. verify 20 matching ACKs.
 
 No administrator operation may occur between initial functional interaction and post-restart validation.
 
@@ -735,22 +738,23 @@ E1 **SHALL** be executed:
 ### Procedure per run
 
 1. Human A creates a new room version 12 room on Domain A;
-2. Human B joins;
-3. Federated Agent joins from Domain B;
-4. verify expected membership through ordinary clients;
-5. Human A sends 20 deterministic requests;
-6. record the `event_id` of every successful request send;
-7. verify 20 corresponding ACKs;
-8. Human B sends 20 deterministic requests;
-9. record the `event_id` of every successful request send;
-10. verify 20 corresponding ACKs;
-11. construct the expected request/response event set;
-12. retrieve the room's experiment-related event set and membership state through Human A on Domain A;
-13. retrieve the same through Human B on Domain B, using ordinary client interfaces only;
-14. verify **equality** of the two experiment-related event sets, not merely that the expected events are present in each;
-15. verify **exact** equality of expected membership state between the two views;
-16. verify that Human A's requests appear in the Domain-B view and Human B's requests appear in the Domain-A view, evidencing both directions of federated propagation;
-17. after all expected events are observed, require an additional 2-second quiet interval.
+2. assert the room version is exactly 12, encryption is disabled, and all other frozen room configuration matches (§4.2);
+3. Human B joins;
+4. Federated Agent joins from Domain B;
+5. verify expected membership through ordinary clients;
+6. Human A sends 20 deterministic requests;
+7. record the `event_id` of every successful request send;
+8. verify 20 corresponding ACKs;
+9. Human B sends 20 deterministic requests;
+10. record the `event_id` of every successful request send;
+11. verify 20 corresponding ACKs;
+12. construct the expected request/response event set;
+13. retrieve the room's experiment-related event set and membership state through Human A on Domain A;
+14. retrieve the same through Human B on Domain B, using ordinary client interfaces only;
+15. verify **equality** of the two experiment-related event sets, not merely that the expected events are present in each;
+16. verify **exact** equality of expected membership state between the two views;
+17. verify that Human A's requests appear in the Domain-B view and Human B's requests appear in the Domain-A view, evidencing both directions of federated propagation;
+18. after all expected events are observed, require an additional 2-second quiet interval.
 
 ### Quiescence definition
 
@@ -812,39 +816,40 @@ Each run **SHALL** test recovery of:
 ### Procedure per run
 
 1. establish a fresh federated room;
-2. verify the agent is synchronized;
-3. persist the agent's current synchronization checkpoint;
-4. stop only the agent runtime;
-5. confirm both homeservers remain operational;
-6. Human A sends exactly 100 deterministic requests while the agent runtime is offline, recorded as `offline_send` (§11);
-7. each successful send **SHALL** return and record a Matrix `event_id`;
-8. confirm that all 100 request sends succeeded before restarting the agent;
-9. define:
+2. assert the room version is exactly 12, encryption is disabled, and all other frozen room configuration matches (§4.2);
+3. verify the agent is synchronized;
+4. persist the agent's current synchronization checkpoint;
+5. stop only the agent runtime;
+6. confirm both homeservers remain operational;
+7. Human A sends exactly 100 deterministic requests while the agent runtime is offline, recorded as `offline_send` (§11);
+8. each successful send **SHALL** return and record a Matrix `event_id`;
+9. confirm that all 100 request sends succeeded before restarting the agent;
+10. define:
 
-   ```text
-   S_sent = set of the 100 request event_ids
-   ```
+    ```text
+    S_sent = set of the 100 request event_ids
+    ```
 
-10. restart the same agent runtime;
-11. perform incremental synchronization;
-12. detect whether a limited timeline/history gap exists;
-13. where required, recover missing room history through standard Matrix history pagination;
-14. deduplicate by `event_id`;
-15. reconstruct:
+11. restart the same agent runtime;
+12. perform incremental synchronization;
+13. detect whether a limited timeline/history gap exists;
+14. where required, recover missing room history through standard Matrix history pagination;
+15. deduplicate by `event_id`;
+16. reconstruct:
 
     ```text
     S_recovered
     ```
 
-16. verify:
+17. verify:
 
     ```text
     S_recovered == S_sent
     ```
 
-17. process every logical request exactly once;
-18. send one correlated ACK for every request;
-19. wait until all expected ACKs complete or timeout.
+18. process every logical request exactly once;
+19. send one correlated ACK for every request;
+20. wait until all expected ACKs complete or timeout.
 
 ### Gap-recovery path
 
@@ -1909,14 +1914,15 @@ Per session:
 1. configure the existing agent runtime with `LLMExecutor`;
 2. retain the same communication architecture used in E1–E3;
 3. create a fresh three-party federated room;
-4. join the actual human through a standard Matrix client on Domain A;
-5. join the programmatically controlled human-role participant on Domain B;
-6. join the LLM-backed agent on Domain B;
-7. confirm and record that all three required participants are members of the room;
-8. the actual human sends at least 3 natural-language requests to the agent;
-9. for each request the remote agent receives it, the LLM executor generates a response, and the response is sent through the room;
-10. the human observes at least 3 corresponding valid LLM-backed responses;
-11. record the evidence listed below.
+4. assert the room version is exactly 12, encryption is disabled, and all other frozen room configuration matches (§4.2);
+5. join the actual human through a standard Matrix client on Domain A;
+6. join the programmatically controlled human-role participant on Domain B;
+7. join the LLM-backed agent on Domain B;
+8. confirm and record that all three required participants are members of the room;
+9. the actual human sends at least 3 natural-language requests to the agent;
+10. for each request the remote agent receives it, the LLM executor generates a response, and the response is sent through the room;
+11. the human observes at least 3 corresponding valid LLM-backed responses;
+12. record the evidence listed below.
 
 A longer multi-turn interaction **MAY** be performed.
 
