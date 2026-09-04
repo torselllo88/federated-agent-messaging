@@ -20,6 +20,7 @@ as an environment problem instead of a finding.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import socket
 import ssl
@@ -152,6 +153,51 @@ def check_tls_and_identity(check: Check) -> None:
             check.record(f"{name} signing-key discovery", False, str(exc))
 
 
+def check_federation_ip_policy(check: Check) -> None:
+    """Confirm each homeserver may actually dial the other.
+
+    Synapse blocks federation to private address ranges by default as an SSRF
+    guard, so a controlled deployment on a private Docker subnet must
+    whitelist that range explicitly. This is a configuration and addressing
+    check, not room behaviour, and stays inside the §4.1 bound.
+
+    It exists because transport reachability measured from the verifier does
+    not imply reachability from Synapse's own federation client: the verifier
+    is not subject to the server's IP policy.
+    """
+    print("\nFederation IP policy")
+    for key, spec in DOMAINS.items():
+        path: Path = spec["config"]
+        if not path.exists():
+            continue
+        config = _load_config(path)
+        whitelist = config.get("ip_range_whitelist") or []
+
+        peer_key = "B" if key == "A" else "A"
+        peer_name = DOMAINS[peer_key]["server_name"]
+        try:
+            peer_address = ipaddress.ip_address(socket.gethostbyname(peer_name))
+        except (OSError, ValueError) as exc:
+            check.record(f"domain {key} can resolve peer {peer_name}", False, str(exc))
+            continue
+
+        covered = any(
+            peer_address in ipaddress.ip_network(entry, strict=False)
+            for entry in whitelist
+        )
+        private = peer_address.is_private
+        check.record(
+            f"domain {key} may dial {peer_name} ({peer_address})",
+            covered or not private,
+            (
+                f"whitelist={whitelist}"
+                if covered
+                else "peer is on a private range that no ip_range_whitelist entry "
+                "covers; Synapse will block federation to it"
+            ),
+        )
+
+
 def _load_config(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
@@ -245,6 +291,7 @@ def main() -> int:
     check_name_resolution(check)
     check_tcp_path(check)
     check_tls_and_identity(check)
+    check_federation_ip_policy(check)
     hashes = check_config_hashes(check, env_dir)
     limits = check_rate_limits(check)
 

@@ -14,6 +14,11 @@ name: fam
 networks:
   fam:
     name: fam-net
+    # Pinned so the Synapse federation IP whitelist can name this range
+    # exactly rather than whitelisting all private address space.
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   synapse-a-data:

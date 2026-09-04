@@ -36,6 +36,17 @@ E0_RUNS = 3
 E0_REQUESTS_PER_PHASE = 20
 E0_REQUESTS_PER_RUN = E0_REQUESTS_PER_PHASE * 2
 
+# --- experimental-protocol.md §15 -------------------------------------------
+
+E1_RUNS = 3
+E1_REQUESTS_PER_CLASS = 20
+E1_REQUESTS_PER_RUN = E1_REQUESTS_PER_CLASS * 2
+
+#: Applied after every expected event has been observed. A practical
+#: observation boundary only: it is not evidence of Matrix convergence, of any
+#: eventual-consistency bound, or of the absence of later state changes.
+E1_QUIET_INTERVAL_SECONDS = 2.0
+
 # --- versioning -------------------------------------------------------------
 #
 # Schema versions are frozen at protocol lock (experimental-protocol.md §46).

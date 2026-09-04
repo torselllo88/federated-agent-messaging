@@ -50,9 +50,10 @@ from fam.common.validity import (  # noqa: E402
     InvalidRunClass,
     invalid,
 )
+from fam.agent.supervisor import AgentProcess  # noqa: E402
 from fam.instrumentation.manifest import RawArtifact, RunManifest  # noqa: E402
 from fam.instrumentation.streams import JsonlStream, runner_record  # noqa: E402
-from fam.matrix.client import MatrixParticipant  # noqa: E402
+from fam.matrix.rooms import assert_frozen_room_configuration  # noqa: E402
 from fam.participants.human import HumanParticipant  # noqa: E402
 
 EXPERIMENT = "E0"
@@ -60,7 +61,6 @@ TOPOLOGY = "same-domain"
 HUMAN_A = "@human-a:hs-a.test"
 AGENT_LOCAL = "@agent-local:hs-a.test"
 SETTLE_SECONDS = 2.0
-AGENT_READY_TIMEOUT = 60.0
 
 
 @dataclass
@@ -103,111 +103,6 @@ class RunResult:
     @property
     def total_duplicates(self) -> int:
         return sum(p.duplicates for p in self.phases)
-
-
-class AgentProcess:
-    """Supervises the agent runtime as a separate OS process.
-
-    The agent is a separate process rather than a separate Compose service so
-    that the experiment can stop and restart it without holding Docker
-    control. The architectural property that matters is preserved: the agent
-    is an ordinary external Matrix client with no Synapse access
-    (testbed-architecture.md §12). Recorded as a deviation in the completion
-    report.
-    """
-
-    def __init__(
-        self,
-        *,
-        user_id: str,
-        password: str,
-        homeserver: str,
-        run_id: str,
-        room_id: str,
-        telemetry: Path,
-        state_dir: Path,
-    ) -> None:
-        self.user_id = user_id
-        self.password = password
-        self.homeserver = homeserver
-        self.run_id = run_id
-        self.room_id = room_id
-        self.telemetry = telemetry
-        self.state_dir = state_dir
-        self.process: asyncio.subprocess.Process | None = None
-
-    @property
-    def ready_file(self) -> Path:
-        slug = self.user_id.lstrip("@").replace(":", "_")
-        return self.state_dir / f"{slug}.ready"
-
-    async def start(self) -> None:
-        self.ready_file.unlink(missing_ok=True)
-        env = dict(os.environ)
-        env["PYTHONPATH"] = "/app/src"
-        self.process = await asyncio.create_subprocess_exec(
-            sys.executable,
-            "-m",
-            "fam.agent",
-            "--homeserver", self.homeserver,
-            "--user", self.user_id,
-            "--password", self.password,
-            "--experiment", EXPERIMENT,
-            "--run-id", self.run_id,
-            "--room-id", self.room_id,
-            "--telemetry", str(self.telemetry),
-            "--state-dir", str(self.state_dir),
-            env=env,
-        )
-        deadline = asyncio.get_running_loop().time() + AGENT_READY_TIMEOUT
-        while asyncio.get_running_loop().time() < deadline:
-            if self.ready_file.exists():
-                return
-            if self.process.returncode is not None:
-                raise InvalidRun(
-                    InvalidRunClass.RUNNER_IMPLEMENTATION_FAILURE,
-                    f"agent process exited early with code {self.process.returncode}",
-                )
-            await asyncio.sleep(0.2)
-        raise InvalidRun(
-            InvalidRunClass.RUNNER_IMPLEMENTATION_FAILURE,
-            f"agent did not become ready within {AGENT_READY_TIMEOUT:.0f}s",
-        )
-
-    async def stop(self) -> None:
-        if self.process is None or self.process.returncode is not None:
-            return
-        self.process.terminate()
-        try:
-            await asyncio.wait_for(self.process.wait(), timeout=20)
-        except asyncio.TimeoutError:
-            self.process.kill()
-            await self.process.wait()
-        self.ready_file.unlink(missing_ok=True)
-
-
-async def assert_frozen_room_configuration(
-    observer: MatrixParticipant, room_id: str
-) -> tuple[str, bool]:
-    """experimental-protocol.md §4.2, enumerated as E0 procedure step 2.
-
-    A newly created room that does not match the frozen configuration makes
-    the run invalid under ``frozen_configuration_error``.
-    """
-    version = await observer.room_version_of(room_id)
-    encrypted = await observer.room_encryption_enabled(room_id)
-    if version != ROOM_VERSION:
-        raise InvalidRun(
-            InvalidRunClass.FROZEN_CONFIGURATION_ERROR,
-            f"room {room_id} has version {version!r}, frozen value is {ROOM_VERSION!r}",
-        )
-    if encrypted:
-        raise InvalidRun(
-            InvalidRunClass.FROZEN_CONFIGURATION_ERROR,
-            f"room {room_id} has encryption enabled; the frozen configuration "
-            "disables it",
-        )
-    return version, encrypted
 
 
 async def run_phase(
@@ -297,6 +192,7 @@ async def execute_run(index: int, root: Path, stamp: str) -> RunResult:
         user_id=AGENT_LOCAL,
         password=agent_account.password,
         homeserver=agent_account.homeserver_url,
+        experiment=EXPERIMENT,
         run_id=run_id,
         room_id="",
         telemetry=agent_path,

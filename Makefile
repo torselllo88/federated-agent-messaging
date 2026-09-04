@@ -27,13 +27,14 @@ RUN_BOOTSTRAP := $(COMPOSE) run --rm --no-deps bootstrap
 
 export FAM_PROTOCOL_GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 
-.PHONY: help guard build tls config up wait provision hashes setup verify e0 analyse spike test down clean logs
+.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 analyse spike test down clean logs
 
 help:
 	@echo "make setup    - build, generate TLS and configs, start both domains, provision accounts"
 	@echo "make verify   - environment and federation transport/bootstrap readiness"
 	@echo "make spike    - development compatibility spike (Synapse / nio / room v12)"
 	@echo "make e0       - run the frozen E0 procedure (3 independent runs)"
+	@echo "make e1       - run the frozen E1 procedure (3 independent federated runs)"
 	@echo "make analyse  - digest verification, schema validation, E0 summary"
 	@echo "make test     - unit tests"
 	@echo "make down     - stop containers"
@@ -80,6 +81,10 @@ spike: guard
 
 e0: guard
 	$(COMPOSE) run --rm toolbox python experiments/e0_baseline.py
+
+# E1 does not rerun E0.
+e1: guard
+	$(COMPOSE) run --rm toolbox python experiments/e1_federation.py
 
 analyse: guard
 	$(RUN_TOOLBOX) python scripts/analyse.py

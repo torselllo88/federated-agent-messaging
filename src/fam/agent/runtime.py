@@ -168,6 +168,7 @@ class AgentRuntime:
             self._record(
                 action="ignored",
                 duplicate_decision=Decision.SKIP_OWN_EVENT.value,
+                sender=event.sender,
                 request_event_id=event.event_id,
             )
             return
@@ -178,6 +179,7 @@ class AgentRuntime:
             self._record(
                 action="ignored",
                 duplicate_decision=Decision.SKIP_NOT_REQUEST.value,
+                sender=event.sender,
                 request_event_id=event.event_id,
                 received_monotonic_ns=received_ns,
             )
@@ -189,6 +191,7 @@ class AgentRuntime:
             self._record(
                 action="ignored",
                 duplicate_decision=decision.value,
+                sender=event.sender,
                 request_event_id=event.event_id,
                 sequence_id=message.correlation.sequence_id,
                 received_monotonic_ns=received_ns,
@@ -204,6 +207,7 @@ class AgentRuntime:
             self._record(
                 action="no_response",
                 duplicate_decision=Decision.PROCESS.value,
+                sender=event.sender,
                 request_event_id=event.event_id,
                 sequence_id=message.correlation.sequence_id,
                 received_monotonic_ns=received_ns,
@@ -224,6 +228,7 @@ class AgentRuntime:
         self._record(
             action="responded" if response_event_id else "send_failed",
             duplicate_decision=Decision.PROCESS.value,
+            sender=event.sender,
             request_event_id=event.event_id,
             sequence_id=message.correlation.sequence_id,
             received_monotonic_ns=received_ns,
@@ -248,6 +253,7 @@ class AgentRuntime:
         *,
         action: str,
         duplicate_decision: str,
+        sender: str = "",
         request_event_id: str | None = None,
         sequence_id: int | None = None,
         received_monotonic_ns: int | None = None,
@@ -263,6 +269,7 @@ class AgentRuntime:
                 sequence_id=sequence_id,
                 room_id=self.config.room_id,
                 agent_mxid=self.config.user_id,
+                sender=sender,
                 request_event_id=request_event_id,
                 received_monotonic_ns=received_monotonic_ns,
                 processed_monotonic_ns=processed_monotonic_ns,

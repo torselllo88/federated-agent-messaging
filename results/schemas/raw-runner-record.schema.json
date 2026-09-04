@@ -26,6 +26,10 @@
     "run_id": { "type": "string", "pattern": "^[A-Za-z0-9._:-]+$" },
     "sequence_id": { "type": "integer", "minimum": 0 },
     "run_phase": { "type": "string" },
+    "request_class": {
+      "type": "string",
+      "description": "E1: cross_domain or same_domain. Tracked separately so a federated failure cannot hide behind same-domain successes."
+    },
     "room_id": { "type": "string" },
     "sender": { "type": "string" },
     "receiver_role": { "type": "string" },

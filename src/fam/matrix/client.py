@@ -15,6 +15,7 @@ import asyncio
 import json
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
+from urllib.parse import quote
 
 import aiohttp
 from nio import (
@@ -134,10 +135,56 @@ class MatrixParticipant:
             raise MatrixError(f"room_create failed: {response}")
         return response.room_id
 
-    async def join(self, room_id: str) -> None:
-        response = await self._client.join(room_id)
-        if not isinstance(response, JoinResponse):
-            raise MatrixError(f"join failed for {room_id}: {response}")
+    async def join(self, room_id: str, attempts: int = 12, delay: float = 2.0) -> None:
+        """Join a room, retrying while a federated invite is still in flight.
+
+        An invited user's homeserver learns the room from the invite, so no
+        `via` hint is needed. Across a federation boundary the invite may not
+        have arrived yet, which is a timing condition rather than a failure,
+        so this retries before giving up.
+        """
+        last = None
+        for attempt in range(attempts):
+            response = await self._client.join(room_id)
+            if isinstance(response, JoinResponse):
+                return
+            last = response
+            if attempt < attempts - 1:
+                await asyncio.sleep(delay)
+        raise MatrixError(f"join failed for {room_id} after {attempts} attempts: {last}")
+
+    async def invite(self, room_id: str, user_id: str) -> None:
+        await self._request(
+            "POST",
+            f"/_matrix/client/v3/rooms/{quote(room_id, safe='')}/invite",
+            body={"user_id": user_id},
+        )
+
+    async def fetch_all_messages(
+        self, room_id: str, page_limit: int = 200, max_pages: int = 50
+    ) -> list[dict]:
+        """Page the room timeline backwards through the ordinary history API.
+
+        This is how a domain view is collected: what this participant's own
+        homeserver will serve to an ordinary client, with no server-side or
+        database access.
+        """
+        events: list[dict] = []
+        token: str | None = None
+        encoded = quote(room_id, safe="")
+        for _ in range(max_pages):
+            query = f"?dir=b&limit={page_limit}"
+            if token:
+                query += f"&from={quote(token, safe='')}"
+            payload = await self._request(
+                "GET", f"/_matrix/client/v3/rooms/{encoded}/messages{query}"
+            )
+            chunk = payload.get("chunk", [])
+            events.extend(chunk)
+            token = payload.get("end")
+            if not chunk or not token:
+                break
+        return events
 
     async def room_version_of(self, room_id: str) -> str:
         response = await self._client.room_get_state_event(
@@ -161,7 +208,7 @@ class MatrixParticipant:
 
     async def joined_members(self, room_id: str) -> list[str]:
         payload = await self._request(
-            "GET", f"/_matrix/client/v3/rooms/{room_id}/joined_members"
+            "GET", f"/_matrix/client/v3/rooms/{quote(room_id, safe='')}/joined_members"
         )
         return sorted(payload.get("joined", {}).keys())
 
@@ -248,11 +295,15 @@ class MatrixParticipant:
 
     # ------------------------------------------------------------------ raw
 
-    async def _request(self, method: str, path: str) -> dict[str, Any]:
+    async def _request(
+        self, method: str, path: str, body: dict | None = None
+    ) -> dict[str, Any]:
         url = f"{self.homeserver_url}{path}"
         headers = {"Authorization": f"Bearer {self.access_token}"}
         async with aiohttp.ClientSession() as session:
-            async with session.request(method, url, headers=headers) as response:
+            async with session.request(
+                method, url, headers=headers, json=body
+            ) as response:
                 text = await response.text()
                 if response.status >= 400:
                     raise MatrixError(f"{method} {path} -> {response.status} {text}")

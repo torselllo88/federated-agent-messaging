@@ -59,6 +59,14 @@ federation_verify_certificates: true
 trusted_key_servers: []
 suppress_key_server_warning: true
 
+# Synapse blocks federation to private address ranges by default as an SSRF
+# guard. Both homeservers live on a pinned private Docker subnet, so that
+# range must be whitelisted or no federation request can leave either server.
+# The whitelist names the controlled subnet exactly; it does not open all
+# private address space.
+ip_range_whitelist:
+  - '172.28.0.0/16'
+
 # --- database ---------------------------------------------------------------
 
 database:

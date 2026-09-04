@@ -203,6 +203,104 @@ def summarize_e0(root: Path) -> dict:
     }
 
 
+def summarize_e1(root: Path) -> dict:
+    runs = []
+    for manifest_path in sorted(manifests_dir(root).glob("*.manifest.json")):
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("experiment") != "E1":
+            continue
+        classes = manifest.get("request_classes", {})
+        cross = classes.get("cross_domain", {})
+        same = classes.get("same_domain", {})
+        runs.append(
+            {
+                "run_id": manifest["run_id"],
+                "room_id": manifest.get("room_id"),
+                "publication_data": manifest.get("publication_data"),
+                "cross_domain": {
+                    "sender": cross.get("sender"),
+                    "requests": cross.get("sent"),
+                    "acks": cross.get("acked"),
+                    "duplicates": cross.get("duplicates"),
+                },
+                "same_domain": {
+                    "sender": same.get("sender"),
+                    "requests": same.get("sent"),
+                    "acks": same.get("acked"),
+                    "duplicates": same.get("duplicates"),
+                },
+                "a_requests_visible_on_b": manifest.get("a_requests_visible_on_b"),
+                "b_requests_visible_on_a": manifest.get("b_requests_visible_on_a"),
+                "expected_event_count": manifest.get("expected_event_count"),
+                "domain_a_event_count": manifest.get("domain_a_event_count"),
+                "domain_b_event_count": manifest.get("domain_b_event_count"),
+                "missing_on_a": manifest.get("missing_on_a", []),
+                "missing_on_b": manifest.get("missing_on_b", []),
+                "unexpected_on_a": manifest.get("unexpected_on_a", []),
+                "unexpected_on_b": manifest.get("unexpected_on_b", []),
+                "event_set_equal": manifest.get("event_set_equal"),
+                "membership_compatible": manifest.get("membership_compatible"),
+                "membership_after_join": manifest.get("membership_after_join"),
+                "validity": manifest.get("validity_classification"),
+                "completion_status": manifest.get("completion_status"),
+                "acceptance_failures": manifest.get("acceptance_failures", []),
+                "comparison_artifact": manifest.get("federation_comparison_artifact"),
+                "source_digests": {
+                    artifact["role"]: artifact["sha256"]
+                    for artifact in manifest.get("raw_artifacts", [])
+                },
+            }
+        )
+
+    valid = [r for r in runs if (r["validity"] or {}).get("valid")]
+    passed = sum(1 for r in runs if r["completion_status"] == "pass")
+    return {
+        "runs": runs,
+        "runs_total": len(runs),
+        "runs_valid": len(valid),
+        "runs_passed": passed,
+        "verdict": f"{passed}/{len(runs)} PASS" if runs else "no E1 runs found",
+    }
+
+
+def print_e1(summary: dict) -> None:
+    for run in summary["runs"]:
+        cross, same = run["cross_domain"], run["same_domain"]
+        print(f"   {run['run_id']}")
+        print(
+            f"     A->agent cross-domain  {cross['acks']}/{cross['requests']} ACK  "
+            f"dup={cross['duplicates']}"
+        )
+        print(
+            f"     B->agent same-domain   {same['acks']}/{same['requests']} ACK  "
+            f"dup={same['duplicates']}"
+        )
+        print(
+            f"     visibility             A->B={run['a_requests_visible_on_b']}  "
+            f"B->A={run['b_requests_visible_on_a']}"
+        )
+        print(
+            f"     event sets             expected={run['expected_event_count']} "
+            f"A={run['domain_a_event_count']} B={run['domain_b_event_count']} "
+            f"equal={run['event_set_equal']}"
+        )
+        for label in ("missing_on_a", "missing_on_b", "unexpected_on_a", "unexpected_on_b"):
+            items = run[label]
+            if items:
+                print(f"     ! {label}: {len(items)} -> {items[:3]}")
+        print(f"     membership compatible  {run['membership_compatible']}")
+        validity = run["validity"] or {}
+        suffix = "" if validity.get("valid") else f" ({validity.get('invalid_class')})"
+        print(f"     validity               valid={validity.get('valid')}{suffix}")
+        print(f"     {str(run['completion_status']).upper()}")
+        for reason in run["acceptance_failures"]:
+            print(f"       ! {reason}")
+    print(
+        f"   E1 valid runs {summary['runs_valid']}, "
+        f"passed {summary['runs_passed']}, verdict: {summary['verdict']}"
+    )
+
+
 def main() -> int:
     root = resolve_results_dir(create=False)
     print(f"analysis over {root}\n")
@@ -235,6 +333,13 @@ def main() -> int:
         )
     print(f"   verdict: {summary['verdict']}")
 
+    print("\n4. E1 summary")
+    e1 = summarize_e1(root)
+    if e1["runs_total"]:
+        print_e1(e1)
+    else:
+        print("   no E1 runs found")
+
     processed_dir = root / "processed"
     processed_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -246,22 +351,28 @@ def main() -> int:
         "analysis_code_commit": ANALYSIS_CODE_COMMIT,
         "protocol_git_commit": _protocol_commit(root),
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "source_run_ids": [run["run_id"] for run in summary["runs"]],
+        "source_run_ids": [
+            run["run_id"] for run in (summary["runs"] + e1["runs"])
+        ],
         "source_digests": {
-            run["run_id"]: run["source_digests"] for run in summary["runs"]
+            run["run_id"]: run["source_digests"]
+            for run in (summary["runs"] + e1["runs"])
         },
         "e0_summary": summary,
+        "e1_summary": e1,
         "note": (
             "Development validation. publication_data is false; this is not "
             "publication evidence and no formal evidence counter is updated."
         ),
     }
-    path = processed_dir / f"e0-summary-{stamp}.json"
+    path = processed_dir / f"experiment-summary-{stamp}.json"
     path.write_text(json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\n   processed artifact: {path}")
     print(f"   sha256 {file_sha256(path)}")
 
     ok = summary["runs_total"] > 0 and summary["runs_passed"] == summary["runs_total"]
+    if e1["runs_total"]:
+        ok = ok and e1["runs_passed"] == e1["runs_total"]
     print(f"\nANALYSE: {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 1
 

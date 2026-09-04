@@ -13,6 +13,7 @@
     "sequence_id": { "type": ["integer", "null"] },
     "room_id": { "type": "string" },
     "agent_mxid": { "type": "string" },
+    "sender": { "type": "string" },
     "request_event_id": { "type": ["string", "null"] },
     "received_monotonic_ns": { "type": ["integer", "null"] },
     "processed_monotonic_ns": { "type": ["integer", "null"] },
