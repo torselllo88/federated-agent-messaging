@@ -97,7 +97,10 @@
         "duplicate_observation",
         "recovery_complete",
         "recovery_processing_complete",
-        "recovery_skipped"
+        "recovery_skipped",
+        "live_recovery_complete",
+        "live_recovery_failed",
+        "live_sync_summary"
       ]
     },
     "sync_token_present": {
@@ -147,6 +150,88 @@
       "items": {
         "type": "string"
       }
+    },
+    "recovery_episode": {
+      "type": "integer"
+    },
+    "recovery_trigger": {
+      "type": "string",
+      "enum": [
+        "startup",
+        "live_sync"
+      ]
+    },
+    "recovered_from_history": {
+      "type": "integer"
+    },
+    "duplicate_observations": {
+      "type": "integer"
+    },
+    "reconciled_unique_events": {
+      "type": "integer"
+    },
+    "direct_from_sync": {
+      "type": "integer"
+    },
+    "sync_limited": {
+      "type": "boolean"
+    },
+    "previous_checkpoint_present": {
+      "type": "boolean"
+    },
+    "recovery_failed": {
+      "type": "boolean"
+    },
+    "checkpoint_retained": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "error": {
+      "type": "string"
+    },
+    "live_limited_syncs": {
+      "type": "integer"
+    },
+    "live_recovery_episodes": {
+      "type": "integer"
+    },
+    "live_history_pages_fetched": {
+      "type": "integer"
+    },
+    "live_duplicate_observations": {
+      "type": "integer"
+    },
+    "live_recovery_failures": {
+      "type": "integer"
+    },
+    "checkpoint_commits": {
+      "type": "integer"
+    },
+    "logical_requests_processed": {
+      "type": "integer"
+    },
+    "pages": {
+      "type": "integer"
+    },
+    "raw_events": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "prev_batch_present": {
+      "type": "boolean"
+    },
+    "checkpoint_present": {
+      "type": "boolean"
+    },
+    "resumed_from_checkpoint": {
+      "type": "boolean"
+    },
+    "reason": {
+      "type": "string"
     }
   },
   "additionalProperties": true

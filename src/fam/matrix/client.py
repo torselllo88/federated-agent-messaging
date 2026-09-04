@@ -36,6 +36,14 @@ class MatrixError(RuntimeError):
     """An ordinary Client-Server operation failed."""
 
 
+class RecoveryBoundExceeded(MatrixError):
+    """History pagination hit its safety bound before reaching the boundary.
+
+    Raised rather than returning what was collected: a partial recovery that
+    looks successful is how a transport layer silently loses persisted events.
+    """
+
+
 @dataclass
 class TimelineEvent:
     """The subset of a timeline event this study cares about."""
@@ -100,6 +108,10 @@ class MatrixParticipant:
         #: below the offline request count so the recovery path is genuinely
         #: exercised rather than incidentally skipped.
         self.timeline_limit = timeline_limit
+        #: Live limited timelines are reconciled by default. Synapse truncates
+        #: at 10 events even with no filter, so any dense workload can produce
+        #: one; not handling it would silently drop persisted events.
+        self.gap_recovery_enabled = True
         self._client = AsyncClient(
             self.homeserver_url,
             user_id,
@@ -115,6 +127,15 @@ class MatrixParticipant:
         self._sync_task: asyncio.Task | None = None
         self._stopping = asyncio.Event()
         self._handlers: list[EventHandler] = []
+        #: Rooms whose gaps are worth closing. Empty means every joined room.
+        self.tracked_rooms: set[str] = set()
+        #: Called with the new token once a batch has been fully reconciled
+        #: and dispatched. This is where a durable checkpoint is written.
+        self.on_commit: Callable[[str], Awaitable[None]] | None = None
+        #: Called once per live gap-recovery episode, for telemetry.
+        self.on_recovery_episode: Callable[[dict], Awaitable[None]] | None = None
+        self._episode_counter = 0
+        self._live_recovery_failures = 0
 
     # ------------------------------------------------------------- identity
 
@@ -302,7 +323,6 @@ class MatrixParticipant:
         )
         if not isinstance(response, SyncResponse):
             raise MatrixError(f"sync failed: {response}")
-        self._sync_token = response.next_batch
 
         slices = []
         for room_id, room in response.rooms.join.items():
@@ -344,6 +364,7 @@ class MatrixParticipant:
         token: str | None = start
         pages = 0
         encoded = quote(room_id, safe="")
+        reached_boundary = False
         for _ in range(max_pages):
             query = f"?dir=b&limit={page_limit}&from={quote(token, safe='')}"
             if to:
@@ -356,14 +377,25 @@ class MatrixParticipant:
             events.extend(chunk)
             token = payload.get("end")
             if not chunk or not token:
+                reached_boundary = True
                 break
             if to and token == to:
+                reached_boundary = True
                 break
+        if not reached_boundary:
+            # The bound exists to stop runaway pagination, not to cap
+            # recovery. Hitting it means the gap was not fully closed.
+            raise RecoveryBoundExceeded(
+                f"pagination reached the {max_pages}-page safety bound in "
+                f"{room_id} without reaching the recovery boundary; "
+                f"{len(events)} events collected but the gap is unresolved"
+            )
         return events, pages
 
     async def prime_sync(self) -> None:
         """One initial sync to establish a checkpoint without replaying history."""
-        await self.sync_once(since=None, timeout=0)
+        snapshot = await self.sync_once(since=None, timeout=0)
+        self._sync_token = snapshot.next_batch
 
     def start_sync(self) -> None:
         """Continuous long-poll sync, no artificial delay between requests."""
@@ -380,19 +412,133 @@ class MatrixParticipant:
                 pass
             self._sync_task = None
 
+    def _is_tracked(self, room_id: str) -> bool:
+        return not self.tracked_rooms or room_id in self.tracked_rooms
+
+    async def reconcile_slice(
+        self, item: RoomSyncSlice, *, since: str | None, trigger: str
+    ) -> tuple[list["TimelineEvent"], dict]:
+        """Close a limited timeline by paginating back to ``since``.
+
+        The same mechanism serves startup recovery and live recovery; only the
+        surrounding lifecycle differs (``trigger`` records which).
+
+        Returns the reconciled events, deduplicated by ``event_id``, and an
+        episode summary. Raises on an unresolved gap rather than returning a
+        partial set.
+        """
+        self._episode_counter += 1
+        episode = {
+            "recovery_episode": self._episode_counter,
+            "recovery_trigger": trigger,
+            "room_id": item.room_id,
+            "previous_checkpoint_present": since is not None,
+            "sync_limited": item.limited,
+            "direct_from_sync": len(item.events),
+        }
+
+        merged: dict[str, TimelineEvent] = {}
+        duplicates = 0
+        for event in item.events:
+            if event.event_id in merged:
+                duplicates += 1
+            else:
+                merged[event.event_id] = event
+
+        pages = 0
+        from_history = 0
+        if item.limited and item.prev_batch:
+            raw_events, pages = await self.paginate_backwards(
+                item.room_id, start=item.prev_batch, to=since
+            )
+            for raw in raw_events:
+                event = self._from_raw_event(item.room_id, raw)
+                if event is None:
+                    continue
+                if event.event_id in merged:
+                    duplicates += 1
+                    continue
+                merged[event.event_id] = event
+                from_history += 1
+
+        episode.update(
+            {
+                "history_pages_fetched": pages,
+                "recovered_from_history": from_history,
+                "duplicate_observations": duplicates,
+                "reconciled_unique_events": len(merged),
+            }
+        )
+        return list(merged.values()), episode
+
+    @staticmethod
+    def _from_raw_event(room_id: str, raw: dict) -> "TimelineEvent | None":
+        if raw.get("type") != MESSAGE_EVENT_TYPE:
+            return None
+        body = (raw.get("content") or {}).get("body")
+        if not isinstance(body, str):
+            return None
+        return TimelineEvent(
+            room_id=raw.get("room_id") or room_id,
+            event_id=raw["event_id"],
+            sender=raw.get("sender", ""),
+            body=body,
+            origin_server_ts=raw.get("origin_server_ts", 0),
+        )
+
     async def _sync_loop(self) -> None:
+        """Gap-aware live synchronization.
+
+        The durable checkpoint is advanced only after a batch has been fully
+        reconciled and dispatched. If reconciliation fails, the committed
+        token is left alone so the same gap is reachable on the next attempt:
+        advancing past an unresolved gap is what makes persisted events
+        permanently invisible.
+        """
         while not self._stopping.is_set():
+            since = self._sync_token
             try:
                 snapshot = await self.sync_once(
-                    since=self._sync_token, timeout=self.sync_timeout_ms
+                    since=since, timeout=self.sync_timeout_ms
                 )
             except MatrixError:
                 await asyncio.sleep(0.5)
                 continue
-            for item in snapshot.rooms:
-                for parsed in item.events:
-                    for handler in self._handlers:
-                        await handler(parsed)
+
+            try:
+                for item in snapshot.rooms:
+                    if not self._is_tracked(item.room_id):
+                        continue
+                    if item.limited and self.gap_recovery_enabled:
+                        events, episode = await self.reconcile_slice(
+                            item, since=since, trigger="live_sync"
+                        )
+                        if self.on_recovery_episode is not None:
+                            await self.on_recovery_episode(episode)
+                    else:
+                        events = item.events
+                    for parsed in events:
+                        for handler in self._handlers:
+                            await handler(parsed)
+            except Exception as exc:  # noqa: BLE001
+                self._live_recovery_failures += 1
+                if self.on_recovery_episode is not None:
+                    await self.on_recovery_episode(
+                        {
+                            "recovery_trigger": "live_sync",
+                            "recovery_failed": True,
+                            "error": f"{type(exc).__name__}: {exc}",
+                            "checkpoint_retained": since,
+                        }
+                    )
+                # Do not commit. Retry the same window on the next iteration.
+                self._sync_token = since
+                await asyncio.sleep(0.5)
+                continue
+
+            self._sync_token = snapshot.next_batch
+            if self.on_commit is not None:
+                await self.on_commit(snapshot.next_batch)
 
     # ------------------------------------------------------------- lifecycle
 

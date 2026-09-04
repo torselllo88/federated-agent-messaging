@@ -93,6 +93,12 @@ class AgentRuntime:
         self._resumed_from_checkpoint = False
         self._checkpoint_token: str | None = None
         self.ledger = RecoveryLedger()
+        self.live_limited_syncs = 0
+        self.live_recovery_episodes = 0
+        self.live_history_pages = 0
+        self.live_duplicate_observations = 0
+        self.live_recovery_failures = 0
+        self.checkpoint_commits = 0
 
     # ------------------------------------------------------------- lifecycle
 
@@ -200,19 +206,14 @@ class AgentRuntime:
         )
         room_slice = snapshot.room(self.config.room_id)
         limited = bool(room_slice.limited) if room_slice else False
-        prev_batch = room_slice.prev_batch if room_slice else None
         self.ledger.limited_timeline = limited
-        self.ledger.prev_batch = prev_batch
+        self.ledger.prev_batch = room_slice.prev_batch if room_slice else None
 
-        pending: dict[str, TimelineEvent] = {}
-        direct = 0
-        if room_slice:
-            for event in room_slice.events:
-                if self._is_foreign_request(event):
-                    if self.ledger.observe(event.event_id, Source.SYNC):
-                        pending[event.event_id] = event
-                    direct += 1
-
+        direct = (
+            sum(1 for e in room_slice.events if self._is_foreign_request(e))
+            if room_slice
+            else 0
+        )
         self.telemetry.write(
             {
                 "experiment": self.config.experiment,
@@ -220,56 +221,49 @@ class AgentRuntime:
                 "agent_mxid": self.config.user_id,
                 "action": "post_restart_sync",
                 "timeline_limited": limited,
-                "prev_batch_present": prev_batch is not None,
+                "prev_batch_present": self.ledger.prev_batch is not None,
                 "requests_directly_in_sync": direct,
                 "timeline_limit": self.config.timeline_limit,
             }
         )
 
-        if limited and prev_batch:
-            self.telemetry.write(
-                {
-                    "experiment": self.config.experiment,
-                    "run_id": self.config.run_id,
-                    "agent_mxid": self.config.user_id,
-                    "action": "limited_timeline_detected",
-                    "note": "history gap present; paginating back to the checkpoint",
-                }
+        pending: dict[str, TimelineEvent] = {}
+        if room_slice is not None:
+            if limited:
+                self.telemetry.write(
+                    {
+                        "experiment": self.config.experiment,
+                        "run_id": self.config.run_id,
+                        "agent_mxid": self.config.user_id,
+                        "action": "limited_timeline_detected",
+                        "note": "history gap present; paginating back to the checkpoint",
+                    }
+                )
+            # Same reconciliation the live loop uses; only the trigger differs.
+            events, episode = await self.participant.reconcile_slice(
+                room_slice, since=self._checkpoint_token, trigger="startup"
             )
-            raw_events, pages = await self.participant.paginate_backwards(
-                self.config.room_id,
-                start=prev_batch,
-                to=self._checkpoint_token,
-            )
-            self.ledger.note_pagination(pages)
-            self.telemetry.write(
-                {
-                    "experiment": self.config.experiment,
-                    "run_id": self.config.run_id,
-                    "agent_mxid": self.config.user_id,
-                    "action": "history_pages_received",
-                    "pages": pages,
-                    "raw_events": len(raw_events),
-                }
-            )
-            for raw in raw_events:
-                event = self._from_raw(raw)
-                if event is None or not self._is_foreign_request(event):
+            if episode.get("history_pages_fetched"):
+                self.ledger.note_pagination(episode["history_pages_fetched"])
+                self.telemetry.write(
+                    {
+                        "experiment": self.config.experiment,
+                        "run_id": self.config.run_id,
+                        "agent_mxid": self.config.user_id,
+                        "action": "history_pages_received",
+                        "pages": episode["history_pages_fetched"],
+                        "raw_events": episode.get("reconciled_unique_events"),
+                    }
+                )
+            direct_ids = {
+                e.event_id for e in room_slice.events if self._is_foreign_request(e)
+            }
+            for event in events:
+                if not self._is_foreign_request(event):
                     continue
-                first = self.ledger.observe(event.event_id, Source.HISTORY)
-                if first:
+                source = Source.SYNC if event.event_id in direct_ids else Source.HISTORY
+                if self.ledger.observe(event.event_id, source):
                     pending[event.event_id] = event
-                else:
-                    self.telemetry.write(
-                        {
-                            "experiment": self.config.experiment,
-                            "run_id": self.config.run_id,
-                            "agent_mxid": self.config.user_id,
-                            "action": "duplicate_observation",
-                            "request_event_id": event.event_id,
-                            "note": "already seen via sync; not processed twice",
-                        }
-                    )
 
         self.telemetry.write(
             {
@@ -292,6 +286,9 @@ class AgentRuntime:
             await self._handle(event)
             self.ledger.mark_processed(event.event_id)
 
+        # Only now is the reconciled position durable.
+        self.participant._sync_token = snapshot.next_batch  # noqa: SLF001
+        self._save_checkpoint()
         self.telemetry.write(
             {
                 "experiment": self.config.experiment,
@@ -330,10 +327,61 @@ class AgentRuntime:
 
     async def run(self) -> None:
         self.participant.on_event(self._handle)
+        # Only this room's gaps are worth closing, and the checkpoint becomes
+        # durable only after a batch has been reconciled and dispatched.
+        self.participant.tracked_rooms = {self.config.room_id}
+        self.participant.on_recovery_episode = self._record_live_episode
+        self.participant.on_commit = self._commit_checkpoint
         self.participant.start_sync()
+
+    async def _record_live_episode(self, episode: dict) -> None:
+        if episode.get("recovery_failed"):
+            self.live_recovery_failures += 1
+            self.telemetry.write(
+                {
+                    "experiment": self.config.experiment,
+                    "run_id": self.config.run_id,
+                    "agent_mxid": self.config.user_id,
+                    "action": "live_recovery_failed",
+                    **episode,
+                }
+            )
+            return
+        self.live_limited_syncs += 1
+        self.live_recovery_episodes += 1
+        self.live_history_pages += episode.get("history_pages_fetched", 0)
+        self.live_duplicate_observations += episode.get("duplicate_observations", 0)
+        self.telemetry.write(
+            {
+                "experiment": self.config.experiment,
+                "run_id": self.config.run_id,
+                "agent_mxid": self.config.user_id,
+                "action": "live_recovery_complete",
+                **episode,
+            }
+        )
+
+    async def _commit_checkpoint(self, token: str) -> None:
+        self.checkpoint_commits += 1
+        self._save_checkpoint()
 
     async def shutdown(self) -> None:
         self._save_checkpoint()
+        self.telemetry.write(
+            {
+                "experiment": self.config.experiment,
+                "run_id": self.config.run_id,
+                "agent_mxid": self.config.user_id,
+                "action": "live_sync_summary",
+                "live_limited_syncs": self.live_limited_syncs,
+                "live_recovery_episodes": self.live_recovery_episodes,
+                "live_history_pages_fetched": self.live_history_pages,
+                "live_duplicate_observations": self.live_duplicate_observations,
+                "live_recovery_failures": self.live_recovery_failures,
+                "checkpoint_commits": self.checkpoint_commits,
+                "logical_requests_processed": self._registry.processed_count,
+            }
+        )
         self._record(action="shutdown", duplicate_decision="n/a")
         await self.participant.close()
         self.telemetry.close()

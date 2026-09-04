@@ -27,7 +27,7 @@ RUN_BOOTSTRAP := $(COMPOSE) run --rm --no-deps bootstrap
 
 export FAM_PROTOCOL_GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 
-.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot analyse spike test down clean logs
+.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness analyse spike test down clean logs
 
 help:
 	@echo "make setup    - build, generate TLS and configs, start both domains, provision accounts"
@@ -37,6 +37,7 @@ help:
 	@echo "make e1       - run the frozen E1 procedure (3 independent federated runs)"
 	@echo "make e2-pilot - development pilot: select the E2 sync timeline limit"
 	@echo "make e2       - run the frozen E2 procedure (3 independent recovery runs)"
+	@echo "make e3-readiness - live gap recovery under bounded-concurrency stress"
 	@echo "make analyse  - digest verification, schema validation, E0 summary"
 	@echo "make test     - unit tests"
 	@echo "make down     - stop containers"
@@ -94,6 +95,10 @@ e2-pilot: guard
 # E2 reruns neither E0 nor E1.
 e2: guard
 	$(COMPOSE) run --rm -e FAM_E2_TIMELINE_LIMIT toolbox python experiments/e2_recovery.py
+
+# Transport readiness. Runs no other experiment and measures no performance.
+e3-readiness: guard
+	$(COMPOSE) run --rm -e FAM_READINESS_REQUESTS -e FAM_READINESS_CONCURRENCY \n		-e FAM_READINESS_TIMELINE_LIMIT toolbox python experiments/e3_readiness.py
 
 analyse: guard
 	$(RUN_TOOLBOX) python scripts/analyse.py
