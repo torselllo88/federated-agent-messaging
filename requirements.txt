@@ -1,0 +1,10 @@
+# Direct dependencies, pinned.
+#
+# Frozen baseline: testbed-architecture.md §4.
+# A fully resolved transitive lock file MUST be produced before protocol lock
+# (experimental-protocol.md §3 Phase 3). These are the direct pins only.
+
+matrix-nio==0.26.0
+PyYAML==6.0.2
+cryptography==43.0.1
+jsonschema==4.23.0

@@ -144,3 +144,11 @@ desktop.ini
 chums/
 chums-*/
 **/proprietary/
+
+# ---------------------------------------------------------------------------
+# Task 01 implementation
+# ---------------------------------------------------------------------------
+.pytest_cache/
+*.egg-info/
+infrastructure/tls/*.crt
+infrastructure/tls/*.key

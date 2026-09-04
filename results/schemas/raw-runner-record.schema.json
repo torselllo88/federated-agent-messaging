@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://federated-agent-messaging/schemas/raw-runner-record-1.json",
+  "title": "Runner interaction record",
+  "description": "One logical interaction as observed by the experiment runner. Raw records carry execution facts and the frozen metadata needed to reconstruct a classification; they never carry the classification itself (experimental-protocol.md §22).",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "stream",
+    "experiment",
+    "topology",
+    "run_id",
+    "sequence_id",
+    "run_phase",
+    "room_id",
+    "sender",
+    "request_txn_id",
+    "initiated_monotonic_ns",
+    "outcome"
+  ],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "stream": { "const": "runner" },
+    "experiment": { "type": "string" },
+    "topology": { "type": "string", "enum": ["same-domain", "federated"] },
+    "run_id": { "type": "string", "pattern": "^[A-Za-z0-9._:-]+$" },
+    "sequence_id": { "type": "integer", "minimum": 0 },
+    "run_phase": { "type": "string" },
+    "room_id": { "type": "string" },
+    "sender": { "type": "string" },
+    "receiver_role": { "type": "string" },
+    "request_txn_id": { "type": "string", "pattern": "^fam-" },
+    "request_event_id": { "type": ["string", "null"] },
+    "response_txn_id": { "type": ["string", "null"] },
+    "response_event_id": { "type": ["string", "null"] },
+    "initiated_monotonic_ns": {
+      "type": "integer",
+      "description": "T0. One monotonic clock in one process (experimental-protocol.md §10)."
+    },
+    "completed_monotonic_ns": {
+      "type": ["integer", "null"],
+      "description": "T3, stamped at the start of the callback for the matching ACK."
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "success",
+        "timeout",
+        "send_error",
+        "malformed_response",
+        "duplicate_response",
+        "unexpected_response",
+        "runner_error",
+        "offline_send"
+      ]
+    },
+    "note": { "type": "string" }
+  },
+  "not": {
+    "required": ["counted_in_window"]
+  },
+  "additionalProperties": true
+}

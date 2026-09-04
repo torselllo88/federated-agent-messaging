@@ -1,0 +1,163 @@
+# Synapse configuration template.
+#
+# Rendered once per federation domain by scripts/bootstrap.py. A single
+# template is used for both domains on purpose: experimental-protocol.md §26
+# requires configuration capable of limiting throughput to be identical on
+# both homeservers, and two hand-maintained files would drift.
+#
+# Substituted values: $SERVER_NAME $DB_HOST $DB_PASSWORD $SIGNING_KEY_PATH
+#                     $REGISTRATION_SHARED_SECRET $MACAROON_SECRET $FORM_SECRET
+
+server_name: "$SERVER_NAME"
+pid_file: /data/homeserver.pid
+public_baseurl: "https://$SERVER_NAME/"
+report_stats: false
+signing_key_path: "$SIGNING_KEY_PATH"
+
+# --- listeners --------------------------------------------------------------
+#
+# Client-Server API on 8008 without TLS: it is reached only from inside the
+# controlled Docker network in E0-E3. E4 additionally requires an HTTPS
+# Client-Server endpoint reachable from the human's external workstation
+# (testbed-architecture.md §7); that is out of scope for this slice.
+#
+# Federation on 8448 with direct Synapse TLS, no reverse proxy
+# (testbed-architecture.md §6).
+
+listeners:
+  - port: 8008
+    type: http
+    tls: false
+    bind_addresses: ['0.0.0.0']
+    x_forwarded: false
+    resources:
+      - names: [client]
+        compress: false
+
+  - port: 8448
+    type: http
+    tls: true
+    bind_addresses: ['0.0.0.0']
+    resources:
+      - names: [federation]
+        compress: false
+
+# --- federation TLS ---------------------------------------------------------
+#
+# A private research CA is generated at bootstrap and trusted by both
+# homeservers. Where a private federation CA is used, trust in it is a
+# functional precondition rather than an option (testbed-architecture.md §7).
+
+tls_certificate_path: "/tls/$SERVER_NAME.crt"
+tls_private_key_path: "/tls/$SERVER_NAME.key"
+federation_custom_ca_list:
+  - /tls/ca.crt
+federation_verify_certificates: true
+
+# The controlled environment has no public key server and must not reach for
+# one; each domain discovers the other directly.
+trusted_key_servers: []
+suppress_key_server_warning: true
+
+# --- database ---------------------------------------------------------------
+
+database:
+  name: psycopg2
+  args:
+    user: synapse
+    password: "$DB_PASSWORD"
+    database: synapse
+    host: $DB_HOST
+    port: 5432
+    cp_min: 5
+    cp_max: 10
+
+# --- rooms ------------------------------------------------------------------
+
+default_room_version: "12"
+encryption_enabled_by_default_for_room_type: "off"
+
+# --- registration -----------------------------------------------------------
+#
+# Closed. Accounts are provisioned once by bootstrap using the shared secret,
+# which is never available to the experiment processes.
+
+enable_registration: false
+registration_shared_secret: "$REGISTRATION_SHARED_SECRET"
+
+macaroon_secret_key: "$MACAROON_SECRET"
+form_secret: "$FORM_SECRET"
+
+media_store_path: /data/media_store
+log_config: "/data/log.config"
+
+# --- rate limits ------------------------------------------------------------
+#
+# Configured well above the frozen workload envelope and identical on both
+# domains (experimental-protocol.md §5, §26). Client-side throttling must not
+# become the dominant limiting factor, and configured throttling must never be
+# mistaken for federation capacity.
+#
+# All six keys named by the frozen protocol exist in Synapse 1.159.0 and are
+# read by synapse.config.ratelimiting: rc_message, rc_room_creation, rc_joins,
+# rc_invites, rc_login, rc_federation. Verified against the running image.
+
+rc_message:
+  per_second: 1000
+  burst_count: 20000
+
+rc_registration:
+  per_second: 100
+  burst_count: 1000
+
+rc_login:
+  address:
+    per_second: 100
+    burst_count: 1000
+  account:
+    per_second: 100
+    burst_count: 1000
+  failed_attempts:
+    per_second: 100
+    burst_count: 1000
+
+rc_room_creation:
+  per_second: 100
+  burst_count: 1000
+
+rc_joins:
+  local:
+    per_second: 100
+    burst_count: 1000
+  remote:
+    per_second: 100
+    burst_count: 1000
+
+rc_invites:
+  per_room:
+    per_second: 100
+    burst_count: 1000
+  per_user:
+    per_second: 100
+    burst_count: 1000
+  per_issuer:
+    per_second: 100
+    burst_count: 1000
+
+# Federation controls remain identical on both homeservers and are treated as
+# part of the tested Synapse federation implementation, not tuned away
+# (experimental-protocol.md §5).
+rc_federation:
+  window_size: 1000
+  sleep_limit: 10
+  sleep_delay: 500
+  reject_limit: 50
+  concurrent: 3
+
+# --- experiment hygiene -----------------------------------------------------
+
+presence:
+  enabled: false
+
+url_preview_enabled: false
+enable_metrics: false

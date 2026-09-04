@@ -77,6 +77,56 @@ Only E0–E4 are on the pre-submission critical path.
 | **E3** | Controlled federation overhead | RQ3 |
 | **E4** | LLM-backed functional validation | D3 |
 
+## Running the testbed
+
+Implemented so far: repository bootstrap, two federation domains, federation
+transport readiness, provisioned identities, the deterministic agent, dual
+instrumentation, and E0. See
+[`docs/tasks/task-01-bootstrap-and-e0.md`](docs/tasks/task-01-bootstrap-and-e0.md).
+
+### Host prerequisites
+
+| Requirement | Why | Notes |
+|---|---|---|
+| Docker Engine with Compose V2 | Everything runs in containers | Docker Desktop must be **running**, not merely installed |
+| GNU `make` *(optional on Windows)* | Frozen command surface | Windows hosts can use `.\make.ps1` with the same targets |
+
+Python 3.12 is frozen but is supplied by the toolbox image, so no host Python
+installation is required.
+
+Nothing is installed on the host by these commands. If a prerequisite is
+missing, the tooling reports it rather than installing it.
+
+### Reproducibility path
+
+```bash
+export FAM_RESULTS_DIR=/path/outside/this/repository
+
+make setup      # TLS, configs, both domains, accounts, environment manifest
+make verify     # transport and bootstrap readiness, config hashes, rate limits
+make spike      # compatibility spike: Synapse + nio + room version 12
+make e0         # three independent E0 runs
+make analyse    # digest verification, schema validation, E0 summary
+```
+
+On Windows, substitute `.\make.ps1 setup` and so on.
+
+`FAM_RESULTS_DIR` must resolve **outside** this repository. Every
+run-generated artifact — raw streams, agent telemetry, manifests, environment
+output — is written there for the whole campaign, so the worktree stays clean
+and `HEAD` stays on the protocol-lock commit
+([`experimental-protocol.md` §37](docs/experimental-protocol.md)). The guard
+refuses to run otherwise.
+
+### Development runs are not evidence
+
+Everything produced by the commands above carries `publication_data = false`.
+It validates the implementation; it is not publication evidence, and it does
+not update any counter or checkbox in
+[`docs/evidence-matrix.md`](docs/evidence-matrix.md). Formal evidence is
+collected only in the later protocol-locked campaign on the designated Linux
+host.
+
 ## Claim discipline
 
 Several individual elements of this architecture have substantial prior art — XMPP/SPADE-style multi-agent communication, classical shared-state and coordination systems, existing Matrix-based LLM assistants, and contemporary federated agent-messaging protocols. The scope document records these explicitly (§2, §20) and lists what the manuscript **shall not** claim novelty for (§16).

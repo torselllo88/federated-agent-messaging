@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://federated-agent-messaging/schemas/run-manifest-1.json",
+  "title": "Formal run manifest",
+  "description": "Common envelope plus a type-specific body (experimental-protocol.md §38). E4 uses human_llm_validation_manifest, whose measurement fields are absent by design.",
+  "type": "object",
+  "required": [
+    "manifest_type",
+    "manifest_schema_version",
+    "experiment",
+    "execution_protocol_version",
+    "execution_analysis_spec_version",
+    "protocol_git_commit",
+    "raw_schema_version",
+    "publication_data",
+    "run_id",
+    "room_id",
+    "room_version",
+    "participants",
+    "execution_host_identifier",
+    "start_timestamp",
+    "completion_status",
+    "validity_classification"
+  ],
+  "properties": {
+    "manifest_type": {
+      "type": "string",
+      "enum": ["automated_experiment_manifest", "human_llm_validation_manifest"]
+    },
+    "manifest_schema_version": { "const": "1" },
+    "experiment": { "type": "string" },
+    "execution_protocol_version": { "type": "string" },
+    "execution_analysis_spec_version": {
+      "type": "string",
+      "description": "Recorded at execution. A later analysis-spec revision does not retroactively invalidate this run (experimental-protocol.md §35)."
+    },
+    "protocol_git_commit": { "type": "string" },
+    "raw_schema_version": { "const": "1" },
+    "publication_data": { "type": "boolean" },
+    "run_id": { "type": "string" },
+    "room_id": { "type": "string" },
+    "room_version": { "const": "12" },
+    "participants": { "type": "object" },
+    "environment_manifest": { "type": ["string", "null"] },
+    "execution_host_identifier": { "type": "string" },
+    "start_timestamp": { "type": "string" },
+    "completion_timestamp": { "type": ["string", "null"] },
+    "completion_status": { "type": "string" },
+    "validity_classification": {
+      "type": "object",
+      "required": ["valid", "invalid_class"],
+      "properties": {
+        "valid": { "type": "boolean" },
+        "invalid_class": {
+          "type": ["string", "null"],
+          "description": "Exactly one class from the closed taxonomy, or null when valid.",
+          "enum": [
+            null,
+            "protocol_lock_mismatch",
+            "execution_precondition_violation",
+            "frozen_configuration_error",
+            "instrumentation_or_output_failure",
+            "runner_implementation_failure",
+            "infrastructure_failure",
+            "environment_corruption",
+            "external_interference",
+            "external_dependency_or_client_environment_failure"
+          ]
+        },
+        "note": { "type": "string" }
+      }
+    },
+    "raw_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role", "path", "sha256"],
+        "properties": {
+          "role": { "type": "string" },
+          "path": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "bytes": { "type": "integer" }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,155 @@
+# Federated Agent Messaging — controlled testbed.
+#
+# Two independently configured Matrix federation domains, each with its own
+# Synapse instance, PostgreSQL instance, signing key, TLS identity,
+# configuration and persistent volume (testbed-architecture.md §5).
+#
+# Privilege separation is expressed here and is part of the C2 evidence:
+#   bootstrap  — mounts Synapse data, TLS and secrets; used only by `make setup`
+#   toolbox    — runner and agent; NO Synapse data, NO database credentials,
+#                NO signing keys, NO server filesystem access
+
+name: fam
+
+networks:
+  fam:
+    name: fam-net
+
+volumes:
+  synapse-a-data:
+  synapse-b-data:
+  postgres-a-data:
+  postgres-b-data:
+  tls:
+  secrets:
+
+x-postgres-common: &postgres-common
+  image: ${POSTGRES_IMAGE:-postgres:16.4}
+  networks: [fam]
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
+    interval: 5s
+    timeout: 5s
+    retries: 30
+
+x-synapse-common: &synapse-common
+  image: ${SYNAPSE_IMAGE:-ghcr.io/element-hq/synapse:v1.159.0}
+  restart: unless-stopped
+  environment:
+    SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fsS http://localhost:8008/health || exit 1"]
+    interval: 5s
+    timeout: 5s
+    retries: 60
+
+services:
+
+  # ---------------------------------------------------------------- Domain A
+
+  postgres-a:
+    <<: *postgres-common
+    container_name: fam-postgres-a
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: ${POSTGRES_A_PASSWORD:-fam-dev-password-a}
+      POSTGRES_DB: synapse
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres-a-data:/var/lib/postgresql/data
+
+  synapse-a:
+    <<: *synapse-common
+    container_name: fam-synapse-a
+    depends_on:
+      postgres-a:
+        condition: service_healthy
+    volumes:
+      - synapse-a-data:/data
+      - tls:/tls:ro
+    networks:
+      fam:
+        aliases:
+          - hs-a.test
+    ports:
+      - "${HS_A_CS_PORT:-8008}:8008"
+
+  # ---------------------------------------------------------------- Domain B
+
+  postgres-b:
+    <<: *postgres-common
+    container_name: fam-postgres-b
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: ${POSTGRES_B_PASSWORD:-fam-dev-password-b}
+      POSTGRES_DB: synapse
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres-b-data:/var/lib/postgresql/data
+
+  synapse-b:
+    <<: *synapse-common
+    container_name: fam-synapse-b
+    depends_on:
+      postgres-b:
+        condition: service_healthy
+    volumes:
+      - synapse-b-data:/data
+      - tls:/tls:ro
+    networks:
+      fam:
+        aliases:
+          - hs-b.test
+    ports:
+      - "${HS_B_CS_PORT:-8009}:8008"
+
+  # ------------------------------------------------------- Privileged setup
+
+  bootstrap:
+    build: .
+    image: fam-toolbox:local
+    container_name: fam-bootstrap
+    profiles: [tools]
+    networks: [fam]
+    volumes:
+      - ./src:/app/src:ro
+      - ./scripts:/app/scripts:ro
+      - ./infrastructure:/app/infrastructure:ro
+      - ./results/schemas:/app/results/schemas:ro
+      - synapse-a-data:/synapse/a
+      - synapse-b-data:/synapse/b
+      - tls:/tls
+      - secrets:/secrets
+      - ${FAM_RESULTS_DIR:?FAM_RESULTS_DIR must be set}:/results
+    environment:
+      FAM_RESULTS_DIR: /results
+      FAM_ROLE: bootstrap
+
+  # --------------------------------------- Unprivileged experiment execution
+  #
+  # No Synapse data volume. No database credentials. No signing keys.
+  # This is deliberate and is asserted at run time (C2 evidence).
+
+  toolbox:
+    build: .
+    image: fam-toolbox:local
+    profiles: [tools]
+    networks: [fam]
+    volumes:
+      - ./src:/app/src:ro
+      - ./scripts:/app/scripts:ro
+      - ./experiments:/app/experiments:ro
+      - ./tests:/app/tests:ro
+      - ./results/schemas:/app/results/schemas:ro
+      - secrets:/secrets:ro
+      - ${FAM_RESULTS_DIR:?FAM_RESULTS_DIR must be set}:/results
+    environment:
+      FAM_RESULTS_DIR: /results
+      FAM_ROLE: experiment
+      FAM_HS_A_NAME: hs-a.test
+      FAM_HS_B_NAME: hs-b.test
+      FAM_HS_A_CS_URL: http://synapse-a:8008
+      FAM_HS_B_CS_URL: http://synapse-b:8008
+      FAM_PUBLICATION_DATA: "false"
+      FAM_PROTOCOL_GIT_COMMIT: ${FAM_PROTOCOL_GIT_COMMIT:-unknown}
