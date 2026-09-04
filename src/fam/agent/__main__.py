@@ -27,6 +27,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--telemetry", required=True, type=Path)
     parser.add_argument("--state-dir", required=True, type=Path)
     parser.add_argument(
+        "--timeline-limit",
+        type=int,
+        default=None,
+        help="Constrain the /sync timeline. E2 sets this below the offline "
+             "request count so the recovery path is exercised.",
+    )
+    parser.add_argument(
         "--body-bytes",
         type=int,
         default=None,
@@ -45,6 +52,7 @@ async def main_async(args: argparse.Namespace) -> None:
         room_id=args.room_id,
         telemetry_path=args.telemetry,
         state_dir=args.state_dir,
+        timeline_limit=args.timeline_limit,
     )
     executor = DeterministicExecutor(body_bytes=args.body_bytes)
 

@@ -17,7 +17,9 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from fam.agent.recovery import RecoveryLedger, Source
 from fam.common.dedup import Decision, ProcessedRegistry
+from fam.common.frozen import MESSAGE_EVENT_TYPE
 from fam.common.message import parse
 from fam.common.privilege import ADMIN_PROBE_PATH, environment_evidence, summarize
 from fam.executors.base import Executor
@@ -36,6 +38,9 @@ class AgentConfig:
     telemetry_path: Path
     state_dir: Path
     device_name: str = "fam-agent"
+    #: Constrains the per-room /sync timeline. E2 sets this below the offline
+    #: request count so the gap-recovery branch is genuinely exercised.
+    timeline_limit: int | None = None
 
 
 class TransportCheckpoint:
@@ -81,10 +86,13 @@ class AgentRuntime:
             homeserver_url=config.homeserver_url,
             user_id=config.user_id,
             device_name=config.device_name,
+            timeline_limit=config.timeline_limit,
         )
         self.telemetry = JsonlStream(config.telemetry_path, "agent")
         self._registry = ProcessedRegistry()
         self._resumed_from_checkpoint = False
+        self._checkpoint_token: str | None = None
+        self.ledger = RecoveryLedger()
 
     # ------------------------------------------------------------- lifecycle
 
@@ -109,11 +117,25 @@ class AgentRuntime:
         # whether it was already joined.
         await self.participant.join(self.config.room_id)
 
-        if stored.get("sync_token"):
-            self.participant._sync_token = stored["sync_token"]  # noqa: SLF001
+        # The saved sync position is the recovery boundary, so it is retained
+        # rather than merely restored: history pagination pages back to it.
+        self._checkpoint_token = stored.get("sync_token")
+        if self._checkpoint_token:
+            self.participant._sync_token = self._checkpoint_token  # noqa: SLF001
         else:
             await self.participant.prime_sync()
 
+        self.telemetry.write(
+            {
+                "experiment": self.config.experiment,
+                "run_id": self.config.run_id,
+                "agent_mxid": self.config.user_id,
+                "action": "checkpoint_loaded",
+                "checkpoint_present": self._checkpoint_token is not None,
+                "resumed_from_checkpoint": self._resumed_from_checkpoint,
+                "timeline_limit": self.config.timeline_limit,
+            }
+        )
         self._record(
             action="connected",
             duplicate_decision="n/a",
@@ -147,6 +169,163 @@ class AgentRuntime:
                 "resumed_from_checkpoint": self._resumed_from_checkpoint,
                 "c2_evidence": summary,
             }
+        )
+
+    async def recover(self) -> RecoveryLedger:
+        """Close any history gap before processing anything.
+
+        Architecture sequence (testbed-architecture.md §19, §20):
+
+            incremental sync -> gap detection -> history pagination
+            -> merge -> de-duplicate by event_id -> process exactly once
+
+        Recovery completes first so the recovered set is independently
+        observable before executor behaviour, and so a request cannot be
+        processed once from sync and again after pagination.
+        """
+        if not self._checkpoint_token:
+            self.telemetry.write(
+                {
+                    "experiment": self.config.experiment,
+                    "run_id": self.config.run_id,
+                    "agent_mxid": self.config.user_id,
+                    "action": "recovery_skipped",
+                    "reason": "no saved transport checkpoint; nothing to recover",
+                }
+            )
+            return self.ledger
+
+        snapshot = await self.participant.sync_once(
+            since=self._checkpoint_token, timeout=0
+        )
+        room_slice = snapshot.room(self.config.room_id)
+        limited = bool(room_slice.limited) if room_slice else False
+        prev_batch = room_slice.prev_batch if room_slice else None
+        self.ledger.limited_timeline = limited
+        self.ledger.prev_batch = prev_batch
+
+        pending: dict[str, TimelineEvent] = {}
+        direct = 0
+        if room_slice:
+            for event in room_slice.events:
+                if self._is_foreign_request(event):
+                    if self.ledger.observe(event.event_id, Source.SYNC):
+                        pending[event.event_id] = event
+                    direct += 1
+
+        self.telemetry.write(
+            {
+                "experiment": self.config.experiment,
+                "run_id": self.config.run_id,
+                "agent_mxid": self.config.user_id,
+                "action": "post_restart_sync",
+                "timeline_limited": limited,
+                "prev_batch_present": prev_batch is not None,
+                "requests_directly_in_sync": direct,
+                "timeline_limit": self.config.timeline_limit,
+            }
+        )
+
+        if limited and prev_batch:
+            self.telemetry.write(
+                {
+                    "experiment": self.config.experiment,
+                    "run_id": self.config.run_id,
+                    "agent_mxid": self.config.user_id,
+                    "action": "limited_timeline_detected",
+                    "note": "history gap present; paginating back to the checkpoint",
+                }
+            )
+            raw_events, pages = await self.participant.paginate_backwards(
+                self.config.room_id,
+                start=prev_batch,
+                to=self._checkpoint_token,
+            )
+            self.ledger.note_pagination(pages)
+            self.telemetry.write(
+                {
+                    "experiment": self.config.experiment,
+                    "run_id": self.config.run_id,
+                    "agent_mxid": self.config.user_id,
+                    "action": "history_pages_received",
+                    "pages": pages,
+                    "raw_events": len(raw_events),
+                }
+            )
+            for raw in raw_events:
+                event = self._from_raw(raw)
+                if event is None or not self._is_foreign_request(event):
+                    continue
+                first = self.ledger.observe(event.event_id, Source.HISTORY)
+                if first:
+                    pending[event.event_id] = event
+                else:
+                    self.telemetry.write(
+                        {
+                            "experiment": self.config.experiment,
+                            "run_id": self.config.run_id,
+                            "agent_mxid": self.config.user_id,
+                            "action": "duplicate_observation",
+                            "request_event_id": event.event_id,
+                            "note": "already seen via sync; not processed twice",
+                        }
+                    )
+
+        self.telemetry.write(
+            {
+                "experiment": self.config.experiment,
+                "run_id": self.config.run_id,
+                "agent_mxid": self.config.user_id,
+                "action": "recovery_complete",
+                "recovered_event_ids": sorted(self.ledger.recovered_event_ids),
+                "sync_event_ids": sorted(self.ledger.from_sync),
+                "history_event_ids": sorted(self.ledger.from_history),
+                **self.ledger.summary(),
+            }
+        )
+
+        # Deterministic local processing order is an implementation mechanism
+        # for reproducibility only. E2 claims no ordering property.
+        for event in sorted(pending.values(), key=self._sequence_of):
+            if not self.ledger.should_process(event.event_id):
+                continue
+            await self._handle(event)
+            self.ledger.mark_processed(event.event_id)
+
+        self.telemetry.write(
+            {
+                "experiment": self.config.experiment,
+                "run_id": self.config.run_id,
+                "agent_mxid": self.config.user_id,
+                "action": "recovery_processing_complete",
+                **self.ledger.summary(),
+            }
+        )
+        return self.ledger
+
+    def _is_foreign_request(self, event: TimelineEvent) -> bool:
+        if event.room_id != self.config.room_id or event.sender == self.config.user_id:
+            return False
+        message = parse(event.body)
+        return message is not None and message.is_request
+
+    def _sequence_of(self, event: TimelineEvent) -> int:
+        message = parse(event.body)
+        return message.correlation.sequence_id if message else 0
+
+    def _from_raw(self, raw: dict) -> TimelineEvent | None:
+        if raw.get("type") != MESSAGE_EVENT_TYPE:
+            return None
+        body = (raw.get("content") or {}).get("body")
+        if not isinstance(body, str):
+            return None
+        return TimelineEvent(
+            # /messages chunks may omit room_id; the room is known here.
+            room_id=raw.get("room_id") or self.config.room_id,
+            event_id=raw["event_id"],
+            sender=raw.get("sender", ""),
+            body=body,
+            origin_server_ts=raw.get("origin_server_ts", 0),
         )
 
     async def run(self) -> None:
@@ -291,6 +470,7 @@ async def serve(config: AgentConfig, executor: Executor) -> None:
     """Run until cancelled. The runner stops this by terminating the process."""
     runtime = AgentRuntime(config, executor)
     await runtime.connect()
+    await runtime.recover()
     await runtime.run()
     ready = config.state_dir / f"{_slug(config.user_id)}.ready"
     ready.write_text(config.room_id, encoding="utf-8")

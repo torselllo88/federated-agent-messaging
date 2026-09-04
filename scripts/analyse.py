@@ -301,6 +301,99 @@ def print_e1(summary: dict) -> None:
     )
 
 
+def summarize_e2(root: Path) -> dict:
+    runs = []
+    for manifest_path in sorted(manifests_dir(root).glob("*.manifest.json")):
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("experiment") != "E2":
+            continue
+        runs.append(
+            {
+                "run_id": manifest["run_id"],
+                "room_id": manifest.get("room_id"),
+                "publication_data": manifest.get("publication_data"),
+                "timeline_limit": manifest.get("timeline_limit"),
+                "offline_sends_accepted": manifest.get("sent_count"),
+                "sync_limited": manifest.get("sync_limited"),
+                "recovered_from_sync": manifest.get("recovered_from_sync"),
+                "recovered_from_history": manifest.get("recovered_from_history"),
+                "duplicate_observations": manifest.get("duplicate_observations"),
+                "pagination_invoked": manifest.get("pagination_invoked"),
+                "history_pages_fetched": manifest.get("history_pages_fetched"),
+                "sent_count": manifest.get("sent_count"),
+                "recovered_count": manifest.get("recovered_count"),
+                "missing_from_recovery": manifest.get("missing_from_recovery", []),
+                "unexpected_in_recovery": manifest.get("unexpected_in_recovery", []),
+                "logically_processed": manifest.get("logically_processed"),
+                "ack_count": manifest.get("ack_count"),
+                "duplicate_acks": manifest.get("duplicate_acks"),
+                "identity_resumed": manifest.get("agent_identity_before_restart")
+                == manifest.get("agent_identity_after_restart"),
+                "checkpoint_resumed": manifest.get("checkpoint_resumed"),
+                "validity": manifest.get("validity_classification"),
+                "completion_status": manifest.get("completion_status"),
+                "acceptance_failures": manifest.get("acceptance_failures", []),
+                "comparison_artifact": manifest.get("recovery_comparison_artifact"),
+                "source_digests": {
+                    artifact["role"]: artifact["sha256"]
+                    for artifact in manifest.get("raw_artifacts", [])
+                },
+            }
+        )
+
+    valid = [r for r in runs if (r["validity"] or {}).get("valid")]
+    passed = sum(1 for r in runs if r["completion_status"] == "pass")
+    return {
+        "runs": runs,
+        "runs_total": len(runs),
+        "runs_valid": len(valid),
+        "runs_passed": passed,
+        "verdict": f"{passed}/{len(runs)} PASS" if runs else "no E2 runs found",
+    }
+
+
+def print_e2(summary: dict) -> None:
+    for run in summary["runs"]:
+        print(f"   {run['run_id']}  (timeline_limit={run['timeline_limit']})")
+        print(
+            f"     offline sends accepted {run['offline_sends_accepted']}  "
+            f"sync_limited={run['sync_limited']}"
+        )
+        print(
+            f"     recovered              sync={run['recovered_from_sync']} "
+            f"history={run['recovered_from_history']} "
+            f"pages={run['history_pages_fetched']} "
+            f"dup_obs={run['duplicate_observations']}"
+        )
+        print(
+            f"     set equality           |S_sent|={run['sent_count']} "
+            f"|S_recovered|={run['recovered_count']} "
+            f"missing={len(run['missing_from_recovery'])} "
+            f"unexpected={len(run['unexpected_in_recovery'])}"
+        )
+        for label in ("missing_from_recovery", "unexpected_in_recovery"):
+            if run[label]:
+                print(f"     ! {label}: {run[label][:3]}")
+        print(
+            f"     processing / ACKs      {run['logically_processed']} / "
+            f"{run['ack_count']}  dup_ack={run['duplicate_acks']}"
+        )
+        print(
+            f"     resume                 identity={run['identity_resumed']} "
+            f"checkpoint={run['checkpoint_resumed']}"
+        )
+        validity = run["validity"] or {}
+        suffix = "" if validity.get("valid") else f" ({validity.get('invalid_class')})"
+        print(f"     validity               valid={validity.get('valid')}{suffix}")
+        print(f"     {str(run['completion_status']).upper()}")
+        for reason in run["acceptance_failures"]:
+            print(f"       ! {reason}")
+    print(
+        f"   E2 valid runs {summary['runs_valid']}, "
+        f"passed {summary['runs_passed']}, verdict: {summary['verdict']}"
+    )
+
+
 def main() -> int:
     root = resolve_results_dir(create=False)
     print(f"analysis over {root}\n")
@@ -340,6 +433,13 @@ def main() -> int:
     else:
         print("   no E1 runs found")
 
+    print("\n5. E2 summary")
+    e2 = summarize_e2(root)
+    if e2["runs_total"]:
+        print_e2(e2)
+    else:
+        print("   no E2 runs found")
+
     processed_dir = root / "processed"
     processed_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -352,14 +452,15 @@ def main() -> int:
         "protocol_git_commit": _protocol_commit(root),
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source_run_ids": [
-            run["run_id"] for run in (summary["runs"] + e1["runs"])
+            run["run_id"] for run in (summary["runs"] + e1["runs"] + e2["runs"])
         ],
         "source_digests": {
             run["run_id"]: run["source_digests"]
-            for run in (summary["runs"] + e1["runs"])
+            for run in (summary["runs"] + e1["runs"] + e2["runs"])
         },
         "e0_summary": summary,
         "e1_summary": e1,
+        "e2_summary": e2,
         "note": (
             "Development validation. publication_data is false; this is not "
             "publication evidence and no formal evidence counter is updated."
@@ -373,6 +474,8 @@ def main() -> int:
     ok = summary["runs_total"] > 0 and summary["runs_passed"] == summary["runs_total"]
     if e1["runs_total"]:
         ok = ok and e1["runs_passed"] == e1["runs_total"]
+    if e2["runs_total"]:
+        ok = ok and e2["runs_passed"] == e2["runs_total"]
     print(f"\nANALYSE: {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 1
 

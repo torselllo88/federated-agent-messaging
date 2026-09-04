@@ -12,7 +12,7 @@
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('help', 'build', 'setup', 'verify', 'spike', 'e0', 'e1', 'analyse', 'test', 'down', 'clean', 'logs')]
+    [ValidateSet('help', 'build', 'setup', 'verify', 'spike', 'e0', 'e1', 'e2-pilot', 'e2', 'analyse', 'test', 'down', 'clean', 'logs')]
     [string]$Target = 'help'
 )
 
@@ -51,6 +51,8 @@ switch ($Target) {
 .\make.ps1 spike    - development compatibility spike (Synapse / nio / room v12)
 .\make.ps1 e0       - run the frozen E0 procedure (3 independent runs)
 .\make.ps1 e1       - run the frozen E1 procedure (3 independent federated runs)
+.\make.ps1 e2-pilot - development pilot: select the E2 sync timeline limit
+.\make.ps1 e2       - run the frozen E2 procedure (3 independent recovery runs)
 .\make.ps1 analyse  - digest verification, schema validation, E0 summary
 .\make.ps1 test     - unit tests
 .\make.ps1 down     - stop containers
@@ -76,6 +78,8 @@ switch ($Target) {
     'spike'   { Require-ResultsDir; Invoke-Compose @('run', '--rm', 'toolbox', 'python', 'scripts/spike_compatibility.py') }
     'e0'      { Require-ResultsDir; Invoke-Compose @('run', '--rm', 'toolbox', 'python', 'experiments/e0_baseline.py') }
     'e1'      { Require-ResultsDir; Invoke-Compose @('run', '--rm', 'toolbox', 'python', 'experiments/e1_federation.py') }
+    'e2-pilot'{ Require-ResultsDir; Invoke-Compose @('run', '--rm', 'toolbox', 'python', 'scripts/e2_pilot.py') }
+    'e2'      { Require-ResultsDir; Invoke-Compose @('run', '--rm', '-e', 'FAM_E2_TIMELINE_LIMIT', 'toolbox', 'python', 'experiments/e2_recovery.py') }
     'analyse' { Require-ResultsDir; Invoke-Compose @('run', '--rm', '--no-deps', 'toolbox', 'python', 'scripts/analyse.py') }
     'test'    {
         Require-ResultsDir

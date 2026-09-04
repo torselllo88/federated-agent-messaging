@@ -33,6 +33,7 @@ class AgentProcess:
         telemetry: Path,
         state_dir: Path,
         body_bytes: int | None = None,
+        timeline_limit: int | None = None,
     ) -> None:
         self.user_id = user_id
         self.password = password
@@ -43,6 +44,7 @@ class AgentProcess:
         self.telemetry = telemetry
         self.state_dir = state_dir
         self.body_bytes = body_bytes
+        self.timeline_limit = timeline_limit
         self.process: asyncio.subprocess.Process | None = None
 
     @property
@@ -69,6 +71,8 @@ class AgentProcess:
         ]
         if self.body_bytes is not None:
             argv += ["--body-bytes", str(self.body_bytes)]
+        if self.timeline_limit is not None:
+            argv += ["--timeline-limit", str(self.timeline_limit)]
 
         self.process = await asyncio.create_subprocess_exec(*argv, env=env)
 

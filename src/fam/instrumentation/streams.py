@@ -102,6 +102,7 @@ def runner_record(
     which does not apply to E0.
     """
     return {
+        "record_type": "interaction",
         "experiment": experiment,
         "topology": topology,
         "run_id": run_id,
@@ -119,6 +120,24 @@ def runner_record(
         "completed_monotonic_ns": completed_monotonic_ns,
         "outcome": outcome,
         "note": note,
+    }
+
+
+def runner_marker(
+    *, experiment: str, run_id: str, marker: str, **fields
+) -> dict[str, Any]:
+    """A phase boundary, not an interaction.
+
+    E2 needs the agent-stop and restart boundaries in the raw record so the
+    offline window and the start of the response deadline are reconstructable
+    (experimental-protocol.md §11).
+    """
+    return {
+        "record_type": "marker",
+        "experiment": experiment,
+        "run_id": run_id,
+        "marker": marker,
+        **fields,
     }
 
 

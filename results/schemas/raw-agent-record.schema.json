@@ -2,35 +2,152 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://federated-agent-messaging/schemas/raw-agent-record-1.json",
   "title": "Agent telemetry record",
-  "description": "What no external observer can see: recovered event set, pagination, deduplication decisions, per-request processing outcomes. Mandatory rather than diagnostic, because E2's acceptance criteria are agent-side facts (testbed-architecture.md §22). Uses no privileged interface and does not affect C2.",
+  "description": "What no external observer can see: recovered event set, pagination, deduplication decisions, per-request processing outcomes. Mandatory rather than diagnostic, because E2's acceptance criteria are agent-side facts (testbed-architecture.md \u00a722). Uses no privileged interface and does not affect C2.",
   "type": "object",
-  "required": ["schema_version", "stream", "experiment", "run_id", "agent_mxid", "action"],
+  "required": [
+    "schema_version",
+    "stream",
+    "experiment",
+    "run_id",
+    "agent_mxid",
+    "action"
+  ],
   "properties": {
-    "schema_version": { "const": "1" },
-    "stream": { "const": "agent" },
-    "experiment": { "type": "string" },
-    "run_id": { "type": "string" },
-    "sequence_id": { "type": ["integer", "null"] },
-    "room_id": { "type": "string" },
-    "agent_mxid": { "type": "string" },
-    "sender": { "type": "string" },
-    "request_event_id": { "type": ["string", "null"] },
-    "received_monotonic_ns": { "type": ["integer", "null"] },
-    "processed_monotonic_ns": { "type": ["integer", "null"] },
-    "response_txn_id": { "type": ["string", "null"] },
-    "response_event_id": { "type": ["string", "null"] },
+    "schema_version": {
+      "const": "1"
+    },
+    "stream": {
+      "const": "agent"
+    },
+    "experiment": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "sequence_id": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "room_id": {
+      "type": "string"
+    },
+    "agent_mxid": {
+      "type": "string"
+    },
+    "sender": {
+      "type": "string"
+    },
+    "request_event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "received_monotonic_ns": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "processed_monotonic_ns": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "response_txn_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "response_event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "duplicate_decision": {
       "type": "string",
-      "enum": ["processed", "skipped_duplicate", "skipped_own_event", "skipped_not_request", "n/a"]
+      "enum": [
+        "processed",
+        "skipped_duplicate",
+        "skipped_own_event",
+        "skipped_not_request",
+        "n/a"
+      ]
     },
     "action": {
       "type": "string",
-      "enum": ["connected", "responded", "no_response", "send_failed", "ignored", "shutdown", "privilege_evidence"]
+      "enum": [
+        "connected",
+        "responded",
+        "no_response",
+        "send_failed",
+        "ignored",
+        "shutdown",
+        "privilege_evidence",
+        "checkpoint_loaded",
+        "post_restart_sync",
+        "limited_timeline_detected",
+        "history_pages_received",
+        "duplicate_observation",
+        "recovery_complete",
+        "recovery_processing_complete",
+        "recovery_skipped"
+      ]
     },
-    "sync_token_present": { "type": "boolean" },
-    "history_pagination_invoked": { "type": "boolean" },
-    "c2_evidence": { "type": "object" },
-    "note": { "type": "string" }
+    "sync_token_present": {
+      "type": "boolean"
+    },
+    "history_pagination_invoked": {
+      "type": "boolean"
+    },
+    "c2_evidence": {
+      "type": "object"
+    },
+    "note": {
+      "type": "string"
+    },
+    "timeline_limited": {
+      "type": "boolean"
+    },
+    "timeline_limit": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "requests_directly_in_sync": {
+      "type": "integer"
+    },
+    "pagination_invoked": {
+      "type": "boolean"
+    },
+    "history_pages_fetched": {
+      "type": "integer"
+    },
+    "recovered_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sync_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "history_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   },
   "additionalProperties": true
 }

@@ -121,6 +121,59 @@ class HumanParticipant:
             pass
         return interaction
 
+    async def send_offline(self, correlation: Correlation) -> Interaction:
+        """Send a request without arming a live-interaction deadline.
+
+        E2 deliberately sends while no runtime exists, so the ordinary
+        response timeout must not be armed at send time and the deliberate
+        offline interval must not enter the failure rate
+        (experimental-protocol.md §11 offline sends, §12).
+
+        The interaction is registered so its ACK can still be correlated once
+        the runtime returns; the deadline begins with the restart and recovery
+        phase, not here.
+        """
+        if self._room_id is None:
+            raise RuntimeError("bind_room() must be called before send_offline()")
+
+        txn_id = correlation.txn_id("request")
+        interaction = Interaction(
+            correlation=correlation,
+            request_txn_id=txn_id,
+            initiated_monotonic_ns=monotonic_ns(),
+        )
+        self._pending[correlation.key()] = interaction
+        interaction.request_event_id = await self.client.send_text(
+            self._room_id, build_request(correlation), txn_id
+        )
+        return interaction
+
+    async def await_acks(
+        self, correlations: list[Correlation], timeout: float
+    ) -> int:
+        """Wait for correlated ACKs. The deadline starts when this is called.
+
+        Used after the runtime restarts, which is where the E2 response
+        deadline begins.
+        """
+        futures = [
+            self._pending[c.key()].future
+            for c in correlations
+            if c.key() in self._pending
+        ]
+        if not futures:
+            return 0
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*[asyncio.shield(f) for f in futures]), timeout
+            )
+        except asyncio.TimeoutError:
+            pass
+        return sum(1 for f in futures if f.done())
+
+    def interaction(self, correlation: Correlation) -> Interaction | None:
+        return self._pending.get(correlation.key())
+
     def duplicate_acks(self) -> int:
         return sum(
             max(0, item.ack_count - 1) for item in self._pending.values()

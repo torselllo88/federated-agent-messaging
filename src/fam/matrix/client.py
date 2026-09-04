@@ -49,6 +49,34 @@ class TimelineEvent:
     #: only so that records can be cross-referenced after the fact.
 
 
+@dataclass
+class RoomSyncSlice:
+    """One room's timeline as a single sync returned it.
+
+    ``limited`` and ``prev_batch`` are carried out of the client abstraction
+    deliberately: a limited timeline is the Matrix signal that history is
+    missing, and losing it here would make the E2 gap invisible to the runtime
+    (testbed-architecture.md §19).
+    """
+
+    room_id: str
+    events: list["TimelineEvent"]
+    limited: bool
+    prev_batch: str | None
+
+
+@dataclass
+class SyncSnapshot:
+    next_batch: str
+    rooms: list[RoomSyncSlice]
+
+    def room(self, room_id: str) -> RoomSyncSlice | None:
+        for item in self.rooms:
+            if item.room_id == room_id:
+                return item
+        return None
+
+
 EventHandler = Callable[[TimelineEvent], Awaitable[None]]
 
 
@@ -62,11 +90,16 @@ class MatrixParticipant:
         user_id: str,
         device_name: str = "fam",
         sync_timeout_ms: int = 30_000,
+        timeline_limit: int | None = None,
     ) -> None:
         self.homeserver_url = homeserver_url.rstrip("/")
         self.user_id = user_id
         self.device_name = device_name
         self.sync_timeout_ms = sync_timeout_ms
+        #: Constrains the per-room timeline returned by /sync. E2 sets this
+        #: below the offline request count so the recovery path is genuinely
+        #: exercised rather than incidentally skipped.
+        self.timeline_limit = timeline_limit
         self._client = AsyncClient(
             self.homeserver_url,
             user_id,
@@ -236,12 +269,101 @@ class MatrixParticipant:
     def on_event(self, handler: EventHandler) -> None:
         self._handlers.append(handler)
 
+    def _sync_filter(self) -> dict | None:
+        if self.timeline_limit is None:
+            return None
+        return {"room": {"timeline": {"limit": self.timeline_limit}}}
+
+    @staticmethod
+    def _to_timeline_event(room_id: str, event) -> "TimelineEvent | None":
+        body = getattr(event, "body", None)
+        if body is None:
+            source = getattr(event, "source", {}) or {}
+            body = (source.get("content") or {}).get("body")
+        if not isinstance(body, str):
+            return None
+        return TimelineEvent(
+            room_id=room_id,
+            event_id=event.event_id,
+            sender=event.sender,
+            body=body,
+            origin_server_ts=getattr(event, "server_timestamp", 0),
+        )
+
+    async def sync_once(
+        self, *, since: str | None = None, timeout: int = 0
+    ) -> SyncSnapshot:
+        """One sync, with the limited-timeline signal preserved."""
+        response = await self._client.sync(
+            timeout=timeout,
+            since=since,
+            full_state=False,
+            sync_filter=self._sync_filter(),
+        )
+        if not isinstance(response, SyncResponse):
+            raise MatrixError(f"sync failed: {response}")
+        self._sync_token = response.next_batch
+
+        slices = []
+        for room_id, room in response.rooms.join.items():
+            events = []
+            for event in room.timeline.events:
+                parsed = self._to_timeline_event(room_id, event)
+                if parsed is not None:
+                    events.append(parsed)
+            slices.append(
+                RoomSyncSlice(
+                    room_id=room_id,
+                    events=events,
+                    limited=bool(room.timeline.limited),
+                    prev_batch=room.timeline.prev_batch,
+                )
+            )
+        return SyncSnapshot(next_batch=response.next_batch, rooms=slices)
+
+    async def paginate_backwards(
+        self,
+        room_id: str,
+        *,
+        start: str,
+        to: str | None = None,
+        page_limit: int = 100,
+        max_pages: int = 50,
+    ) -> tuple[list[dict], int]:
+        """Ordinary Matrix history pagination between two stream tokens.
+
+        ``start`` is normally the ``prev_batch`` of a limited timeline and
+        ``to`` the saved transport checkpoint, so pagination stops at the known
+        boundary rather than walking the whole room
+        (testbed-architecture.md §20).
+
+        Returns the raw events and the number of pages fetched. No server-side
+        or database access: this is the same endpoint any client would use.
+        """
+        events: list[dict] = []
+        token: str | None = start
+        pages = 0
+        encoded = quote(room_id, safe="")
+        for _ in range(max_pages):
+            query = f"?dir=b&limit={page_limit}&from={quote(token, safe='')}"
+            if to:
+                query += f"&to={quote(to, safe='')}"
+            payload = await self._request(
+                "GET", f"/_matrix/client/v3/rooms/{encoded}/messages{query}"
+            )
+            pages += 1
+            chunk = payload.get("chunk", [])
+            events.extend(chunk)
+            token = payload.get("end")
+            if not chunk or not token:
+                break
+            if to and token == to:
+                break
+        return events, pages
+
     async def prime_sync(self) -> None:
         """One initial sync to establish a checkpoint without replaying history."""
-        response = await self._client.sync(timeout=0, full_state=False)
-        if not isinstance(response, SyncResponse):
-            raise MatrixError(f"initial sync failed: {response}")
-        self._sync_token = response.next_batch
+        await self.sync_once(since=None, timeout=0)
 
     def start_sync(self) -> None:
         """Continuous long-poll sync, no artificial delay between requests."""
@@ -260,30 +382,15 @@ class MatrixParticipant:
 
     async def _sync_loop(self) -> None:
         while not self._stopping.is_set():
-            response = await self._client.sync(
-                timeout=self.sync_timeout_ms,
-                since=self._sync_token,
-                full_state=False,
-            )
-            if not isinstance(response, SyncResponse):
+            try:
+                snapshot = await self.sync_once(
+                    since=self._sync_token, timeout=self.sync_timeout_ms
+                )
+            except MatrixError:
                 await asyncio.sleep(0.5)
                 continue
-            self._sync_token = response.next_batch
-            for room_id, room in response.rooms.join.items():
-                for event in room.timeline.events:
-                    body = getattr(event, "body", None)
-                    if body is None:
-                        source = getattr(event, "source", {}) or {}
-                        body = (source.get("content") or {}).get("body")
-                    if not isinstance(body, str):
-                        continue
-                    parsed = TimelineEvent(
-                        room_id=room_id,
-                        event_id=event.event_id,
-                        sender=event.sender,
-                        body=body,
-                        origin_server_ts=getattr(event, "server_timestamp", 0),
-                    )
+            for item in snapshot.rooms:
+                for parsed in item.events:
                     for handler in self._handlers:
                         await handler(parsed)
 

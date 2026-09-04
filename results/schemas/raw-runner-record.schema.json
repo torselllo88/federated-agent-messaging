@@ -2,47 +2,86 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://federated-agent-messaging/schemas/raw-runner-record-1.json",
   "title": "Runner interaction record",
-  "description": "One logical interaction as observed by the experiment runner. Raw records carry execution facts and the frozen metadata needed to reconstruct a classification; they never carry the classification itself (experimental-protocol.md §22).",
+  "description": "Runner observations. record_type distinguishes a logical interaction from a phase marker such as E2's agent-stop and restart boundaries; markers carry no interaction fields because they describe no interaction.",
   "type": "object",
   "required": [
     "schema_version",
     "stream",
     "experiment",
-    "topology",
-    "run_id",
-    "sequence_id",
-    "run_phase",
-    "room_id",
-    "sender",
-    "request_txn_id",
-    "initiated_monotonic_ns",
-    "outcome"
+    "run_id"
   ],
   "properties": {
-    "schema_version": { "const": "1" },
-    "stream": { "const": "runner" },
-    "experiment": { "type": "string" },
-    "topology": { "type": "string", "enum": ["same-domain", "federated"] },
-    "run_id": { "type": "string", "pattern": "^[A-Za-z0-9._:-]+$" },
-    "sequence_id": { "type": "integer", "minimum": 0 },
-    "run_phase": { "type": "string" },
+    "schema_version": {
+      "const": "1"
+    },
+    "stream": {
+      "const": "runner"
+    },
+    "experiment": {
+      "type": "string"
+    },
+    "topology": {
+      "type": "string",
+      "enum": [
+        "same-domain",
+        "federated"
+      ]
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "sequence_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "run_phase": {
+      "type": "string"
+    },
     "request_class": {
       "type": "string",
       "description": "E1: cross_domain or same_domain. Tracked separately so a federated failure cannot hide behind same-domain successes."
     },
-    "room_id": { "type": "string" },
-    "sender": { "type": "string" },
-    "receiver_role": { "type": "string" },
-    "request_txn_id": { "type": "string", "pattern": "^fam-" },
-    "request_event_id": { "type": ["string", "null"] },
-    "response_txn_id": { "type": ["string", "null"] },
-    "response_event_id": { "type": ["string", "null"] },
+    "room_id": {
+      "type": "string"
+    },
+    "sender": {
+      "type": "string"
+    },
+    "receiver_role": {
+      "type": "string"
+    },
+    "request_txn_id": {
+      "type": "string",
+      "pattern": "^fam-"
+    },
+    "request_event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "response_txn_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "response_event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "initiated_monotonic_ns": {
       "type": "integer",
-      "description": "T0. One monotonic clock in one process (experimental-protocol.md §10)."
+      "description": "T0. One monotonic clock in one process (experimental-protocol.md \u00a710)."
     },
     "completed_monotonic_ns": {
-      "type": ["integer", "null"],
+      "type": [
+        "integer",
+        "null"
+      ],
       "description": "T3, stamped at the start of the callback for the matching ACK."
     },
     "outcome": {
@@ -58,10 +97,59 @@
         "offline_send"
       ]
     },
-    "note": { "type": "string" }
+    "note": {
+      "type": "string"
+    },
+    "record_type": {
+      "type": "string",
+      "enum": [
+        "interaction",
+        "marker"
+      ],
+      "default": "interaction"
+    },
+    "marker": {
+      "type": "string"
+    },
+    "monotonic_ns": {
+      "type": "integer"
+    }
   },
   "not": {
-    "required": ["counted_in_window"]
+    "required": [
+      "counted_in_window"
+    ]
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "record_type": {
+            "const": "marker"
+          }
+        },
+        "required": [
+          "record_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "marker"
+        ]
+      },
+      "else": {
+        "required": [
+          "topology",
+          "sequence_id",
+          "run_phase",
+          "room_id",
+          "sender",
+          "request_txn_id",
+          "initiated_monotonic_ns",
+          "outcome"
+        ]
+      }
+    }
+  ]
 }
