@@ -188,3 +188,51 @@ def agent_record(
         "history_pagination_invoked": history_pagination_invoked,
         "note": note,
     }
+
+
+def benchmark_record(
+    *,
+    workload: str,
+    block_id: str,
+    within_block_order: int,
+    concurrency: int,
+    message_body_bytes: int,
+    phase: str,
+    window_start_ns: int | None = None,
+    window_end_ns: int | None = None,
+    live_recovery_episode: int | None = None,
+    send_errcode: str = "",
+    late_ack_monotonic_ns: int | None = None,
+    **runner_fields,
+) -> dict[str, Any]:
+    """One E3 benchmark interaction: a runner record plus the E3 fields.
+
+    This extends the existing runner stream rather than opening a second one.
+    The record is the same ``record_type: interaction`` shape, validated by
+    the same schema, with the fields §22 requires for the throughput
+    estimator added alongside.
+
+    ``phase`` says which period of the run this interaction belongs to. It is
+    a convenience label, **not** the estimator: analysis derives window
+    membership from ``completed_monotonic_ns`` against ``window_start_ns`` and
+    ``window_end_ns``, exactly as §22 specifies, and never reads ``phase``.
+    That is what keeps a later estimator revision from making already-written
+    raw data wrong.
+    """
+    record = runner_record(**runner_fields)
+    record.update(
+        {
+            "workload": workload,
+            "block_id": block_id,
+            "within_block_order": within_block_order,
+            "concurrency": concurrency,
+            "message_body_bytes": message_body_bytes,
+            "phase": phase,
+            "window_start_ns": window_start_ns,
+            "window_end_ns": window_end_ns,
+            "live_recovery_episode": live_recovery_episode,
+            "send_errcode": send_errcode,
+            "late_ack_monotonic_ns": late_ack_monotonic_ns,
+        }
+    )
+    return record

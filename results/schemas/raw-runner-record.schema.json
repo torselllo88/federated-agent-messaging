@@ -24,8 +24,10 @@
       "type": "string",
       "enum": [
         "same-domain",
-        "federated"
-      ]
+        "federated",
+        "local"
+      ],
+      "description": "E0/E2 use same-domain; E1 and the Task 04 readiness runs use federated; E3 uses the two frozen benchmark topology names local and federated (experimental-protocol.md 18)."
     },
     "run_id": {
       "type": "string",
@@ -75,7 +77,7 @@
     },
     "initiated_monotonic_ns": {
       "type": "integer",
-      "description": "T0. One monotonic clock in one process (experimental-protocol.md \u00a710)."
+      "description": "T0. One monotonic clock in one process (experimental-protocol.md §10)."
     },
     "completed_monotonic_ns": {
       "type": [
@@ -113,11 +115,93 @@
     },
     "monotonic_ns": {
       "type": "integer"
+    },
+    "workload": {
+      "type": "string",
+      "enum": [
+        "latency",
+        "throughput"
+      ],
+      "description": "E3 only. Workload A or Workload B (experimental-protocol.md 21, 22)."
+    },
+    "block_id": {
+      "type": "string",
+      "description": "E3 only. Paired run block, the formal replication unit (29)."
+    },
+    "within_block_order": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2
+    },
+    "concurrency": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "E3 only. Maximum outstanding logical interactions, C."
+    },
+    "message_body_bytes": {
+      "type": "integer",
+      "description": "Encoded UTF-8 length of the request body. E3 freezes it at 256 (17)."
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "warmup",
+        "window",
+        "drain",
+        "measured"
+      ],
+      "description": "E3 only. Which period of the run this interaction belongs to. A label, not the estimator: window membership is derived at analysis from completed_monotonic_ns against window_start_ns and window_end_ns (22)."
+    },
+    "window_start_ns": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Canonical name. No parallel name is used anywhere (22)."
+    },
+    "window_end_ns": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Canonical name. No parallel name is used anywhere (22)."
+    },
+    "live_recovery_episode": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Set when the ACK reached the sender through a live gap-recovery episode, so the RTT carries pagination round trips."
+    },
+    "send_errcode": {
+      "type": "string",
+      "description": "Matrix errcode when the homeserver refused the send. M_LIMIT_EXCEEDED is recorded, never retried away (28)."
+    },
+    "late_ack_monotonic_ns": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "An ACK observed after the frozen per-interaction timeout expired. Preserved as evidence; it does not change the outcome, which experimental-protocol.md 11 fixes at termination."
     }
   },
   "not": {
-    "required": [
-      "counted_in_window"
+    "anyOf": [
+      {
+        "required": [
+          "counted_in_window"
+        ]
+      },
+      {
+        "required": [
+          "measurement_start"
+        ]
+      },
+      {
+        "required": [
+          "measurement_end"
+        ]
+      }
     ]
   },
   "additionalProperties": true,

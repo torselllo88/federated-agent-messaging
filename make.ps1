@@ -12,7 +12,7 @@
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('help', 'build', 'setup', 'verify', 'spike', 'e0', 'e1', 'e2-pilot', 'e2', 'e3-readiness', 'analyse', 'test', 'down', 'clean', 'logs')]
+    [ValidateSet('help', 'build', 'setup', 'verify', 'spike', 'e0', 'e1', 'e2-pilot', 'e2', 'e3-readiness', 'e3-pilot', 'e3', 'analyse', 'test', 'down', 'clean', 'logs')]
     [string]$Target = 'help'
 )
 
@@ -54,6 +54,8 @@ switch ($Target) {
 .\make.ps1 e2-pilot - development pilot: select the E2 sync timeline limit
 .\make.ps1 e2       - run the frozen E2 procedure (3 independent recovery runs)
 .\make.ps1 e3-readiness - live gap recovery under bounded-concurrency stress
+.\make.ps1 e3-pilot - development E3 pilot: benchmark mechanics and sync limit
+.\make.ps1 e3       - the development E3 campaign (120 paired benchmark runs)
 .\make.ps1 analyse  - digest verification, schema validation, E0 summary
 .\make.ps1 test     - unit tests
 .\make.ps1 down     - stop containers
@@ -82,6 +84,8 @@ switch ($Target) {
     'e2-pilot'{ Require-ResultsDir; Invoke-Compose @('run', '--rm', 'toolbox', 'python', 'scripts/e2_pilot.py') }
     'e2'      { Require-ResultsDir; Invoke-Compose @('run', '--rm', '-e', 'FAM_E2_TIMELINE_LIMIT', 'toolbox', 'python', 'experiments/e2_recovery.py') }
     'e3-readiness' { Require-ResultsDir; Invoke-Compose @('run', '--rm', '-e', 'FAM_READINESS_REQUESTS', '-e', 'FAM_READINESS_CONCURRENCY', '-e', 'FAM_READINESS_TIMELINE_LIMIT', 'toolbox', 'python', 'experiments/e3_readiness.py') }
+    'e3-pilot' { Require-ResultsDir; Invoke-Compose @('run', '--rm', '-e', 'FAM_E3_TIMELINE_LIMIT', '-e', 'FAM_E3_SYNC_TIMEOUT_MS', '-e', 'FAM_E3_PILOT_LATENCY_WARMUP', '-e', 'FAM_E3_PILOT_LATENCY_MEASURED', '-e', 'FAM_E3_PILOT_WARMUP_S', '-e', 'FAM_E3_PILOT_MEASUREMENT_S', '-e', 'FAM_E3_PILOT_DRAIN_S', 'toolbox', 'python', 'scripts/e3_pilot.py') }
+    'e3'      { Require-ResultsDir; Invoke-Compose @('run', '--rm', '-e', 'FAM_E3_SCHEDULE_SEED', '-e', 'FAM_E3_TIMELINE_LIMIT', '-e', 'FAM_E3_SYNC_TIMEOUT_MS', '-e', 'FAM_E3_BLOCKS', '-e', 'FAM_E3_WORKLOADS', 'toolbox', 'python', 'experiments/e3_benchmark.py') }
     'analyse' { Require-ResultsDir; Invoke-Compose @('run', '--rm', '--no-deps', 'toolbox', 'python', 'scripts/analyse.py') }
     'test'    {
         Require-ResultsDir

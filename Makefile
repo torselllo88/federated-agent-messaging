@@ -4,6 +4,8 @@
 #   make setup     initialize environment and provisioned identities
 #   make verify    environment + federation transport/bootstrap readiness
 #   make e0        the frozen E0 procedure
+#   make e3-pilot  development E3 pilot
+#   make e3        the development E3 campaign
 #   make analyse   analysis and validation over result artifacts
 #
 # Every Python process runs inside the toolbox image (Python 3.12 frozen), so
@@ -27,7 +29,7 @@ RUN_BOOTSTRAP := $(COMPOSE) run --rm --no-deps bootstrap
 
 export FAM_PROTOCOL_GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 
-.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness analyse spike test down clean logs
+.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 analyse spike test down clean logs
 
 help:
 	@echo "make setup    - build, generate TLS and configs, start both domains, provision accounts"
@@ -38,7 +40,9 @@ help:
 	@echo "make e2-pilot - development pilot: select the E2 sync timeline limit"
 	@echo "make e2       - run the frozen E2 procedure (3 independent recovery runs)"
 	@echo "make e3-readiness - live gap recovery under bounded-concurrency stress"
-	@echo "make analyse  - digest verification, schema validation, E0 summary"
+	@echo "make e3-pilot - development E3 pilot: benchmark mechanics and sync limit"
+	@echo "make e3      - the development E3 campaign (120 paired benchmark runs)"
+	@echo "make analyse  - digest verification, schema validation, E0-E3 summaries"
 	@echo "make test     - unit tests"
 	@echo "make down     - stop containers"
 	@echo "make clean    - stop containers and delete all volumes (destructive)"
@@ -98,10 +102,27 @@ e2: guard
 
 # Transport readiness. Runs no other experiment and measures no performance.
 e3-readiness: guard
-	$(COMPOSE) run --rm -e FAM_READINESS_REQUESTS -e FAM_READINESS_CONCURRENCY \n		-e FAM_READINESS_TIMELINE_LIMIT toolbox python experiments/e3_readiness.py
+	$(COMPOSE) run --rm -e FAM_READINESS_REQUESTS -e FAM_READINESS_CONCURRENCY \
+		-e FAM_READINESS_TIMELINE_LIMIT toolbox python experiments/e3_readiness.py
+
+# Development E3 pilot: benchmark mechanics, sync limit, stationarity.
+# Not an E3 repetition and not publication evidence.
+e3-pilot: guard
+	$(COMPOSE) run --rm -e FAM_E3_TIMELINE_LIMIT -e FAM_E3_SYNC_TIMEOUT_MS \
+		-e FAM_E3_PILOT_LATENCY_WARMUP -e FAM_E3_PILOT_LATENCY_MEASURED \
+		-e FAM_E3_PILOT_WARMUP_S -e FAM_E3_PILOT_MEASUREMENT_S -e FAM_E3_PILOT_DRAIN_S \
+		toolbox python scripts/e3_pilot.py
+
+# The development E3 campaign. Runs no other experiment, and resumes a
+# partially completed campaign instead of restarting it.
+e3: guard
+	$(COMPOSE) run --rm -e FAM_E3_SCHEDULE_SEED -e FAM_E3_TIMELINE_LIMIT \
+		-e FAM_E3_SYNC_TIMEOUT_MS -e FAM_E3_BLOCKS -e FAM_E3_WORKLOADS \
+		toolbox python experiments/e3_benchmark.py
 
 analyse: guard
-	$(RUN_TOOLBOX) python scripts/analyse.py
+	$(COMPOSE) run --rm -e FAM_E3_BOOTSTRAP_REPLICATES -e FAM_E3_BOOTSTRAP_SEED \
+		--no-deps toolbox python scripts/analyse.py
 
 test: build
 	$(COMPOSE) run --rm --no-deps -e FAM_RESULTS_DIR=/tmp/fam-test-results toolbox \

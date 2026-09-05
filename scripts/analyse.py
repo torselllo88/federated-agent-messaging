@@ -6,14 +6,17 @@ first, then schema validation, then derived output. Analysing a dataset whose
 per-file SHA-256 does not match its manifest is a provenance failure, not a
 data question.
 
-For this slice the derived output is an E0 pass/fail summary. No E3
-statistics. Every processed artifact carries the frozen provenance triple
-plus source digests and run ids.
+Derived output covers E0-E2 functional summaries, the Task 04 transport
+readiness summary, and the development E3 metrics: latency percentiles,
+observed throughput at tested concurrency, stationarity, failure rates and
+paired-block bootstrap intervals. Every processed artifact carries the frozen
+provenance triple plus source digests and run ids.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +29,7 @@ from fam.common.frozen import (  # noqa: E402
     RAW_SCHEMA_VERSION,
 )
 from fam.common.results import manifests_dir, resolve_results_dir  # noqa: E402
+from fam.analysis import e3 as e3_analysis  # noqa: E402
 
 sys.path.insert(0, "/app/scripts")
 from verify_digests import verify as verify_digests  # noqa: E402
@@ -33,7 +37,7 @@ from verify_digests import verify as verify_digests  # noqa: E402
 #: The analysis implementation may be written or corrected after collection;
 #: the specification it implements may not change without a disclosed
 #: methodological revision (experimental-protocol.md §3 Phase 4, §40).
-ANALYSIS_CODE_COMMIT = "task-01-working-tree"
+ANALYSIS_CODE_COMMIT = "task-05-working-tree"
 
 REQUIRED_RUNNER_FIELDS = {
     "schema_version",
@@ -485,6 +489,152 @@ def print_readiness(summary: dict) -> None:
     )
 
 
+def summarize_e3(root: Path, campaign_id: str | None = None) -> dict:
+    """Development E3 metrics, derived from immutable raw benchmark data."""
+    campaign_id = campaign_id or os.environ.get("FAM_E3_CAMPAIGN", "").strip() or None
+    inventory = e3_analysis.campaign_inventory(root)
+    runs = e3_analysis.load_campaign(root, campaign_id)
+    if not runs:
+        return {"runs_total": 0, "campaign_inventory": inventory}
+    replicates = int(os.environ.get("FAM_E3_BOOTSTRAP_REPLICATES", "0") or 0)
+    seed = int(os.environ.get("FAM_E3_BOOTSTRAP_SEED", "0") or 0)
+    summary = e3_analysis.analyse(
+        runs,
+        replicates=replicates or e3_analysis.DEFAULT_REPLICATES,
+        seed=seed or e3_analysis.DEFAULT_BOOTSTRAP_SEED,
+    )
+    summary["campaign_inventory"] = inventory
+    return summary
+
+
+def _fmt(value, suffix=""):
+    return "n/a" if value is None else f"{value}{suffix}"
+
+
+def print_e3(summary: dict) -> None:
+    print(f"   campaign {summary['campaign_id']}")
+    others = {
+        key: value
+        for key, value in (summary.get("campaign_inventory") or {}).items()
+        if key not in (summary["campaign_id"], "e3-pilot")
+    }
+    for key, value in sorted(others.items()):
+        print(
+            f"     (superseded campaign present: {key}, {value['runs']} runs, "
+            f"last completion {value['last_completion']} — not analysed)"
+        )
+    print(
+        f"   runs {summary['runs_valid']}/{summary['runs_total']} valid"
+        + (f", invalid {len(summary['runs_invalid'])}" if summary["runs_invalid"] else "")
+    )
+    for entry in summary["runs_invalid"]:
+        print(f"     ! {entry['run_id']} — {entry['class']}")
+    for problem in summary.get("integrity_problems", []):
+        print(f"     ! integrity: {problem}")
+
+    latency = summary["latency"]
+    print(f"\n   Workload A — latency ({latency['paired_blocks']} paired blocks)")
+    for name in ("local", "federated"):
+        item = latency["by_topology"].get(name) or {}
+        print(
+            f"     {name:<10} runs={item.get('runs')} "
+            f"n={item.get('successful_interactions')}/{item.get('initiated_interactions')} "
+            f"p50={_fmt(item.get('p50_ms'))}ms "
+            f"p95={_fmt(item.get('p95_ms'))}ms "
+            f"p99={_fmt(item.get('p99_ms'))}ms "
+            f"fail={_fmt(item.get('failure_rate'))}"
+        )
+    boot = latency.get("bootstrap") or {}
+    for label, stats in (boot.get("percentiles") or {}).items():
+        diff = stats["difference_ci_ms"]
+        ratio = stats["ratio_ci"]
+        print(
+            f"     {label}: diff={_fmt(stats['difference_ms'])}ms "
+            f"[{_fmt(diff['low'])}, {_fmt(diff['high'])}]  "
+            f"ratio={_fmt(stats['ratio'])} "
+            f"[{_fmt(ratio['low'])}, {_fmt(ratio['high'])}]"
+        )
+    if latency.get("incomplete_blocks"):
+        print(f"     incomplete blocks: {latency['incomplete_blocks']}")
+
+    print("\n   Workload B — observed throughput at tested concurrency")
+    for level, topologies in sorted(
+        (summary["throughput"]["by_concurrency"] or {}).items(), key=lambda kv: int(kv[0])
+    ):
+        print(f"     C={level}  ({summary['throughput']['paired_blocks'].get(level)} paired blocks)")
+        for name in ("local", "federated"):
+            item = topologies.get(name) or {}
+            print(
+                f"       {name:<10} runs={item.get('runs')} "
+                f"median={_fmt(item.get('median_observed_throughput_per_second'))}/s "
+                f"range=[{_fmt(item.get('min_per_second'))}, {_fmt(item.get('max_per_second'))}] "
+                f"fail={_fmt(item.get('mean_failure_rate'))}"
+            )
+        boot = (summary["throughput"]["bootstrap"] or {}).get(level) or {}
+        if boot:
+            diff, ratio = boot["difference_ci"], boot["ratio_ci"]
+            print(
+                f"       diff={_fmt(boot['difference_per_second'])}/s "
+                f"[{_fmt(diff['low'])}, {_fmt(diff['high'])}]  "
+                f"ratio={_fmt(boot['ratio'])} "
+                f"[{_fmt(ratio['low'])}, {_fmt(ratio['high'])}]"
+            )
+        for name in ("local", "federated"):
+            halves = [
+                s.get("second_over_first")
+                for s in (topologies.get(name) or {}).get("stationarity", [])
+                if s.get("second_over_first") is not None
+            ]
+            if halves:
+                print(
+                    f"       {name:<10} stationarity second/first "
+                    f"min={min(halves):.3f} max={max(halves):.3f}"
+                )
+
+    diagnostics = summary["diagnostics"]
+    print(
+        f"\n   transport diagnostics: "
+        f"{diagnostics['runs_with_live_recovery_count']} runs with workload "
+        f"gap recovery ({diagnostics['interactions_overlapping_recovery_total']} "
+        f"interactions affected), "
+        f"{diagnostics['runs_with_setup_only_recovery_count']} with a setup-only "
+        f"episode, "
+        f"{diagnostics['runs_with_m_limit_exceeded_count']} with M_LIMIT_EXCEEDED"
+    )
+    for entry in diagnostics["runs_with_live_recovery"]:
+        print(
+            f"     ~ {entry['run_id']}: sender={entry['sender_recovery_episodes']} "
+            f"agent={entry['agent_recovery_episodes']} episodes, "
+            f"{entry['interactions_overlapping_recovery']} interactions overlap"
+        )
+
+    drift = summary.get("environment_drift") or {}
+    if drift.get("joined_rooms_first") is not None:
+        print(
+            f"   campaign drift: p50 vs execution order "
+            f"{drift.get('p50_vs_campaign_position_pearson_by_topology')} "
+            f"(sender joined rooms {drift['joined_rooms_first']} -> "
+            f"{drift['joined_rooms_last']}; order and rooms are confounded)"
+        )
+        for name, item in (drift.get("p50_by_campaign_half") or {}).items():
+            print(
+                f"     {name:<10} mean run p50 "
+                f"{item['first_half_mean_p50_ms']}ms -> "
+                f"{item['second_half_mean_p50_ms']}ms across the campaign"
+            )
+
+    for name, item in (summary.get("derived_c1_consistency") or {}).items():
+        print(
+            f"   derived C=1 check ({name}): predicted "
+            f"{_fmt(item['predicted_c1_throughput_per_second'])}/s from mean RTT "
+            f"{_fmt(item['mean_rtt_ms'])}ms, consistent={item['consistent']}"
+        )
+    print(
+        "\n   observed throughput at tested concurrency — never maximum, "
+        "capacity, achievable or saturation throughput"
+    )
+
+
 def main() -> int:
     root = resolve_results_dir(create=False)
     print(f"analysis over {root}\n")
@@ -538,6 +688,13 @@ def main() -> int:
     else:
         print("   no readiness runs found")
 
+    print("\n7. E3 development metrics")
+    e3 = summarize_e3(root)
+    if e3["runs_total"]:
+        print_e3(e3)
+    else:
+        print("   no E3 benchmark runs found")
+
     processed_dir = root / "processed"
     processed_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -548,24 +705,38 @@ def main() -> int:
         "analysis_spec_version": EXECUTION_ANALYSIS_SPEC_VERSION,
         "analysis_code_commit": ANALYSIS_CODE_COMMIT,
         "protocol_git_commit": _protocol_commit(root),
+        "protocol_git_commits_by_experiment": _protocol_commits(root),
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source_run_ids": [
             run["run_id"]
             for run in (summary["runs"] + e1["runs"] + e2["runs"] + readiness["runs"])
-        ],
+        ]
+        + list(e3.get("source_run_ids", [])),
         "source_digests": {
-            run["run_id"]: run["source_digests"]
-            for run in (summary["runs"] + e1["runs"] + e2["runs"] + readiness["runs"])
+            **{
+                run["run_id"]: run["source_digests"]
+                for run in (
+                    summary["runs"] + e1["runs"] + e2["runs"] + readiness["runs"]
+                )
+            },
+            **e3.get("source_raw_digests", {}),
         },
         "e0_summary": summary,
         "e1_summary": e1,
         "e2_summary": e2,
         "e3_readiness_summary": readiness,
+        "e3_summary": e3,
         "note": (
             "Development validation. publication_data is false; this is not "
             "publication evidence and no formal evidence counter is updated."
         ),
     }
+    if e3["runs_total"]:
+        # Development figures and tables (§48). Not publication outputs.
+        written = e3_analysis.write_tables(e3, processed_dir / "e3-tables")
+        for table in written:
+            print(f"   development table: {table}")
+
     path = processed_dir / f"experiment-summary-{stamp}.json"
     path.write_text(json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\n   processed artifact: {path}")
@@ -578,17 +749,46 @@ def main() -> int:
         ok = ok and e2["runs_passed"] == e2["runs_total"]
     if readiness["runs_total"]:
         ok = ok and readiness["runs_passed"] == readiness["runs_total"]
+    if e3["runs_total"]:
+        # E3 has no pass/fail acceptance criterion — it is a measurement, not
+        # a functional check. What can fail is provenance and completeness:
+        # an invalid run, or a paired block missing one of its topologies.
+        ok = ok and not e3["runs_invalid"]
+        ok = ok and not e3["latency"]["incomplete_blocks"]
+        # A schema-valid, digest-verified record can still state something
+        # impossible. Both outcome-classification defects in Task 05 were of
+        # exactly that kind, so this is a gate, not a note.
+        ok = ok and not e3.get("integrity_problems")
     print(f"\nANALYSE: {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 1
 
 
-def _protocol_commit(root: Path) -> str:
+def _protocol_commits(root: Path) -> dict[str, list[str]]:
+    """Every protocol commit present, grouped by experiment.
+
+    A results directory accumulates runs across tasks, so it can legitimately
+    hold evidence collected at several protocol commits. Reporting one of them
+    as *the* commit — whichever manifest happened to sort first — would attach
+    the wrong provenance to every other experiment in the summary. Each run
+    manifest keeps its own commit; this reports the set honestly.
+    """
+    found: dict[str, set[str]] = {}
     for manifest_path in sorted(manifests_dir(root).glob("*.manifest.json")):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         commit = manifest.get("protocol_git_commit")
         if commit:
-            return commit
-    return "unknown"
+            found.setdefault(manifest.get("experiment", "unknown"), set()).add(commit)
+    return {name: sorted(commits) for name, commits in sorted(found.items())}
+
+
+def _protocol_commit(root: Path) -> str:
+    """The single protocol commit, or a marker when the set is mixed."""
+    commits = {c for values in _protocol_commits(root).values() for c in values}
+    if len(commits) == 1:
+        return commits.pop()
+    if not commits:
+        return "unknown"
+    return "mixed — see protocol_git_commits_by_experiment"
 
 
 if __name__ == "__main__":

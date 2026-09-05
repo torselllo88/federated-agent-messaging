@@ -60,3 +60,42 @@ MANIFEST_SCHEMA_VERSION = "1"
 #: (experimental-protocol.md §35, §38).
 EXECUTION_PROTOCOL_VERSION = "1.1-dev"
 EXECUTION_ANALYSIS_SPEC_VERSION = "1.1-dev"
+
+# --- E3, experimental-protocol.md §18, §21, §22, §24, §25 -------------------
+#
+# Frozen methodology. Task 05 does not choose these; it executes them.
+
+#: §18. Benchmark topology identifiers, used verbatim in raw records,
+#: manifests, the schedule and analysis output.
+E3_TOPOLOGY_LOCAL = "local"
+E3_TOPOLOGY_FEDERATED = "federated"
+E3_TOPOLOGIES = (E3_TOPOLOGY_LOCAL, E3_TOPOLOGY_FEDERATED)
+
+#: §21. Workload A — low-load latency.
+E3_LATENCY_MAX_IN_FLIGHT = 1
+E3_LATENCY_WARMUP_INTERACTIONS = 50
+E3_LATENCY_MEASURED_INTERACTIONS = 500
+
+#: §22. Workload B — concurrent throughput. C = 1 is deliberately absent and
+#: is recovered as a derived consistency check in analysis (§31).
+E3_CONCURRENCY_LEVELS = (8, 32)
+E3_WARMUP_SECONDS = 10.0
+E3_MEASUREMENT_SECONDS = 60.0
+E3_DRAIN_SECONDS = 10.0
+
+#: §21, §22. Twenty paired blocks per workload.
+E3_PAIRED_BLOCKS = 20
+
+#: §25. Inter-run quiescence.
+E3_INTER_RUN_IDLE_SECONDS = 5.0
+
+#: §32. Paired-block bootstrap.
+E3_BOOTSTRAP_REPLICATES = 10_000
+E3_BOOTSTRAP_CONFIDENCE = 0.95
+
+#: Workload identifiers.
+E3_WORKLOAD_LATENCY = "latency"
+E3_WORKLOAD_THROUGHPUT = "throughput"
+
+#: §22. The three named periods of a throughput run. No parallel names exist.
+E3_PHASES = ("warmup", "window", "drain")

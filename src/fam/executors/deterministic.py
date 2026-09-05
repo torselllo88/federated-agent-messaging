@@ -9,7 +9,7 @@ cost is small and stable relative to communication latency
 from __future__ import annotations
 
 from fam.common.frozen import E3_BODY_BYTES, REQUEST_KEYWORD
-from fam.common.message import ParsedMessage, build_ack
+from fam.common.message import ParsedMessage, assert_body_length, build_ack
 
 
 class DeterministicExecutor:
@@ -34,4 +34,9 @@ class DeterministicExecutor:
     def decide(self, message: ParsedMessage) -> str | None:
         if message.kind != REQUEST_KEYWORD:
             return None
-        return build_ack(message.correlation, body_bytes=self.body_bytes)
+        body = build_ack(message.correlation, body_bytes=self.body_bytes)
+        if self.body_bytes is not None:
+            # Asserted before send, on the ACK as well as the request: E3
+            # symmetry is a property of both directions (§5).
+            assert_body_length(body, self.body_bytes)
+        return body

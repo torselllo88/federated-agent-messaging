@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 from urllib.parse import quote
@@ -34,6 +35,24 @@ from fam.common.frozen import MESSAGE_EVENT_TYPE, ROOM_VERSION
 
 class MatrixError(RuntimeError):
     """An ordinary Client-Server operation failed."""
+
+
+class MatrixRequestRejected(MatrixError):
+    """The homeserver rejected an ordinary Client-Server request.
+
+    Carries the Matrix ``errcode`` so that a rate-limit rejection is
+    distinguishable from any other failure. ``M_LIMIT_EXCEEDED`` is an
+    experimental observation under the frozen configuration and is recorded
+    explicitly, never retried away (experimental-protocol.md §28).
+    """
+
+    def __init__(self, message: str, errcode: str = "") -> None:
+        super().__init__(message)
+        self.errcode = errcode
+
+    @property
+    def rate_limited(self) -> bool:
+        return self.errcode == "M_LIMIT_EXCEEDED"
 
 
 class RecoveryBoundExceeded(MatrixError):
@@ -71,6 +90,11 @@ class RoomSyncSlice:
     events: list["TimelineEvent"]
     limited: bool
     prev_batch: str | None
+    #: Timeline events the server returned before this client filtered them
+    #: down to messages. The E3 sync-limit pilot selects a limit from observed
+    #: occupancy, and occupancy is a property of the whole timeline, not just
+    #: the experimental subset (§11 of the Task 05 pilot rule).
+    raw_event_count: int = 0
 
 
 @dataclass
@@ -86,6 +110,20 @@ class SyncSnapshot:
 
 
 EventHandler = Callable[[TimelineEvent], Awaitable[None]]
+
+#: Distinguishes "use the participant default" from an explicit ``None``,
+#: which means "send no timeline filter at all".
+_UNSET: Any = object()
+
+
+def _errcode_of(response: object) -> str:
+    """Extract the Matrix ``errcode`` from a matrix-nio error response.
+
+    nio exposes it as ``status_code`` on ``ErrorResponse``, which is the
+    Matrix errcode string rather than an HTTP status.
+    """
+    value = getattr(response, "status_code", None)
+    return value if isinstance(value, str) else ""
 
 
 class MatrixParticipant:
@@ -136,6 +174,23 @@ class MatrixParticipant:
         self.on_recovery_episode: Callable[[dict], Awaitable[None]] | None = None
         self._episode_counter = 0
         self._live_recovery_failures = 0
+        #: Live transport diagnostics. Every E3 benchmark run reports these,
+        #: for the sender as well as the agent: a recovery episode adds
+        #: pagination round trips inside the sync loop, so a run where one
+        #: occurred is a run whose timings carry a caveat (§42).
+        self.live_recovery_episodes = 0
+        self.live_history_pages = 0
+        self.limited_syncs_observed = 0
+        self.sync_slices_observed = 0
+        self.max_timeline_events_observed = 0
+        self.max_message_events_observed = 0
+        #: Set while events reconciled by a recovery episode are being
+        #: dispatched, so a handler can mark exactly the interactions whose
+        #: event arrived through pagination rather than directly from sync.
+        self.current_recovery_episode: int | None = None
+        #: One entry per live episode, with monotonic bounds, for the run
+        #: manifest. Diagnostics; never a measurement.
+        self.recovery_episode_log: list[dict] = []
 
     # ------------------------------------------------------------- identity
 
@@ -260,6 +315,10 @@ class MatrixParticipant:
         # 404 from this endpoint indicates.
         return False
 
+    async def joined_room_ids(self) -> list[str]:
+        payload = await self._request("GET", "/_matrix/client/v3/joined_rooms")
+        return list(payload.get("joined_rooms", []))
+
     async def joined_members(self, room_id: str) -> list[str]:
         payload = await self._request(
             "GET", f"/_matrix/client/v3/rooms/{quote(room_id, safe='')}/joined_members"
@@ -282,7 +341,9 @@ class MatrixParticipant:
             tx_id=txn_id,
         )
         if not isinstance(response, RoomSendResponse):
-            raise MatrixError(f"room_send failed: {response}")
+            raise MatrixRequestRejected(
+                f"room_send failed: {response}", errcode=_errcode_of(response)
+            )
         return response.event_id
 
     # ---------------------------------------------------------- sync control
@@ -290,10 +351,11 @@ class MatrixParticipant:
     def on_event(self, handler: EventHandler) -> None:
         self._handlers.append(handler)
 
-    def _sync_filter(self) -> dict | None:
-        if self.timeline_limit is None:
+    def _sync_filter(self, timeline_limit: int | None = _UNSET) -> dict | None:
+        limit = self.timeline_limit if timeline_limit is _UNSET else timeline_limit
+        if limit is None:
             return None
-        return {"room": {"timeline": {"limit": self.timeline_limit}}}
+        return {"room": {"timeline": {"limit": limit}}}
 
     @staticmethod
     def _to_timeline_event(room_id: str, event) -> "TimelineEvent | None":
@@ -312,14 +374,23 @@ class MatrixParticipant:
         )
 
     async def sync_once(
-        self, *, since: str | None = None, timeout: int = 0
+        self,
+        *,
+        since: str | None = None,
+        timeout: int = 0,
+        timeline_limit: int | None = _UNSET,
     ) -> SyncSnapshot:
-        """One sync, with the limited-timeline signal preserved."""
+        """One sync, with the limited-timeline signal preserved.
+
+        ``timeline_limit`` overrides the participant default for this one
+        request. Used by :meth:`prime_sync`, which wants a position and
+        nothing else.
+        """
         response = await self._client.sync(
             timeout=timeout,
             since=since,
             full_state=False,
-            sync_filter=self._sync_filter(),
+            sync_filter=self._sync_filter(timeline_limit),
         )
         if not isinstance(response, SyncResponse):
             raise MatrixError(f"sync failed: {response}")
@@ -331,12 +402,21 @@ class MatrixParticipant:
                 parsed = self._to_timeline_event(room_id, event)
                 if parsed is not None:
                     events.append(parsed)
+            raw_count = len(room.timeline.events)
+            self.max_timeline_events_observed = max(
+                self.max_timeline_events_observed, raw_count
+            )
+            self.max_message_events_observed = max(
+                self.max_message_events_observed, len(events)
+            )
+            self.sync_slices_observed += 1
             slices.append(
                 RoomSyncSlice(
                     room_id=room_id,
                     events=events,
                     limited=bool(room.timeline.limited),
                     prev_batch=room.timeline.prev_batch,
+                    raw_event_count=raw_count,
                 )
             )
         return SyncSnapshot(next_batch=response.next_batch, rooms=slices)
@@ -393,8 +473,16 @@ class MatrixParticipant:
         return events, pages
 
     async def prime_sync(self) -> None:
-        """One initial sync to establish a checkpoint without replaying history."""
-        snapshot = await self.sync_once(since=None, timeout=0)
+        """One initial sync to establish a checkpoint without replaying history.
+
+        The timeline limit is zero for this request, which is what "without
+        replaying history" actually requires. An initial sync carries every
+        joined room, so at the participant default the response would grow
+        with every room the account has ever been in — across a 120-run
+        benchmark campaign that becomes a large, steadily increasing setup
+        cost for something whose only output is a stream token.
+        """
+        snapshot = await self.sync_once(since=None, timeout=0, timeline_limit=0)
         self._sync_token = snapshot.next_batch
 
     def start_sync(self) -> None:
@@ -509,17 +597,45 @@ class MatrixParticipant:
                 for item in snapshot.rooms:
                     if not self._is_tracked(item.room_id):
                         continue
+                    episode_id: int | None = None
                     if item.limited and self.gap_recovery_enabled:
+                        started_ns = time.monotonic_ns()
                         events, episode = await self.reconcile_slice(
                             item, since=since, trigger="live_sync"
+                        )
+                        episode_id = episode.get("recovery_episode")
+                        self.limited_syncs_observed += 1
+                        self.live_recovery_episodes += 1
+                        self.live_history_pages += episode.get(
+                            "history_pages_fetched", 0
+                        )
+                        self.recovery_episode_log.append(
+                            {
+                                "recovery_episode": episode_id,
+                                "room_id": item.room_id,
+                                "started_monotonic_ns": started_ns,
+                                "reconciled_monotonic_ns": time.monotonic_ns(),
+                                "history_pages_fetched": episode.get(
+                                    "history_pages_fetched", 0
+                                ),
+                                "recovered_from_history": episode.get(
+                                    "recovered_from_history", 0
+                                ),
+                            }
                         )
                         if self.on_recovery_episode is not None:
                             await self.on_recovery_episode(episode)
                     else:
                         events = item.events
-                    for parsed in events:
-                        for handler in self._handlers:
-                            await handler(parsed)
+                    # Marked for the duration of dispatch so a handler can
+                    # attribute an event to the episode that recovered it.
+                    self.current_recovery_episode = episode_id
+                    try:
+                        for parsed in events:
+                            for handler in self._handlers:
+                                await handler(parsed)
+                    finally:
+                        self.current_recovery_episode = None
             except Exception as exc:  # noqa: BLE001
                 self._live_recovery_failures += 1
                 if self.on_recovery_episode is not None:
@@ -541,6 +657,41 @@ class MatrixParticipant:
                 await self.on_commit(snapshot.next_batch)
 
     # ------------------------------------------------------------- lifecycle
+
+    def reset_transport_diagnostics(self) -> dict[str, Any]:
+        """Zero the live counters and return what they held.
+
+        Called at the workload boundary so that what the counters report
+        afterwards describes the measurement period. Room creation, joins and
+        the initial sync all produce ordinary transport activity that has
+        nothing to do with the workload, and folding the two together would
+        make a clean sync configuration look like a truncating one.
+        """
+        previous = self.transport_diagnostics()
+        self.live_recovery_episodes = 0
+        self.live_history_pages = 0
+        self.limited_syncs_observed = 0
+        self.sync_slices_observed = 0
+        self.max_timeline_events_observed = 0
+        self.max_message_events_observed = 0
+        self._live_recovery_failures = 0
+        self.recovery_episode_log = []
+        return previous
+
+    def transport_diagnostics(self) -> dict[str, int]:
+        """Live sync facts this participant observed. Never a measurement."""
+        return {
+            "live_recovery_episodes": self.live_recovery_episodes,
+            "live_recovery_pages": self.live_history_pages,
+            "live_recovery_failures": self._live_recovery_failures,
+            "limited_syncs_observed": self.limited_syncs_observed,
+            "recovery_episode_log": list(self.recovery_episode_log),
+            "sync_slices_observed": self.sync_slices_observed,
+            "max_timeline_events_observed": self.max_timeline_events_observed,
+            "max_message_events_observed": self.max_message_events_observed,
+            "sync_timeline_limit": self.timeline_limit,
+            "sync_timeout_ms": self.sync_timeout_ms,
+        }
 
     async def close(self) -> None:
         await self.stop_sync()

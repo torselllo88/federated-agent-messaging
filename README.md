@@ -106,8 +106,19 @@ make setup      # TLS, configs, both domains, accounts, environment manifest
 make verify     # transport and bootstrap readiness, config hashes, rate limits
 make spike      # compatibility spike: Synapse + nio + room version 12
 make e0         # three independent E0 runs
-make analyse    # digest verification, schema validation, E0 summary
+make e1         # three independent federated E1 runs
+make e2         # three independent E2 recovery runs
+make e3-pilot   # E3 pilot: benchmark mechanics, sync limit, stationarity
+make e3         # the E3 development campaign, 120 paired benchmark runs
+make analyse    # digest verification, schema validation, E0-E3 summaries
 ```
+
+`make e3` is long-running and resumable: a completed run is never repeated and
+never overwritten, so an interrupted campaign continues where it stopped. Rerun
+the same command to resume. A change to any campaign parameter — schedule seed,
+sync configuration, message size, timings, or the Synapse configuration hash —
+produces a new campaign identifier rather than mixing two parameter sets into
+one dataset.
 
 On Windows, substitute `.\make.ps1 setup` and so on.
 
