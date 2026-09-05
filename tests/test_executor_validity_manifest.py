@@ -17,16 +17,22 @@ from fam.common.validity import (
     invalid,
 )
 from fam.executors.deterministic import DeterministicExecutor
+from fam.executors.base import ExecutionRequest
 from fam.instrumentation.manifest import AUTOMATED, RawArtifact, RunManifest
 
 
 # ------------------------------------------------------------------ executor
 
 
+def _controlled(body: str) -> ExecutionRequest:
+    """The controlled protocol hands the executor the parsed envelope."""
+    return ExecutionRequest(text=body, message=parse(body))
+
+
 def test_one_deterministic_ack_per_valid_request():
     executor = DeterministicExecutor()
     correlation = Correlation("E0", "run-1", 5)
-    request = parse(build_request(correlation))
+    request = _controlled(build_request(correlation))
     first = executor.decide(request)
     second = executor.decide(request)
     assert first == second == build_ack(correlation)
@@ -34,13 +40,19 @@ def test_one_deterministic_ack_per_valid_request():
 
 def test_executor_ignores_acks():
     executor = DeterministicExecutor()
-    ack = parse(build_ack(Correlation("E0", "run-1", 5)))
+    ack = _controlled(build_ack(Correlation("E0", "run-1", 5)))
     assert executor.decide(ack) is None
+
+
+def test_executor_ignores_a_request_with_no_controlled_envelope():
+    """E4 prose reaching the deterministic executor is not answerable."""
+    executor = DeterministicExecutor()
+    assert executor.decide(ExecutionRequest(text="what is the capital of France?")) is None
 
 
 def test_executor_can_produce_the_frozen_fixed_size_body():
     executor = DeterministicExecutor(body_bytes=E3_BODY_BYTES)
-    request = parse(build_request(Correlation("E3", "run-1", 5)))
+    request = _controlled(build_request(Correlation("E3", "run-1", 5)))
     body = executor.decide(request)
     assert len(body.encode("utf-8")) == E3_BODY_BYTES
 

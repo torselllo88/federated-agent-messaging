@@ -17,12 +17,12 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from fam.agent import protocol as request_protocol
 from fam.agent.recovery import RecoveryLedger, Source
 from fam.common.dedup import Decision, ProcessedRegistry
 from fam.common.frozen import MESSAGE_EVENT_TYPE
-from fam.common.message import parse
 from fam.common.privilege import ADMIN_PROBE_PATH, environment_evidence, summarize
-from fam.executors.base import Executor
+from fam.executors.base import Executor, decide as run_executor
 from fam.instrumentation.streams import JsonlStream, agent_record, monotonic_ns
 from fam.matrix.client import MatrixParticipant, TimelineEvent
 
@@ -41,6 +41,9 @@ class AgentConfig:
     #: Constrains the per-room /sync timeline. E2 sets this below the offline
     #: request count so the gap-recovery branch is genuinely exercised.
     timeline_limit: int | None = None
+    #: Which envelope the agent expects. E0-E3 use the controlled FAM/1
+    #: protocol; E4 uses ordinary prose from a standard Matrix client.
+    request_protocol: str = request_protocol.CONTROLLED
 
 
 class TransportCheckpoint:
@@ -89,7 +92,13 @@ class AgentRuntime:
             timeline_limit=config.timeline_limit,
         )
         self.telemetry = JsonlStream(config.telemetry_path, "agent")
+        self.protocol = request_protocol.build(
+            config.request_protocol, agent_mxid=config.user_id
+        )
         self._registry = ProcessedRegistry()
+        #: Provider-side facts from the most recent executor call, recorded in
+        #: telemetry. E4 only; empty for the deterministic executor.
+        self._last_execution: dict = {}
         self._resumed_from_checkpoint = False
         self._checkpoint_token: str | None = None
         self.ledger = RecoveryLedger()
@@ -300,15 +309,20 @@ class AgentRuntime:
         )
         return self.ledger
 
+    def _inbound(self, event: TimelineEvent):
+        """The request this event carries, if any, per the active protocol."""
+        return self.protocol.inbound(
+            event_id=event.event_id, sender=event.sender, body=event.body
+        )
+
     def _is_foreign_request(self, event: TimelineEvent) -> bool:
         if event.room_id != self.config.room_id or event.sender == self.config.user_id:
             return False
-        message = parse(event.body)
-        return message is not None and message.is_request
+        return self._inbound(event) is not None
 
     def _sequence_of(self, event: TimelineEvent) -> int:
-        message = parse(event.body)
-        return message.correlation.sequence_id if message else 0
+        inbound = self._inbound(event)
+        return inbound.sequence_id if inbound and inbound.sequence_id else 0
 
     def _from_raw(self, raw: dict) -> TimelineEvent | None:
         if raw.get("type") != MESSAGE_EVENT_TYPE:
@@ -401,8 +415,8 @@ class AgentRuntime:
             return
 
         received_ns = monotonic_ns()
-        message = parse(event.body)
-        if message is None or not message.is_request:
+        inbound = self._inbound(event)
+        if inbound is None:
             self._record(
                 action="ignored",
                 duplicate_decision=Decision.SKIP_NOT_REQUEST.value,
@@ -412,7 +426,7 @@ class AgentRuntime:
             )
             return
 
-        key = message.correlation.key()
+        key = inbound.correlation_key
         decision = self._registry.decide(event_id=event.event_id, correlation_key=key)
         if decision is not Decision.PROCESS:
             self._record(
@@ -420,7 +434,7 @@ class AgentRuntime:
                 duplicate_decision=decision.value,
                 sender=event.sender,
                 request_event_id=event.event_id,
-                sequence_id=message.correlation.sequence_id,
+                sequence_id=inbound.sequence_id,
                 received_monotonic_ns=received_ns,
                 note="logical request already processed exactly once",
             )
@@ -428,21 +442,51 @@ class AgentRuntime:
 
         self._registry.commit(event_id=event.event_id, correlation_key=key)
 
-        body = self.executor.decide(message)
+        self._last_execution = {}
+        try:
+            body = await run_executor(self.executor, inbound.execution)
+        except Exception as exc:  # noqa: BLE001 - classified, not swallowed
+            # An executor failure is recorded with the classification the
+            # frozen taxonomy needs (experimental-protocol.md §35). It is
+            # never retried here: retrying until one call succeeds is the
+            # behaviour that taxonomy exists to prevent.
+            external = bool(getattr(exc, "external", False))
+            self._record(
+                action="execution_failed",
+                duplicate_decision=Decision.PROCESS.value,
+                sender=event.sender,
+                request_event_id=event.event_id,
+                sequence_id=inbound.sequence_id,
+                received_monotonic_ns=received_ns,
+                processed_monotonic_ns=monotonic_ns(),
+                note=f"{type(exc).__name__}: {exc}",
+                execution={
+                    "executor": getattr(self.executor, "name", "unknown"),
+                    "failed": True,
+                    "external_dependency_failure": external,
+                    "status": getattr(exc, "status", None),
+                },
+            )
+            return
+
         processed_ns = monotonic_ns()
+        execution = dict(getattr(self.executor, "last_call", {}) or {})
+        if execution:
+            execution["executor"] = getattr(self.executor, "name", "unknown")
         if body is None:
             self._record(
                 action="no_response",
                 duplicate_decision=Decision.PROCESS.value,
                 sender=event.sender,
                 request_event_id=event.event_id,
-                sequence_id=message.correlation.sequence_id,
+                sequence_id=inbound.sequence_id,
                 received_monotonic_ns=received_ns,
                 processed_monotonic_ns=processed_ns,
+                execution=execution,
             )
             return
 
-        txn_id = message.correlation.txn_id("response")
+        txn_id = inbound.response_txn_id
         response_event_id = None
         note = ""
         try:
@@ -457,12 +501,13 @@ class AgentRuntime:
             duplicate_decision=Decision.PROCESS.value,
             sender=event.sender,
             request_event_id=event.event_id,
-            sequence_id=message.correlation.sequence_id,
+            sequence_id=inbound.sequence_id,
             received_monotonic_ns=received_ns,
             processed_monotonic_ns=processed_ns,
             response_txn_id=txn_id,
             response_event_id=response_event_id,
             note=note,
+            execution=execution,
         )
         self._save_checkpoint()
 
@@ -488,6 +533,7 @@ class AgentRuntime:
         response_txn_id: str | None = None,
         response_event_id: str | None = None,
         note: str = "",
+        execution: dict | None = None,
     ) -> None:
         self.telemetry.write(
             agent_record(
@@ -506,6 +552,7 @@ class AgentRuntime:
                 action=action,
                 sync_token_present=self.participant.sync_token is not None,
                 note=note,
+                execution=execution or None,
             )
         )
 

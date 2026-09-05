@@ -151,4 +151,8 @@ chums-*/
 .pytest_cache/
 *.egg-info/
 infrastructure/tls/*.crt
+
+# The research CA exported for a human client's trust store (`make e4-ca`).
+# Generated per deployment and regenerable; never part of the artifact.
+research-ca.crt
 infrastructure/tls/*.key

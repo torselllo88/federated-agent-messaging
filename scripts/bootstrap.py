@@ -38,6 +38,11 @@ from fam.common.env import DOMAIN_NAMES, FROZEN_ACCOUNTS, localpart  # noqa: E40
 
 TLS_DIR = Path("/tls")
 SECRETS_DIR = Path("/secrets")
+#: Host port publishing the E4 HTTPS Client-Server listener. Must match
+#: the published port in docker-compose.yml: clients are told this address
+#: in the login response and will use it for every subsequent request.
+CS_TLS_PORT = os.environ.get("FAM_E4_CS_TLS_PORT", "8449")
+
 TEMPLATE = Path("/app/infrastructure/synapse/homeserver.yaml.template")
 LOG_CONFIG = Path("/app/infrastructure/synapse/log.config")
 
@@ -244,6 +249,7 @@ def render_config() -> None:
         # will see, not the one bootstrap wrote to.
         rendered = template.substitute(
             SERVER_NAME=server_name,
+            CS_TLS_PORT=CS_TLS_PORT,
             DB_HOST=spec["db_host"],
             DB_PASSWORD=db_password,
             SIGNING_KEY_PATH=f"/data/{server_name}.signing.key",

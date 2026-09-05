@@ -34,6 +34,9 @@ class AgentProcess:
         state_dir: Path,
         body_bytes: int | None = None,
         timeline_limit: int | None = None,
+        executor: str = "deterministic",
+        request_protocol: str = "controlled",
+        extra_env: dict[str, str] | None = None,
     ) -> None:
         self.user_id = user_id
         self.password = password
@@ -45,6 +48,11 @@ class AgentProcess:
         self.state_dir = state_dir
         self.body_bytes = body_bytes
         self.timeline_limit = timeline_limit
+        self.executor = executor
+        self.request_protocol = request_protocol
+        #: Provider credentials for E4 reach the agent process this way and
+        #: are never written to a file or a command line.
+        self.extra_env = extra_env or {}
         self.process: asyncio.subprocess.Process | None = None
 
     @property
@@ -56,6 +64,7 @@ class AgentProcess:
         self.ready_file.unlink(missing_ok=True)
         env = dict(os.environ)
         env["PYTHONPATH"] = "/app/src"
+        env.update(self.extra_env)
         argv = [
             sys.executable,
             "-m",
@@ -73,6 +82,8 @@ class AgentProcess:
             argv += ["--body-bytes", str(self.body_bytes)]
         if self.timeline_limit is not None:
             argv += ["--timeline-limit", str(self.timeline_limit)]
+        argv += ["--executor", self.executor]
+        argv += ["--request-protocol", self.request_protocol]
 
         self.process = await asyncio.create_subprocess_exec(*argv, env=env)
 

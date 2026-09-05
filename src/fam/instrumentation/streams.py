@@ -159,6 +159,7 @@ def agent_record(
     sync_token_present: bool,
     history_pagination_invoked: bool = False,
     note: str = "",
+    execution: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """One agent-side observation.
 
@@ -187,6 +188,10 @@ def agent_record(
         "sync_token_present": sync_token_present,
         "history_pagination_invoked": history_pagination_invoked,
         "note": note,
+        # E4 only: provider-side facts about the executor call. Counts and
+        # identifiers, never the payload — the Matrix transcript already holds
+        # the request and the response (Task 06 §27).
+        "execution": execution,
     }
 
 

@@ -9,7 +9,8 @@ cost is small and stable relative to communication latency
 from __future__ import annotations
 
 from fam.common.frozen import E3_BODY_BYTES, REQUEST_KEYWORD
-from fam.common.message import ParsedMessage, assert_body_length, build_ack
+from fam.common.message import assert_body_length, build_ack
+from fam.executors.base import ExecutionRequest
 
 
 class DeterministicExecutor:
@@ -31,8 +32,14 @@ class DeterministicExecutor:
             )
         self.body_bytes = body_bytes
 
-    def decide(self, message: ParsedMessage) -> str | None:
-        if message.kind != REQUEST_KEYWORD:
+    def decide(self, request: ExecutionRequest) -> str | None:
+        """Synchronous by design: E0-E3 need a cheap, stable local decision.
+
+        The FAM/1 envelope is the whole input here, so a request without one
+        is not something this executor can answer.
+        """
+        message = request.message
+        if message is None or message.kind != REQUEST_KEYWORD:
             return None
         body = build_ack(message.correlation, body_bytes=self.body_bytes)
         if self.body_bytes is not None:

@@ -125,3 +125,111 @@ class RunManifest:
         payload = json.dumps(self.to_dict(), indent=2, ensure_ascii=False)
         path.write_text(payload + "\n", encoding="utf-8")
         return path
+
+
+@dataclass
+class EvidenceArtifact:
+    """A transcript or screenshot referenced by an E4 manifest."""
+
+    role: str
+    path: Path
+    note: str = ""
+
+    def to_dict(self, results_root: Path) -> dict[str, Any]:
+        try:
+            relative = self.path.relative_to(results_root).as_posix()
+        except ValueError:
+            relative = self.path.name
+        return {
+            "role": self.role,
+            "path": relative,
+            "sha256": file_sha256(self.path),
+            "bytes": self.path.stat().st_size,
+            "note": self.note,
+        }
+
+
+@dataclass
+class HumanValidationManifest:
+    """The ``human_llm_validation_manifest`` body, experimental-protocol.md §38.
+
+    Deliberately a separate type rather than the automated manifest with empty
+    fields. Concurrency, warm-up, window, drain and timing fields are absent by
+    design: E4 produces no measurements, and carrying empty benchmark fields
+    would invite someone to fill them in later.
+
+    The human client host is recorded because it sits outside the designated
+    formal-run host (§39); recording it keeps that exemption auditable rather
+    than implicit.
+    """
+
+    session_id: str
+    room_id: str
+    participants: dict[str, str]
+    publication_data: bool
+    protocol_git_commit: str
+    human_client_name: str
+    human_client_version: str
+    human_client_host: str
+    llm_provider: str
+    llm_model: str
+    agent_config_hash: str
+    executor_identifier: str
+    interaction_event_ids: list[dict[str, Any]] = field(default_factory=list)
+    evidence: list[EvidenceArtifact] = field(default_factory=list)
+    environment_manifest: str | None = None
+    started_at: str = field(default_factory=utc_now)
+    completed_at: str | None = None
+    completion_status: str = "incomplete"
+    validity: RunValidity | None = None
+    three_party_topology_confirmed: bool = False
+    functional_result: str = "fail"
+    results_root: Path = Path("/results")
+    extra: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        if self.validity is None:
+            raise ValueError("a manifest must carry a validity classification")
+        return {
+            # --- common envelope, experimental-protocol.md §38 -------------
+            "manifest_type": HUMAN_LLM,
+            "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
+            "experiment": "E4",
+            "execution_protocol_version": EXECUTION_PROTOCOL_VERSION,
+            "execution_analysis_spec_version": EXECUTION_ANALYSIS_SPEC_VERSION,
+            "protocol_git_commit": self.protocol_git_commit,
+            "raw_schema_version": RAW_SCHEMA_VERSION,
+            "publication_data": self.publication_data,
+            "run_id": self.session_id,
+            "room_id": self.room_id,
+            "room_version": ROOM_VERSION,
+            "participants": self.participants,
+            "environment_manifest": self.environment_manifest,
+            "execution_host_identifier": execution_host_identifier(),
+            "start_timestamp": self.started_at,
+            "completion_timestamp": self.completed_at,
+            "completion_status": self.completion_status,
+            "validity_classification": self.validity.to_manifest(),
+            # --- human_llm_validation_manifest body ------------------------
+            "human_client_name": self.human_client_name,
+            "human_client_version": self.human_client_version,
+            "human_client_host": self.human_client_host,
+            "llm_provider": self.llm_provider,
+            "llm_model": self.llm_model,
+            "agent_configuration_hash": self.agent_config_hash,
+            "executor_identifier": self.executor_identifier,
+            "interaction_event_ids": self.interaction_event_ids,
+            "evidence_artifacts": [
+                artifact.to_dict(self.results_root) for artifact in self.evidence
+            ],
+            "functional_result": self.functional_result,
+            "three_party_topology_confirmed": self.three_party_topology_confirmed,
+            **self.extra,
+        }
+
+    def write(self, manifests_dir: Path) -> Path:
+        manifests_dir.mkdir(parents=True, exist_ok=True)
+        path = manifests_dir / f"{self.session_id}.manifest.json"
+        payload = json.dumps(self.to_dict(), indent=2, ensure_ascii=False)
+        path.write_text(payload + "\n", encoding="utf-8")
+        return path

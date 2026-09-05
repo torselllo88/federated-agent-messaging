@@ -79,6 +79,10 @@ services:
           - hs-a.test
     ports:
       - "${HS_A_CS_PORT:-8008}:8008"
+      # E4 only: HTTPS Client-Server endpoint for the external human client
+      # (testbed-architecture.md §7). Domain A alone, because that is where
+      # the actual human's account lives.
+      - "${HS_A_CS_TLS_PORT:-8449}:8449"
 
   # ---------------------------------------------------------------- Domain B
 
@@ -152,6 +156,9 @@ services:
     environment:
       FAM_RESULTS_DIR: /results
       FAM_ROLE: experiment
+      # E4 waits for a person. Buffered stdout makes a prompt invisible and
+      # the session look hung, so progress output is unbuffered.
+      PYTHONUNBUFFERED: "1"
       FAM_HS_A_NAME: hs-a.test
       FAM_HS_B_NAME: hs-b.test
       FAM_HS_A_CS_URL: http://synapse-a:8008

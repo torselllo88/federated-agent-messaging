@@ -29,7 +29,7 @@ RUN_BOOTSTRAP := $(COMPOSE) run --rm --no-deps bootstrap
 
 export FAM_PROTOCOL_GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 
-.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 analyse spike test down clean logs
+.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 e4-prepare e4-ca e4 e4-validate inventory analyse spike test down clean logs
 
 help:
 	@echo "make setup    - build, generate TLS and configs, start both domains, provision accounts"
@@ -42,6 +42,11 @@ help:
 	@echo "make e3-readiness - live gap recovery under bounded-concurrency stress"
 	@echo "make e3-pilot - development E3 pilot: benchmark mechanics and sync limit"
 	@echo "make e3      - the development E3 campaign (120 paired benchmark runs)"
+	@echo "make e4-prepare - check E4 readiness and print human-client details"
+	@echo "make e4-ca    - print the research CA for the human client trust store"
+	@echo "make e4       - run ONE human-driven E4 session (interactive)"
+	@echo "make e4-validate - validate the recorded E4 sessions"
+	@echo "make inventory - testbed configuration inventory for Task 07"
 	@echo "make analyse  - digest verification, schema validation, E0-E3 summaries"
 	@echo "make test     - unit tests"
 	@echo "make down     - stop containers"
@@ -119,6 +124,37 @@ e3: guard
 	$(COMPOSE) run --rm -e FAM_E3_SCHEDULE_SEED -e FAM_E3_TIMELINE_LIMIT \
 		-e FAM_E3_SYNC_TIMEOUT_MS -e FAM_E3_BLOCKS -e FAM_E3_WORKLOADS \
 		toolbox python experiments/e3_benchmark.py
+
+# --- E4: human-driven, cannot be automated ---------------------------------
+#
+# e4-prepare checks readiness and prints the connection details the human
+# needs. e4 runs ONE session and waits for a real person. e4-validate checks
+# the recorded sessions independently of the runner.
+
+e4-prepare: guard
+	$(COMPOSE) run --rm -e FAM_LLM_PROVIDER -e FAM_LLM_MODEL -e FAM_LLM_API_KEY \
+		-e FAM_LLM_BASE_URL -e FAM_E4_CS_TLS_PORT bootstrap python scripts/e4_prepare.py
+
+# Exports the research CA so it can be imported into the human client's trust
+# store. Nothing modifies a system trust store automatically.
+e4-ca:
+	@$(COMPOSE) run --rm --no-deps -T bootstrap cat /tls/ca.crt
+
+# Interactive by design: the session waits for a person. Do not add -T.
+e4: guard
+	$(COMPOSE) run --rm -e FAM_LLM_PROVIDER -e FAM_LLM_MODEL -e FAM_LLM_API_KEY \
+		-e FAM_LLM_BASE_URL -e FAM_LLM_MAX_TOKENS -e FAM_LLM_SYSTEM_PROMPT \
+		-e FAM_E4_SESSION_ID -e FAM_E4_CLIENT_NAME -e FAM_E4_CLIENT_VERSION \
+		-e FAM_E4_CLIENT_HOST -e FAM_E4_JOIN_TIMEOUT -e FAM_E4_TIMEOUT \
+		-e FAM_E4_CONFIRM_VISIBLE \
+		toolbox python experiments/e4_human_llm.py
+
+e4-validate: guard
+	$(COMPOSE) run --rm --no-deps toolbox python scripts/e4_validate.py
+
+# Machine-readable state of the testbed, as an input to Task 07.
+inventory: guard
+	$(COMPOSE) run --rm bootstrap python scripts/testbed_inventory.py
 
 analyse: guard
 	$(COMPOSE) run --rm -e FAM_E3_BOOTSTRAP_REPLICATES -e FAM_E3_BOOTSTRAP_SEED \

@@ -10,7 +10,13 @@
 
 server_name: "$SERVER_NAME"
 pid_file: /data/homeserver.pid
-public_baseurl: "https://$SERVER_NAME/"
+# The address clients are told to use. Synapse returns it as `well_known` in
+# the login response, and a standard client switches to it immediately after
+# signing in — so it must name the HTTPS Client-Server port, not the default
+# 443 where nothing listens. Omitting the port leaves a client stuck after a
+# successful login, which is exactly what happened the first time E4 was
+# attempted (testbed-architecture.md §7).
+public_baseurl: "https://$SERVER_NAME:$CS_TLS_PORT/"
 report_stats: false
 signing_key_path: "$SIGNING_KEY_PATH"
 
@@ -40,6 +46,20 @@ listeners:
     bind_addresses: ['0.0.0.0']
     resources:
       - names: [federation]
+        compress: false
+
+  # E4 only. A standard Matrix client on an external workstation needs the
+  # Client-Server endpoint over HTTPS, and the private CA trusted in that
+  # client (testbed-architecture.md §7). Kept as its own listener rather than
+  # added to the federation listener above, so that the Server-Server path
+  # already validated in E1-E3 is byte-identical and this exposure can be
+  # removed on its own.
+  - port: 8449
+    type: http
+    tls: true
+    bind_addresses: ['0.0.0.0']
+    resources:
+      - names: [client]
         compress: false
 
 # --- federation TLS ---------------------------------------------------------

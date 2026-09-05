@@ -25,34 +25,81 @@
   "properties": {
     "manifest_type": {
       "type": "string",
-      "enum": ["automated_experiment_manifest", "human_llm_validation_manifest"]
+      "enum": [
+        "automated_experiment_manifest",
+        "human_llm_validation_manifest"
+      ]
     },
-    "manifest_schema_version": { "const": "1" },
-    "experiment": { "type": "string" },
-    "execution_protocol_version": { "type": "string" },
+    "manifest_schema_version": {
+      "const": "1"
+    },
+    "experiment": {
+      "type": "string"
+    },
+    "execution_protocol_version": {
+      "type": "string"
+    },
     "execution_analysis_spec_version": {
       "type": "string",
       "description": "Recorded at execution. A later analysis-spec revision does not retroactively invalidate this run (experimental-protocol.md §35)."
     },
-    "protocol_git_commit": { "type": "string" },
-    "raw_schema_version": { "const": "1" },
-    "publication_data": { "type": "boolean" },
-    "run_id": { "type": "string" },
-    "room_id": { "type": "string" },
-    "room_version": { "const": "12" },
-    "participants": { "type": "object" },
-    "environment_manifest": { "type": ["string", "null"] },
-    "execution_host_identifier": { "type": "string" },
-    "start_timestamp": { "type": "string" },
-    "completion_timestamp": { "type": ["string", "null"] },
-    "completion_status": { "type": "string" },
+    "protocol_git_commit": {
+      "type": "string"
+    },
+    "raw_schema_version": {
+      "const": "1"
+    },
+    "publication_data": {
+      "type": "boolean"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "room_id": {
+      "type": "string"
+    },
+    "room_version": {
+      "const": "12"
+    },
+    "participants": {
+      "type": "object"
+    },
+    "environment_manifest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "execution_host_identifier": {
+      "type": "string"
+    },
+    "start_timestamp": {
+      "type": "string"
+    },
+    "completion_timestamp": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "completion_status": {
+      "type": "string"
+    },
     "validity_classification": {
       "type": "object",
-      "required": ["valid", "invalid_class"],
+      "required": [
+        "valid",
+        "invalid_class"
+      ],
       "properties": {
-        "valid": { "type": "boolean" },
+        "valid": {
+          "type": "boolean"
+        },
         "invalid_class": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Exactly one class from the closed taxonomy, or null when valid.",
           "enum": [
             null,
@@ -67,22 +114,198 @@
             "external_dependency_or_client_environment_failure"
           ]
         },
-        "note": { "type": "string" }
+        "note": {
+          "type": "string"
+        }
       }
     },
     "raw_artifacts": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["role", "path", "sha256"],
+        "required": [
+          "role",
+          "path",
+          "sha256"
+        ],
         "properties": {
-          "role": { "type": "string" },
-          "path": { "type": "string" },
-          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-          "bytes": { "type": "integer" }
+          "role": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "bytes": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "human_client_name": {
+      "type": "string"
+    },
+    "human_client_version": {
+      "type": "string"
+    },
+    "human_client_host": {
+      "type": "string",
+      "description": "Recorded because it sits outside the designated formal-run host (experimental-protocol.md 39); recording it keeps that exemption auditable."
+    },
+    "llm_provider": {
+      "type": "string"
+    },
+    "llm_model": {
+      "type": "string"
+    },
+    "agent_configuration_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Hash of the published executor configuration. The API key is never an input."
+    },
+    "executor_identifier": {
+      "type": "string",
+      "enum": [
+        "deterministic",
+        "llm"
+      ]
+    },
+    "interaction_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "request_event_id",
+          "request_sender"
+        ],
+        "properties": {
+          "request_event_id": {
+            "type": "string"
+          },
+          "request_sender": {
+            "type": "string"
+          },
+          "response_event_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "response_sender": {
+            "type": "string"
+          },
+          "llm_provider": {
+            "type": "string"
+          },
+          "llm_model": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "evidence_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "transcript",
+              "screenshot"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "functional_result": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail"
+      ]
+    },
+    "three_party_topology_confirmed": {
+      "type": "boolean",
+      "description": "C4 completion: an actual person, a programmatic human-role participant and the LLM-backed agent across two federation domains."
+    }
+  },
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "manifest_type": {
+            "const": "human_llm_validation_manifest"
+          }
+        },
+        "required": [
+          "manifest_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "human_client_name",
+          "human_client_version",
+          "human_client_host",
+          "llm_provider",
+          "llm_model",
+          "agent_configuration_hash",
+          "executor_identifier",
+          "interaction_event_ids",
+          "evidence_artifacts",
+          "functional_result",
+          "three_party_topology_confirmed"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "window_start_ns"
+              ]
+            },
+            {
+              "required": [
+                "window_end_ns"
+              ]
+            },
+            {
+              "required": [
+                "concurrency"
+              ]
+            },
+            {
+              "required": [
+                "max_in_flight"
+              ]
+            }
+          ]
         }
       }
     }
-  },
-  "additionalProperties": true
+  ]
 }

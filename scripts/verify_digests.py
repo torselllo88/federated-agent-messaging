@@ -34,9 +34,19 @@ def verify(root: Path) -> tuple[int, int, list[str]]:
     for manifest_path in sorted(directory.glob("*.manifest.json")):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         run_id = manifest.get("run_id", manifest_path.stem)
-        artifacts = manifest.get("raw_artifacts", [])
+        artifacts = list(manifest.get("raw_artifacts", []))
+
+        # E4 produces no interaction stream. Its evidence is the transcript,
+        # any screenshots, and the agent telemetry — each carrying its own
+        # SHA-256 (experimental-protocol.md §38, human_llm_validation_manifest).
+        artifacts += list(manifest.get("evidence_artifacts", []))
+        telemetry = manifest.get("agent_telemetry")
+        if isinstance(telemetry, dict) and telemetry.get("path"):
+            artifacts.append(telemetry)
+
         if not artifacts:
-            problems.append(f"{run_id}: manifest records no raw artifacts")
+            kind = manifest.get("manifest_type", "manifest")
+            problems.append(f"{run_id}: {kind} records no verifiable artifacts")
             failed += 1
             continue
         for artifact in artifacts:

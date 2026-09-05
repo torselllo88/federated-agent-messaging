@@ -113,6 +113,18 @@ make e3         # the E3 development campaign, 120 paired benchmark runs
 make analyse    # digest verification, schema validation, E0-E3 summaries
 ```
 
+E4 needs an actual person at a standard Matrix client and an LLM credential,
+so it has its own flow:
+
+```bash
+make e4-prepare  # readiness and the human client connection details
+make e4          # ONE human-driven session; run it three times
+make e4-validate # check the recorded sessions
+```
+
+See [E4 human client setup](docs/e4-human-client-setup.md) for the trust-store
+and homeserver steps the human client needs.
+
 `make e3` is long-running and resumable: a completed run is never repeated and
 never overwritten, so an interrupted campaign continues where it stopped. Rerun
 the same command to resume. A change to any campaign parameter — schedule seed,
