@@ -129,6 +129,7 @@ def _manifest(tmp_path: Path, stream: Path) -> RunManifest:
         topology="same-domain",
         publication_data=False,
         protocol_git_commit="deadbeef",
+        started_at="2026-09-06T12:00:00Z",
         completion_status="pass",
         validity=VALID,
         artifacts=[RawArtifact("runner_interaction_stream", stream)],

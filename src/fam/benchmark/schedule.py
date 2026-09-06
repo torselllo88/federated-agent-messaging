@@ -207,8 +207,15 @@ def fingerprint(parameters: dict[str, Any]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def campaign_id(parameters: dict[str, Any]) -> str:
-    return f"e3dev-{fingerprint(parameters)[:16]}"
+def campaign_id(parameters: dict[str, Any], *, publication_data: bool = False) -> str:
+    """Formal and development campaigns are never confusable by name.
+
+    Task 07 §22: formal and development runs must not share a campaign id, and
+    a formal id must not be reusable. The prefix carries that distinction into
+    every run id, ledger entry and manifest derived from it.
+    """
+    prefix = "fam-formal" if publication_data else "e3dev"
+    return f"{prefix}-{fingerprint(parameters)[:16]}"
 
 
 # ------------------------------------------------------------- resume ledger
@@ -232,9 +239,15 @@ class CampaignState:
     completed: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @classmethod
-    def open(cls, root: Path, parameters: dict[str, Any]) -> "CampaignState":
+    def open(
+        cls,
+        root: Path,
+        parameters: dict[str, Any],
+        *,
+        publication_data: bool = False,
+    ) -> "CampaignState":
         digest = fingerprint(parameters)
-        identifier = campaign_id(parameters)
+        identifier = campaign_id(parameters, publication_data=publication_data)
         directory = root / "campaigns"
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / f"{identifier}.json"

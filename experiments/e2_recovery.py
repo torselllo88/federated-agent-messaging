@@ -37,8 +37,14 @@ from fam.common.env import (  # noqa: E402
     protocol_git_commit,
     publication_data,
 )
-from fam.common.frozen import EXECUTION_ANALYSIS_SPEC_VERSION  # noqa: E402
+from fam.common.frozen import (  # noqa: E402
+    E2_OFFLINE_REQUESTS,
+    E2_RUNS,
+    E2_SYNC_TIMELINE_LIMIT,
+    EXECUTION_ANALYSIS_SPEC_VERSION,
+)
 from fam.common.message import Correlation  # noqa: E402
+from fam.common.lock import ProtocolLockError, enforce  # noqa: E402
 from fam.common.results import (  # noqa: E402
     ensure_layout,
     manifests_dir,
@@ -46,7 +52,11 @@ from fam.common.results import (  # noqa: E402
     resolve_results_dir,
 )
 from fam.common.validity import VALID, InteractionOutcome, InvalidRun  # noqa: E402
-from fam.instrumentation.manifest import RawArtifact, RunManifest  # noqa: E402
+from fam.instrumentation.manifest import (  # noqa: E402
+    RawArtifact,
+    RunManifest,
+    utc_now,
+)
 from fam.instrumentation.streams import (  # noqa: E402
     JsonlStream,
     integrity_fields,
@@ -65,13 +75,12 @@ HUMAN_B = "@human-b:hs-b.test"
 AGENT = "@agent:hs-b.test"
 
 #: experimental-protocol.md §16
-E2_RUNS = 3
-OFFLINE_REQUESTS = 100
-
-#: Selected by the development pilot (scripts/e2_pilot.py) and held fixed for
-#: all three runs. Must be below OFFLINE_REQUESTS so the post-restart sync
-#: cannot return everything and skip the recovery branch.
-TIMELINE_LIMIT = int(os.environ.get("FAM_E2_TIMELINE_LIMIT", "10"))
+#: All three owned by frozen.py. The environment override stays for the
+#: development pilot, which exists to choose the limit; a publication run
+#: rejects any effective value that differs from the protocol lock, so the
+#: knob cannot silently move a frozen parameter (§23, §66).
+OFFLINE_REQUESTS = E2_OFFLINE_REQUESTS
+TIMELINE_LIMIT = int(os.environ.get("FAM_E2_TIMELINE_LIMIT", str(E2_SYNC_TIMELINE_LIMIT)))
 
 #: The response deadline begins with the restart and recovery phase, never at
 #: offline-send time (experimental-protocol.md §11).
@@ -97,6 +106,10 @@ def read_jsonl(path: Path) -> list[dict]:
 @dataclass
 class RunResult:
     run_id: str
+    #: Wall clock at the moment this run began. Recorded here rather than
+    #: read off the clock when the manifest is assembled, which happens after
+    #: the run has already finished.
+    started_at: str = ""
     room_id: str = ""
     room_version: str = ""
     encryption_enabled: bool = True
@@ -130,7 +143,7 @@ class RunResult:
 
 async def execute_run(index: int, root: Path, stamp: str) -> RunResult:
     run_id = f"e2-{stamp}-{index:02d}"
-    result = RunResult(run_id=run_id)
+    result = RunResult(run_id=run_id, started_at=utc_now())
 
     raw = raw_dir(root, "e2")
     runner_path = raw / f"{run_id}.runner.jsonl"
@@ -509,7 +522,8 @@ def _write_artifacts(result: RunResult, root: Path) -> None:
         publication_data=publication_data(),
         protocol_git_commit=protocol_git_commit(),
         environment_manifest="environment/environment-latest.json",
-        completed_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        started_at=result.started_at,
+        completed_at=utc_now(),
         completion_status="pass" if result.passed else "fail",
         validity=VALID,
         artifacts=artifacts,
@@ -542,6 +556,17 @@ def _write_artifacts(result: RunResult, root: Path) -> None:
 
 async def main_async() -> int:
     root = ensure_layout(resolve_results_dir())
+    try:
+        lock = enforce(publication_data=publication_data(), experiment="E2")
+    except ProtocolLockError as error:
+        print(f"STOP: {error}")
+        return 2
+    if lock is not None:
+        print(
+            f"protocol lock: {lock['implementation']['git_commit'][:12]} "
+            f"({lock['implementation']['git_tag']})  "
+            f"campaign {lock['campaign']['campaign_id']}"
+        )
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
     print(f"E2 — Autonomous Runtime Interruption and Recovery ({E2_RUNS} runs)")

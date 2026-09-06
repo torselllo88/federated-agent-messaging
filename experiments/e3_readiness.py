@@ -44,7 +44,11 @@ from fam.common.results import (  # noqa: E402
     resolve_results_dir,
 )
 from fam.common.validity import VALID, InteractionOutcome, InvalidRun  # noqa: E402
-from fam.instrumentation.manifest import RawArtifact, RunManifest  # noqa: E402
+from fam.instrumentation.manifest import (  # noqa: E402
+    RawArtifact,
+    RunManifest,
+    utc_now,
+)
 from fam.instrumentation.streams import (  # noqa: E402
     JsonlStream,
     integrity_fields,
@@ -89,6 +93,10 @@ def read_jsonl(path: Path) -> list[dict]:
 @dataclass
 class RunResult:
     run_id: str
+    #: Wall clock at the moment this run began. Recorded here rather than
+    #: read off the clock when the manifest is assembled, which happens after
+    #: the run has already finished.
+    started_at: str = ""
     room_id: str = ""
     sent_event_ids: set[str] = field(default_factory=set)
     processed_event_ids: set[str] = field(default_factory=set)
@@ -114,7 +122,7 @@ class RunResult:
 
 async def execute_run(index: int, root: Path, stamp: str) -> RunResult:
     run_id = f"e3ready-{stamp}-{index:02d}"
-    result = RunResult(run_id=run_id)
+    result = RunResult(run_id=run_id, started_at=utc_now())
 
     # Deliberately NOT under raw/e3/: readiness is development validation,
     # not E3 data, and must not sit inside the tree a reader would treat as
@@ -396,7 +404,8 @@ def _write_artifacts(result: RunResult, root: Path) -> None:
         publication_data=publication_data(),
         protocol_git_commit=protocol_git_commit(),
         environment_manifest="environment/environment-latest.json",
-        completed_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        started_at=result.started_at,
+        completed_at=utc_now(),
         completion_status="pass" if result.passed else "fail",
         validity=VALID,
         artifacts=artifacts,

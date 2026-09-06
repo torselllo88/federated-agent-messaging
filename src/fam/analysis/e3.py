@@ -32,6 +32,8 @@ from fam.common.validity import failure_rate as frozen_failure_rate
 from fam.common.frozen import (
     DEFAULT_INTERACTION_TIMEOUT_SECONDS,
     E3_BOOTSTRAP_CONFIDENCE,
+    E3_BOOTSTRAP_REPLICATES,
+    E3_BOOTSTRAP_SEED,
     E3_MEASUREMENT_SECONDS,
     E3_TOPOLOGY_FEDERATED,
     E3_TOPOLOGY_LOCAL,
@@ -39,12 +41,10 @@ from fam.common.frozen import (
     E3_WORKLOAD_THROUGHPUT,
 )
 
-#: Bootstrap replicates. Not frozen by the protocol, which fixes the method
-#: and the confidence level but not the replicate count. Two thousand is
-#: comfortably enough for a 95% percentile interval over twenty clusters, and
-#: keeps the whole analysis interactive.
-DEFAULT_REPLICATES = 2000
-DEFAULT_BOOTSTRAP_SEED = 20260905
+#: Re-exported from frozen.py, which owns the value. Kept as names because the
+#: analysis module and its tests refer to them throughout.
+DEFAULT_REPLICATES = E3_BOOTSTRAP_REPLICATES
+DEFAULT_BOOTSTRAP_SEED = E3_BOOTSTRAP_SEED
 
 SUCCESS = "success"
 

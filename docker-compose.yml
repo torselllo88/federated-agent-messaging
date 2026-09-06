@@ -125,7 +125,7 @@ services:
       - ./src:/app/src:ro
       - ./scripts:/app/scripts:ro
       - ./infrastructure:/app/infrastructure:ro
-      - ./results/schemas:/app/results/schemas:ro
+      - ./results:/app/results:ro
       - synapse-a-data:/synapse/a
       - synapse-b-data:/synapse/b
       - tls:/tls
@@ -150,7 +150,7 @@ services:
       - ./scripts:/app/scripts:ro
       - ./experiments:/app/experiments:ro
       - ./tests:/app/tests:ro
-      - ./results/schemas:/app/results/schemas:ro
+      - ./results:/app/results:ro
       - secrets:/secrets:ro
       - ${FAM_RESULTS_DIR:?FAM_RESULTS_DIR must be set}:/results
     environment:

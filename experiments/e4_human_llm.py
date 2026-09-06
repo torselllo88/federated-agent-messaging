@@ -68,7 +68,9 @@ from fam.executors.llm import (  # noqa: E402
 from fam.instrumentation.manifest import (  # noqa: E402
     EvidenceArtifact,
     HumanValidationManifest,
+    utc_now,
 )
+from fam.common.lock import ProtocolLockError, enforce  # noqa: E402
 from fam.matrix.rooms import assert_frozen_room_configuration  # noqa: E402
 from fam.participants.human import HumanParticipant  # noqa: E402
 
@@ -138,6 +140,8 @@ class Exchange:
 @dataclass
 class SessionResult:
     session_id: str
+    #: Wall clock when the session opened, not when it was written out.
+    started_at: str = ""
     room_id: str = ""
     room_version: str = ""
     encryption_enabled: bool = True
@@ -342,6 +346,9 @@ async def run_session(args: argparse.Namespace) -> SessionResult:
     root = ensure_layout(resolve_results_dir())
     session_id = args.session_id or f"e4-{utc_stamp()}"
     result = SessionResult(session_id=session_id)
+    # A human-driven session is long and mostly spent waiting for a person;
+    # its start is the moment the session opens, not the moment it is written.
+    result.started_at = utc_now()
 
     # Fail before creating anything if the provider is not configured: a
     # session that cannot possibly execute should not consume a room or a
@@ -557,7 +564,8 @@ def _write_manifest(
         interaction_event_ids=[e.to_dict() for e in result.exchanges],
         evidence=evidence,
         environment_manifest="environment/environment-latest.json",
-        completed_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        started_at=result.started_at,
+        completed_at=utc_now(),
         completion_status="pass" if result.passed else "fail",
         validity=validity,
         three_party_topology_confirmed=set(result.membership) == EXPECTED_MEMBERSHIP,
@@ -636,6 +644,17 @@ async def main_async() -> int:
     args = parse_args()
     print("E4 — Human + LLM Functional Validation (one development session)")
     print(f"publication_data: {publication_data()}")
+    try:
+        lock = enforce(publication_data=publication_data(), experiment="E4")
+    except ProtocolLockError as error:
+        print(f"STOP: {error}")
+        return 2
+    if lock is not None:
+        print(
+            f"protocol lock: {lock['implementation']['git_commit'][:12]} "
+            f"({lock['implementation']['git_tag']})  "
+            f"model {lock['e4']['llm_model']}"
+        )
     if not publication_data():
         print("development session — not publication evidence\n")
 

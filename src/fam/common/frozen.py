@@ -47,10 +47,29 @@ E1_REQUESTS_PER_RUN = E1_REQUESTS_PER_CLASS * 2
 #: eventual-consistency bound, or of the absence of later state changes.
 E1_QUIET_INTERVAL_SECONDS = 2.0
 
+# --- experimental-protocol.md §16 -------------------------------------------
+
+E2_RUNS = 3
+E2_OFFLINE_REQUESTS = 100
+
+#: Selected by the development pilot (scripts/e2_pilot.py). Must stay below
+#: E2_OFFLINE_REQUESTS, or the post-restart sync returns everything and the
+#: recovery branch under test is never entered.
+E2_SYNC_TIMELINE_LIMIT = 10
+
+# --- experimental-protocol.md §18, §29 --------------------------------------
+
+#: Task 05 pilot: peak workload timeline occupancy was 21-25 events, so this
+#: leaves roughly twenty times headroom and no interaction reached the agent
+#: through gap recovery.
+E3_SYNC_TIMELINE_LIMIT = 500
+E3_SYNC_TIMEOUT_MS = 30_000
+
 # --- versioning -------------------------------------------------------------
 #
 # Schema versions are frozen at protocol lock (experimental-protocol.md §46).
-# Task 01 is pre-lock development, so these carry a development marker.
+# The development marker was dropped for the Task 07 lock: these are the
+# values the formal campaign executes under.
 
 #: v2 adds the duplicate-ACK integrity evidence required by §11.1. Records
 #: written under v1 remain valid under the v1 schema: raw data is immutable,
@@ -73,8 +92,8 @@ MANIFEST_SCHEMA_VERSION = "1"
 #:                           and `median` received one statistical definition.
 #:                           Transformation of raw observations changed; the
 #:                           observations themselves did not.
-EXECUTION_PROTOCOL_VERSION = "1.2-dev"
-EXECUTION_ANALYSIS_SPEC_VERSION = "1.2-dev"
+EXECUTION_PROTOCOL_VERSION = "1.2"
+EXECUTION_ANALYSIS_SPEC_VERSION = "1.2"
 
 # --- E3, experimental-protocol.md §18, §21, §22, §24, §25 -------------------
 #
@@ -105,7 +124,15 @@ E3_PAIRED_BLOCKS = 20
 E3_INTER_RUN_IDLE_SECONDS = 5.0
 
 #: §32. Paired-block bootstrap.
-E3_BOOTSTRAP_REPLICATES = 10_000
+#: The protocol (§32) fixes the resampling method and the confidence level but
+#: not the replicate count. Two thousand is comfortably enough for a 95%
+#: percentile interval over twenty clusters and keeps the analysis interactive.
+#: `fam.analysis.e3` imports this rather than keeping a second number: two
+#: constants disagreeing about one frozen parameter is how a lock records a
+#: value the code does not use.
+E3_BOOTSTRAP_REPLICATES = 2000
+E3_BOOTSTRAP_SEED = 20260905
+E3_SCHEDULE_SEED = 20260905
 E3_BOOTSTRAP_CONFIDENCE = 0.95
 
 #: Workload identifiers.

@@ -38,6 +38,20 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _check_span(run_id: str, started_at: str, completed_at: str | None) -> None:
+    """Refuse to write a manifest whose wall clock runs backwards.
+
+    Whole-second UTC stamps, so equality is legitimate for a genuinely brief
+    run and is allowed; completion strictly before start is not, and is a
+    §66 stop condition rather than something to round away.
+    """
+    if completed_at is not None and completed_at < started_at:
+        raise ValueError(
+            f"{run_id}: completion_timestamp {completed_at} precedes "
+            f"start_timestamp {started_at}"
+        )
+
+
 def execution_host_identifier() -> str:
     """Identifier of the host that executed the run.
 
@@ -79,8 +93,13 @@ class RunManifest:
     topology: str
     publication_data: bool
     protocol_git_commit: str
+    #: Observed when the run begins, never when the manifest is built. This
+    #: field is deliberately required: it used to carry a default_factory that
+    #: fired at construction time, which every caller performs after the run
+    #: has finished, so start and completion recorded the same instant
+    #: (experimental-protocol.md §38 requires the run's own start).
+    started_at: str
     environment_manifest: str | None = None
-    started_at: str = field(default_factory=utc_now)
     completed_at: str | None = None
     completion_status: str = "incomplete"
     validity: RunValidity | None = None
@@ -91,6 +110,7 @@ class RunManifest:
     def to_dict(self) -> dict[str, Any]:
         if self.validity is None:
             raise ValueError("a manifest must carry a validity classification")
+        _check_span(self.run_id, self.started_at, self.completed_at)
         return {
             # --- common envelope, experimental-protocol.md §38 -------------
             "manifest_type": AUTOMATED,
@@ -175,10 +195,15 @@ class HumanValidationManifest:
     llm_model: str
     agent_config_hash: str
     executor_identifier: str
+    #: Observed when the run begins, never when the manifest is built. This
+    #: field is deliberately required: it used to carry a default_factory that
+    #: fired at construction time, which every caller performs after the run
+    #: has finished, so start and completion recorded the same instant
+    #: (experimental-protocol.md §38 requires the run's own start).
+    started_at: str
     interaction_event_ids: list[dict[str, Any]] = field(default_factory=list)
     evidence: list[EvidenceArtifact] = field(default_factory=list)
     environment_manifest: str | None = None
-    started_at: str = field(default_factory=utc_now)
     completed_at: str | None = None
     completion_status: str = "incomplete"
     validity: RunValidity | None = None
@@ -190,6 +215,7 @@ class HumanValidationManifest:
     def to_dict(self) -> dict[str, Any]:
         if self.validity is None:
             raise ValueError("a manifest must carry a validity classification")
+        _check_span(self.session_id, self.started_at, self.completed_at)
         return {
             # --- common envelope, experimental-protocol.md §38 -------------
             "manifest_type": HUMAN_LLM,

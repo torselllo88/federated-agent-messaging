@@ -47,6 +47,7 @@ from fam.common.frozen import (  # noqa: E402
     EXECUTION_ANALYSIS_SPEC_VERSION,
 )
 from fam.common.message import Correlation  # noqa: E402
+from fam.common.lock import ProtocolLockError, enforce  # noqa: E402
 from fam.common.results import (  # noqa: E402
     ensure_layout,
     manifests_dir,
@@ -59,7 +60,11 @@ from fam.common.validity import (  # noqa: E402
     InvalidRun,
 )
 from fam.instrumentation.federation import FederationComparison  # noqa: E402
-from fam.instrumentation.manifest import RawArtifact, RunManifest  # noqa: E402
+from fam.instrumentation.manifest import (  # noqa: E402
+    RawArtifact,
+    RunManifest,
+    utc_now,
+)
 from fam.instrumentation.streams import (  # noqa: E402
     JsonlStream,
     integrity_fields,
@@ -98,6 +103,10 @@ class ClassResult:
 @dataclass
 class RunResult:
     run_id: str
+    #: Wall clock at the moment this run began. Recorded here rather than
+    #: read off the clock when the manifest is assembled, which happens after
+    #: the run has already finished.
+    started_at: str = ""
     room_id: str = ""
     room_version: str = ""
     encryption_enabled: bool = True
@@ -180,7 +189,7 @@ async def send_class(
 
 async def execute_run(index: int, root: Path, stamp: str) -> RunResult:
     run_id = f"e1-{stamp}-{index:02d}"
-    result = RunResult(run_id=run_id)
+    result = RunResult(run_id=run_id, started_at=utc_now())
 
     raw = raw_dir(root, "e1")
     runner_path = raw / f"{run_id}.runner.jsonl"
@@ -395,7 +404,8 @@ def _write_artifacts(result: RunResult, root: Path) -> None:
         publication_data=publication_data(),
         protocol_git_commit=protocol_git_commit(),
         environment_manifest="environment/environment-latest.json",
-        completed_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        started_at=result.started_at,
+        completed_at=utc_now(),
         completion_status="pass" if result.passed else "fail",
         validity=VALID,
         artifacts=artifacts,
@@ -439,6 +449,17 @@ def _write_artifacts(result: RunResult, root: Path) -> None:
 
 async def main_async() -> int:
     root = ensure_layout(resolve_results_dir())
+    try:
+        lock = enforce(publication_data=publication_data(), experiment="E1")
+    except ProtocolLockError as error:
+        print(f"STOP: {error}")
+        return 2
+    if lock is not None:
+        print(
+            f"protocol lock: {lock['implementation']['git_commit'][:12]} "
+            f"({lock['implementation']['git_tag']})  "
+            f"campaign {lock['campaign']['campaign_id']}"
+        )
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
     print(f"E1 — Federated Persistent Multi-Party Interaction ({E1_RUNS} runs)")

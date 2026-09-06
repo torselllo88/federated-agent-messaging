@@ -12,7 +12,7 @@
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('help', 'build', 'up', 'setup', 'verify', 'spike', 'e0', 'e1', 'e2-pilot', 'e2', 'e3-readiness', 'e3-pilot', 'e3', 'e4-prepare', 'e4-ca', 'e4', 'e4-validate', 'inventory', 'analyse', 'test', 'down', 'clean', 'logs')]
+    [ValidateSet('help', 'build', 'up', 'setup', 'verify', 'spike', 'e0', 'e1', 'e2-pilot', 'e2', 'e3-readiness', 'e3-pilot', 'e3', 'e4-prepare', 'e4-ca', 'e4', 'e4-validate', 'inventory', 'lock', 'lock-validate', 'lock-check', 'analyse', 'test', 'down', 'clean', 'logs')]
     [string]$Target = 'help'
 )
 
@@ -61,7 +61,10 @@ switch ($Target) {
 .\make.ps1 e4-ca    - print the research CA for the human client trust store
 .\make.ps1 e4       - run ONE human-driven E4 session (interactive)
 .\make.ps1 e4-validate - validate the recorded E4 sessions
-.\make.ps1 inventory - testbed configuration inventory for Task 07
+.\make.ps1 inventory - testbed configuration inventory, an input to the lock
+.\make.ps1 lock     - generate the formal protocol lock (once, before collection)
+.\make.ps1 lock-validate - check a lock before it is committed and tagged
+.\make.ps1 lock-check - full precondition check: lock, commit and tag agree
 .\make.ps1 analyse  - digest verification, schema validation, E0 summary
 .\make.ps1 test     - unit tests
 .\make.ps1 down     - stop containers
@@ -106,6 +109,16 @@ switch ($Target) {
     'e4'      { Require-ResultsDir; Invoke-Compose @('run', '--rm', '-e', 'FAM_LLM_PROVIDER', '-e', 'FAM_LLM_MODEL', '-e', 'FAM_LLM_API_KEY', '-e', 'FAM_LLM_BASE_URL', '-e', 'FAM_LLM_MAX_TOKENS', '-e', 'FAM_LLM_SYSTEM_PROMPT', '-e', 'FAM_E4_SESSION_ID', '-e', 'FAM_E4_CLIENT_NAME', '-e', 'FAM_E4_CLIENT_VERSION', '-e', 'FAM_E4_CLIENT_HOST', '-e', 'FAM_E4_JOIN_TIMEOUT', '-e', 'FAM_E4_TIMEOUT', '-e', 'FAM_E4_CONFIRM_VISIBLE', 'toolbox', 'python', 'experiments/e4_human_llm.py') }
     'e4-validate' { Require-ResultsDir; Invoke-Compose @('run', '--rm', '--no-deps', 'toolbox', 'python', 'scripts/e4_validate.py') }
     'inventory' { Require-ResultsDir; Invoke-Compose @('run', '--rm', 'bootstrap', 'python', 'scripts/testbed_inventory.py') }
+    'lock' {
+        Require-ResultsDir
+        Invoke-Compose @('run', '--rm', '--no-deps',
+            '-e', 'FAM_LLM_PROVIDER', '-e', 'FAM_LLM_MODEL',
+            '-e', 'FAM_E4_CLIENT_NAME', '-e', 'FAM_E4_CLIENT_VERSION', '-e', 'FAM_E4_CLIENT_HOST',
+            '-e', 'FAM_PROTOCOL_GIT_COMMIT',
+            'toolbox', 'python', 'scripts/protocol_lock.py', 'generate')
+    }
+    'lock-validate' { Require-ResultsDir; Invoke-Compose @('run', '--rm', '--no-deps', 'toolbox', 'python', 'scripts/protocol_lock.py', 'validate') }
+    'lock-check'    { Require-ResultsDir; Invoke-Compose @('run', '--rm', '--no-deps', 'toolbox', 'python', 'scripts/protocol_lock.py', 'validate', '--require-tag') }
     'analyse' { Require-ResultsDir; Invoke-Compose @('run', '--rm', '--no-deps', 'toolbox', 'python', 'scripts/analyse.py') }
     'test'    {
         Require-ResultsDir

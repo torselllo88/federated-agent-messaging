@@ -46,11 +46,16 @@ help:
 	@echo "make e4-ca    - print the research CA for the human client trust store"
 	@echo "make e4       - run ONE human-driven E4 session (interactive)"
 	@echo "make e4-validate - validate the recorded E4 sessions"
-	@echo "make inventory - testbed configuration inventory for Task 07"
+	@echo "make inventory - testbed configuration inventory, an input to the lock"
+	@echo "make lock     - generate the formal protocol lock (once, before collection)"
+	@echo "make lock-validate - check a lock before it is committed and tagged"
+	@echo "make lock-check - full precondition check: lock, commit and tag agree"
 	@echo "make analyse  - digest verification, schema validation, E0-E3 summaries"
 	@echo "make test     - unit tests"
 	@echo "make down     - stop containers"
 	@echo "make clean    - stop containers and delete all volumes (destructive)"
+
+TAG ?= protocol-v1.2
 
 guard:
 	@if [ -z "$${FAM_RESULTS_DIR:-}" ]; then
@@ -155,9 +160,32 @@ e4: guard
 e4-validate: guard
 	$(COMPOSE) run --rm --no-deps toolbox python scripts/e4_validate.py
 
-# Machine-readable state of the testbed, as an input to Task 07.
+# Machine-readable state of the testbed, as an input to the protocol lock.
 inventory: guard
 	$(COMPOSE) run --rm bootstrap python scripts/testbed_inventory.py
+
+# The formal protocol lock. Generated once, after the final configuration
+# freeze and before the first formal run. It is written to $FAM_RESULTS_DIR
+# and copied into the worktree by hand: no container writes into the tree.
+#
+# The container has no .git, so `git status` inside it returns nothing — which
+# is indistinguishable from a clean tree. The Git facts are therefore read here,
+# on the host that can actually see the repository, and passed in.
+lock: guard
+	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
+	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_PROTOCOL_GIT_COMMIT -e FAM_LLM_PROVIDER -e FAM_LLM_MODEL -e FAM_E4_CLIENT_NAME -e FAM_E4_CLIENT_VERSION -e FAM_E4_CLIENT_HOST toolbox python scripts/protocol_lock.py generate --tag $(TAG)
+
+# Before the tagging commit exists. Use lock-check once it does.
+lock-validate: guard
+	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
+	export FAM_GIT_TAGS_AT_HEAD="$$(git tag --points-at HEAD)"
+	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_GIT_TAGS_AT_HEAD -e FAM_PROTOCOL_GIT_COMMIT toolbox python scripts/protocol_lock.py validate
+
+# The precondition for a formal run: lock, commit and tag all agree.
+lock-check: guard
+	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
+	export FAM_GIT_TAGS_AT_HEAD="$$(git tag --points-at HEAD)"
+	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_GIT_TAGS_AT_HEAD -e FAM_PROTOCOL_GIT_COMMIT toolbox python scripts/protocol_lock.py validate --require-tag
 
 analyse: guard
 	$(COMPOSE) run --rm -e FAM_E3_BOOTSTRAP_REPLICATES -e FAM_E3_BOOTSTRAP_SEED \

@@ -61,6 +61,7 @@ def _manifest(tmp_path: Path, **overrides) -> HumanValidationManifest:
         llm_model="test-model-1",
         agent_config_hash="0" * 64,
         executor_identifier="llm",
+        started_at="2026-09-05T12:00:00Z",
         interaction_event_ids=[_exchange(i) for i in (1, 2, 3)],
         completion_status="pass",
         functional_result="pass",

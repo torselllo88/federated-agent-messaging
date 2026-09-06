@@ -52,7 +52,7 @@ from fam.common.frozen import (
     ROOM_VERSION,
 )
 from fam.common.validity import VALID, InvalidRun, InvalidRunClass, RunValidity
-from fam.instrumentation.manifest import RawArtifact, RunManifest
+from fam.instrumentation.manifest import RawArtifact, RunManifest, utc_now
 from fam.instrumentation.streams import JsonlStream
 from fam.matrix.rooms import assert_frozen_room_configuration
 from fam.participants.human import HumanParticipant
@@ -178,6 +178,9 @@ async def execute_benchmark_run(
     """Execute one scheduled benchmark run and write its evidence."""
     from fam.agent.supervisor import AgentProcess
 
+    # Before anything the run does, so the manifest span covers the whole run
+    # rather than the instant the manifest was assembled.
+    started_at = utc_now()
     result = BenchmarkRun(scheduled=scheduled, run_id=run_id)
     result.host_diagnostics = host.snapshot(
         note=f"captured before {run_id}"
@@ -453,7 +456,8 @@ def _write_evidence(
         publication_data=publication_data(),
         protocol_git_commit=protocol_git_commit(),
         environment_manifest=environment_manifest,
-        completed_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        started_at=started_at,
+        completed_at=utc_now(),
         completion_status=result.completion_status,
         validity=result.validity,
         artifacts=artifacts,

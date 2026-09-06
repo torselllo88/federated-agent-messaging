@@ -45,12 +45,15 @@ from fam.benchmark.schedule import (  # noqa: E402
 )
 from fam.common.env import protocol_git_commit, publication_data  # noqa: E402
 from fam.common.frozen import (  # noqa: E402
+    E3_SYNC_TIMELINE_LIMIT,
+    E3_SYNC_TIMEOUT_MS,  # noqa: E402
     E3_CONCURRENCY_LEVELS,
     E3_INTER_RUN_IDLE_SECONDS,
     E3_PAIRED_BLOCKS,
     E3_WORKLOAD_LATENCY,
     E3_WORKLOAD_THROUGHPUT,
 )
+from fam.common.lock import ProtocolLockError, enforce  # noqa: E402
 from fam.common.results import (  # noqa: E402
     ensure_layout,
     environment_dir,
@@ -58,12 +61,11 @@ from fam.common.results import (  # noqa: E402
 )
 from fam.common.validity import InvalidRun, InvalidRunClass  # noqa: E402
 
-#: The sync timeline limit is a development choice confirmed by the pilot
-#: (§11, §53). It is deliberately far above the bounded-concurrency envelope:
-#: a limit chosen just above C would make ordinary E3 load truncate timelines,
-#: putting Task 04 gap recovery on the measurement path.
-DEFAULT_SYNC_TIMELINE_LIMIT = 500
-DEFAULT_SYNC_TIMEOUT_MS = 30_000
+#: Owned by frozen.py. Deliberately far above the bounded-concurrency
+#: envelope: a limit chosen just above C would make ordinary E3 load truncate
+#: timelines, putting Task 04 gap recovery on the measurement path.
+DEFAULT_SYNC_TIMELINE_LIMIT = E3_SYNC_TIMELINE_LIMIT
+DEFAULT_SYNC_TIMEOUT_MS = E3_SYNC_TIMEOUT_MS
 
 
 def _env_int(name: str, default: int) -> int:
@@ -124,6 +126,17 @@ def _describe(run: ScheduledRun) -> str:
 
 async def main_async() -> int:
     root = ensure_layout(resolve_results_dir())
+    try:
+        lock = enforce(publication_data=publication_data(), experiment="E3")
+    except ProtocolLockError as error:
+        print(f"STOP: {error}")
+        return 2
+    if lock is not None:
+        print(
+            f"protocol lock: {lock['implementation']['git_commit'][:12]} "
+            f"({lock['implementation']['git_tag']})  "
+            f"campaign {lock['campaign']['campaign_id']}"
+        )
     environment = _load_environment_manifest(root)
     rate_limits = _rate_limits_from(environment)
     config_hashes = environment.get("config_hashes") or {}
@@ -152,7 +165,7 @@ async def main_async() -> int:
     )
     parameters["workloads"] = list(workloads)
 
-    state = CampaignState.open(root, parameters)
+    state = CampaignState.open(root, parameters, publication_data=publication_data())
     schedule = generate_campaign_schedule(
         seed=seed,
         blocks=blocks,
