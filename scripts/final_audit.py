@@ -43,7 +43,10 @@ SECRET_PATTERNS = [
     re.compile(r"postgres(?:ql)?://[^:\s]+:[^@\s]+@"),  # database credential
 ]
 
-#: Fields whose presence in evidence would itself be the leak.
+#: What `fam.common.digests.sanitize` writes in place of a secret value.
+REDACTION_MARKER = "<redacted>"
+
+#: Fields whose presence in evidence would be the leak, unless redacted.
 FORBIDDEN_KEYS = {
     "api_key",
     "access_token",
@@ -110,8 +113,10 @@ def impossible_states(root: Path, lock: dict[str, Any], findings: Findings) -> N
     ack_count_wrong: list[str] = []
     over_concurrency: list[str] = []
     windows: dict[str, tuple[int, int]] = {}
-    sequences: dict[str, set[int]] = {}
+    sequences: dict[str, set[tuple[Any, Any]]] = {}
     duplicate_sequences: list[str] = []
+    completed_once: dict[str, set[Any]] = {}
+    double_completed: list[str] = []
     interactions = 0
 
     for path, record in _records(root):
@@ -125,11 +130,23 @@ def impossible_states(root: Path, lock: dict[str, Any], findings: Findings) -> N
         finished = record.get("completed_monotonic_ns")
         where = f"{run}#{seq}"
 
-        # 6. no duplicate sequence ids within a run
+        # 6. "no duplicate sequence IDs where forbidden". Where it is forbidden
+        #    needs stating, because E2 records each logical request twice by
+        #    design: once as `offline_send` when it was sent to a stopped
+        #    runtime, and once with its terminal outcome after recovery. That
+        #    pair is the evidence E2 exists to produce, not a duplicate. What
+        #    is forbidden is two records of the same request in one phase, and
+        #    a request terminating more than once.
         seen = sequences.setdefault(run, set())
-        if seq in seen:
-            duplicate_sequences.append(where)
-        seen.add(seq)
+        phase_key = (seq, record.get("run_phase"))
+        if phase_key in seen:
+            duplicate_sequences.append(f"{where} twice in {record.get('run_phase')!r}")
+        seen.add(phase_key)
+        if finished is not None:
+            completions = completed_once.setdefault(run, set())
+            if seq in completions:
+                double_completed.append(where)
+            completions.add(seq)
 
         if outcome == "success":
             # 7. a success must name the response event that ended it
@@ -212,9 +229,18 @@ def impossible_states(root: Path, lock: dict[str, Any], findings: Findings) -> N
         f"{len(over_concurrency)} above C={concurrency_bound}" if over_concurrency
         else f"bound C={concurrency_bound}",
     )
-    findings.record("no duplicate sequence id within a run", not duplicate_sequences,
-                    f"{len(duplicate_sequences)}" if duplicate_sequences else
-                    f"{len(sequences)} runs")
+    findings.record(
+        "no request appears twice within one phase",
+        not duplicate_sequences,
+        "; ".join(duplicate_sequences[:3]) if duplicate_sequences
+        else f"{len(sequences)} runs",
+    )
+    findings.record(
+        "no request completes more than once",
+        not double_completed,
+        "; ".join(double_completed[:3]) if double_completed
+        else f"{sum(len(v) for v in completed_once.values())} completions",
+    )
     findings.record(
         "no success without a response event id",
         not success_without_response,
@@ -353,7 +379,11 @@ def secrets(root: Path, findings: Findings) -> None:
     def walk(node: object, where: str) -> None:
         if isinstance(node, dict):
             for key, value in node.items():
-                if key.lower() in FORBIDDEN_KEYS:
+                # A redacted key is the sanitiser working, not a leak: the
+                # environment manifest keeps the key so a reader can see the
+                # setting exists and was withheld. Only an unredacted value is
+                # a finding.
+                if key.lower() in FORBIDDEN_KEYS and value != REDACTION_MARKER:
                     keys.append(f"{where}:{key}")
                 walk(value, where)
         elif isinstance(node, list):
