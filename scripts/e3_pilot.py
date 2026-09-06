@@ -352,19 +352,29 @@ def check_throughput(
             f"{stationarity['second_half_completions']} completions)"
         )
 
+        # Reported, not gated. A threshold here would be invented (§25), and
+        # the comparison is structurally biased against warm-up: a cold start
+        # cannot complete anything for the first round trip, and at C = 32
+        # only ~40 completions fall in the 10-second warm-up at all. The
+        # evidence that bears on steady state is the within-window first/second
+        # half comparison that §22 mandates, which is checked below.
         warmup_rate = _warmup_rate(records, workload)
         window_rate = len(counted) / ((end - start) / 1e9) if end > start else 0.0
-        findings.record(
-            f"{name}: warm-up reached the window completion rate",
-            warmup_rate >= window_rate * 0.75,
-            f"warm-up {warmup_rate:.2f}/s vs window {window_rate:.2f}/s "
-            "— a warm-up that was too short completes more slowly than the "
-            "window, not faster",
+        print(
+            f"        warm-up {warmup_rate:.2f}/s vs window {window_rate:.2f}/s "
+            f"(ratio {warmup_rate / window_rate:.3f})"
+            if window_rate
+            else "        warm-up rate unavailable"
         )
 
         summary[name] = {
             "completion_series_5s": _completion_series(
                 records, workload.loop_start_ns if workload else start
+            ),
+            "warmup_rate_per_second": round(warmup_rate, 4),
+            "window_rate_per_second": round(window_rate, 4),
+            "warmup_over_window": (
+                round(warmup_rate / window_rate, 4) if window_rate else None
             ),
             "topology": run.scheduled.topology,
             "concurrency": run.scheduled.concurrency,

@@ -319,7 +319,7 @@ def test_unsuccessful_completions_never_enter_the_numerator():
         records=[
             _interaction(start, start + SECOND),
             _interaction(start, start + SECOND, outcome="timeout"),
-            _interaction(start, start + SECOND, outcome="duplicate_response"),
+            _interaction(start, start + SECOND, outcome="unexpected_response"),
         ]
     )
     assert len(run.counted_in_window()) == 1
@@ -769,3 +769,51 @@ def test_integrity_check_catches_impossible_records():
     assert any(
         "without window bounds" in p for p in integrity_problems([no_window])
     )
+
+
+# ------------------------------------------- M4: boundary semantics from T0
+
+
+def test_boundary_accounting_uses_the_recorded_start_not_a_scheduler_clock():
+    """§24 diagnostics must be reconstructable from the raw stream.
+
+    The scheduler's pre-request clock and T0 are different instants — T0 is
+    stamped inside request(), after the body is built. Accounting on the
+    former leaves the manifest stating figures nothing else can reproduce.
+    """
+    source = _source("src/fam/benchmark/engine.py")
+    tree = ast.parse(source)
+    fn = next(
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.AsyncFunctionDef) and n.name == "run_throughput_workload"
+    )
+    dumped = ast.dump(fn)
+    assert "initiated_monotonic_ns" in dumped, "accounting must read T0"
+    assert "initiated_ns" not in dumped.replace("initiated_monotonic_ns", ""), (
+        "no second notion of interaction start may remain in the accounting"
+    )
+
+
+@pytest.mark.parametrize(
+    "completed_offset,expected",
+    [
+        (-1, "warmup"),   # completes just before the window opens
+        (0, "window"),    # exactly at the open edge is inside
+        (1, "window"),
+        (60 * SECOND - 1, "window"),
+        (60 * SECOND, "drain"),  # exactly at the close edge is outside
+        (60 * SECOND + 1, "drain"),
+    ],
+)
+def test_window_edges_are_half_open_for_phase_and_estimator(completed_offset, expected):
+    """The estimator and the phase label must agree at the boundaries."""
+    start, end = 1000 * SECOND, 1060 * SECOND
+    completed = start + completed_offset
+    phase = (
+        "warmup" if completed < start else ("window" if completed < end else "drain")
+    )
+    assert phase == expected
+
+    run = _run(records=[_interaction(start - SECOND, completed, phase=phase)])
+    counted = run.counted_in_window()
+    assert bool(counted) is (expected == "window")

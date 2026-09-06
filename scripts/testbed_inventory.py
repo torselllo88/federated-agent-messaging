@@ -173,7 +173,17 @@ def main() -> int:
             "protocol_git_commit": _git("rev-parse", "HEAD")
             or os.environ.get("FAM_PROTOCOL_GIT_COMMIT", "unknown"),
             "worktree_clean": _git("status", "--porcelain") == "",
-            "runtime_code_revision": "task-05-r3",
+            "runtime_code_revision": "prelock-final",
+            "raw_schema_versions_supported": ["1", "2"],
+            "terminal_outcome_taxonomy": [
+                "success", "timeout", "send_error", "malformed_response",
+                "unexpected_response", "runner_error", "offline_send",
+            ],
+            "post_terminal_integrity_observations": ["duplicate_ack"],
+            "median_definition": (
+                "sample median; nearest rank is used only for percentiles that "
+                "are not medians (experimental-protocol.md 31)"
+            ),
             "deterministic_executor": "deterministic",
             "llm_executor": "llm",
             "request_protocols": ["controlled", "natural_language"],

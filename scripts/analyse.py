@@ -27,9 +27,11 @@ from fam.common.digests import file_sha256  # noqa: E402
 from fam.common.frozen import (  # noqa: E402
     EXECUTION_ANALYSIS_SPEC_VERSION,
     RAW_SCHEMA_VERSION,
+    SUPPORTED_RAW_SCHEMA_VERSIONS,
 )
 from fam.common.results import manifests_dir, resolve_results_dir  # noqa: E402
 from fam.analysis import e3 as e3_analysis  # noqa: E402
+from fam.analysis import integrity  # noqa: E402
 
 sys.path.insert(0, "/app/scripts")
 from verify_digests import verify as verify_digests  # noqa: E402
@@ -37,7 +39,7 @@ from verify_digests import verify as verify_digests  # noqa: E402
 #: The analysis implementation may be written or corrected after collection;
 #: the specification it implements may not change without a disclosed
 #: methodological revision (experimental-protocol.md §3 Phase 4, §40).
-ANALYSIS_CODE_COMMIT = "task-05-working-tree"
+ANALYSIS_CODE_COMMIT = "prelock-final-working-tree"
 
 REQUIRED_RUNNER_FIELDS = {
     "schema_version",
@@ -89,6 +91,23 @@ def _validator(schema: dict | None):
     return Draft202012Validator(schema)
 
 
+def _raw_schema_versions(root: Path) -> dict[str, int]:
+    """Which raw schema versions the dataset holds, and how many files each."""
+    seen: dict[str, int] = {}
+    for path in sorted((root / "raw").rglob("*.jsonl")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                version = str(json.loads(line).get("schema_version"))
+            except ValueError:
+                break
+            seen[version] = seen.get(version, 0) + 1
+            break
+    return seen
+
+
 def validate_streams(root: Path) -> tuple[bool, list[str]]:
     """Validate raw streams against the tracked JSON Schemas.
 
@@ -96,8 +115,14 @@ def validate_streams(root: Path) -> tuple[bool, list[str]]:
     degrades to something useful rather than to nothing.
     """
     problems: list[str] = []
+    # One validator per declared raw schema version. A record is checked
+    # against the version it says it is, never against a later one.
+    runner_validators = {
+        "1": _validator(_load_schema("raw-runner-record-v1.schema.json")),
+        "2": _validator(_load_schema("raw-runner-record.schema.json")),
+    }
     validators = {
-        "runner": _validator(_load_schema("raw-runner-record.schema.json")),
+        "runner": runner_validators.get(RAW_SCHEMA_VERSION),
         "agent": _validator(_load_schema("raw-agent-record.schema.json")),
     }
     manifest_validator = _validator(_load_schema("run-manifest.schema.json"))
@@ -124,12 +149,22 @@ def validate_streams(root: Path) -> tuple[bool, list[str]]:
                     f"{sorted(leaked)} as raw evidence"
                 )
                 break
-            if record.get("schema_version") != RAW_SCHEMA_VERSION:
+            declared = record.get("schema_version")
+            if declared not in SUPPORTED_RAW_SCHEMA_VERSIONS:
                 problems.append(
-                    f"{path.name}:{index} schema_version "
-                    f"{record.get('schema_version')!r} != {RAW_SCHEMA_VERSION!r}"
+                    f"{path.name}:{index} declares raw schema_version "
+                    f"{declared!r}, which this analysis does not know how to "
+                    f"read (supported: {list(SUPPORTED_RAW_SCHEMA_VERSIONS)})"
                 )
                 break
+            if kind == "runner":
+                validator = runner_validators.get(declared)
+                if validator is None:
+                    problems.append(
+                        f"{path.name}:{index} no runner schema available for "
+                        f"version {declared!r}"
+                    )
+                    break
             if validator is not None:
                 errors = sorted(validator.iter_errors(record), key=lambda e: e.path)
                 if errors:
@@ -498,12 +533,21 @@ def summarize_e3(root: Path, campaign_id: str | None = None) -> dict:
         return {"runs_total": 0, "campaign_inventory": inventory}
     replicates = int(os.environ.get("FAM_E3_BOOTSTRAP_REPLICATES", "0") or 0)
     seed = int(os.environ.get("FAM_E3_BOOTSTRAP_SEED", "0") or 0)
+    # H1: the manifest fields the estimator depends on are cross-checked
+    # against the immutable raw stream before any of them is used. A
+    # disagreement fails the analysis and names the run and field; neither
+    # source is silently preferred.
+    manifests = [run.manifest for run in runs]
+    integrity_report = integrity.verify_campaign(root, manifests)
+
     summary = e3_analysis.analyse(
         runs,
         replicates=replicates or e3_analysis.DEFAULT_REPLICATES,
         seed=seed or e3_analysis.DEFAULT_BOOTSTRAP_SEED,
+        root=root,
     )
     summary["campaign_inventory"] = inventory
+    summary["input_integrity"] = integrity_report.to_dict()
     return summary
 
 
@@ -531,6 +575,34 @@ def print_e3(summary: dict) -> None:
         print(f"     ! {entry['run_id']} — {entry['class']}")
     for problem in summary.get("integrity_problems", []):
         print(f"     ! integrity: {problem}")
+
+    inputs = summary.get("input_integrity") or {}
+    if inputs:
+        print(
+            f"   input integrity: {inputs['runs_checked']} runs, "
+            f"{inputs['manifest_fields_compared']} manifest fields vs "
+            f"{inputs['raw_records_compared']} raw records, "
+            f"{len(inputs['mismatches'])} mismatches"
+        )
+        for problem in inputs["mismatches"][:10]:
+            print(f"     ! input mismatch: {problem}")
+        print(
+            f"     not reconstructable from raw (manifest-only): "
+            f"{inputs['fields_not_reconstructable_from_raw']}"
+        )
+
+    agent_fail = summary.get("agent_send_failures") or {}
+    if agent_fail:
+        print(
+            f"   agent-side delivery: send_failed="
+            f"{agent_fail.get('agent_send_failed_total')} "
+            f"M_LIMIT_EXCEEDED={agent_fail.get('agent_m_limit_exceeded_total')}"
+        )
+        for entry in agent_fail.get("runs_affected", [])[:5]:
+            print(
+                f"     ~ {entry['run_id']}: {entry['agent_send_failed']} failed, "
+                f"{entry['agent_m_limit_exceeded']} rate limited"
+            )
 
     latency = summary["latency"]
     print(f"\n   Workload A — latency ({latency['paired_blocks']} paired blocks)")
@@ -624,10 +696,17 @@ def print_e3(summary: dict) -> None:
             )
 
     for name, item in (summary.get("derived_c1_consistency") or {}).items():
+        ratios = item.get("observed_over_predicted_by_concurrency") or {}
+        shown = ", ".join(f"C={k}: {_fmt(v)}x" for k, v in sorted(ratios.items()))
         print(
-            f"   derived C=1 check ({name}): predicted "
+            f"   derived C=1 comparison ({name}): predicted "
             f"{_fmt(item['predicted_c1_throughput_per_second'])}/s from mean RTT "
-            f"{_fmt(item['mean_rtt_ms'])}ms, consistent={item['consistent']}"
+            f"{_fmt(item['mean_rtt_ms'])}ms; observed/predicted {shown or 'n/a'}"
+        )
+    if summary.get("derived_c1_consistency"):
+        print(
+            "     descriptive only — the frozen protocol defines no acceptance "
+            "threshold for this comparison"
         )
     print(
         "\n   observed throughput at tested concurrency — never maximum, "
@@ -649,6 +728,9 @@ def main() -> int:
         return 1
 
     print("\n2. schema validation")
+    versions = _raw_schema_versions(root)
+    if versions:
+        print(f"   raw schema versions present: {versions}")
     schema_ok, schema_problems = validate_streams(root)
     for problem in schema_problems:
         print(f"   ! {problem}")
@@ -759,6 +841,9 @@ def main() -> int:
         # impossible. Both outcome-classification defects in Task 05 were of
         # exactly that kind, so this is a gate, not a note.
         ok = ok and not e3.get("integrity_problems")
+        # H1 is a hard gate: analysing inputs that disagree with the raw
+        # evidence would produce a plausible number from a wrong parameter.
+        ok = ok and not (e3.get("input_integrity") or {}).get("mismatches")
     print(f"\nANALYSE: {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 1
 

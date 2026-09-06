@@ -265,7 +265,7 @@ def test_a_leaked_credential_in_an_artifact_is_detected(tmp_path):
     manifest["llm_model"] = "sk-ant-abcdefghijklmnopqrstuvwxyz012345"
     result = validate_session(tmp_path, manifest)
     assert result["passed"] is False
-    assert any("secret material" in p for p in result["problems"])
+    assert any("credential material" in p for p in result["problems"])
 
 
 def test_an_invalid_session_is_reported_not_counted(tmp_path):

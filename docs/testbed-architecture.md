@@ -1,4 +1,4 @@
-# Testbed Architecture v1.1 FINAL
+# Testbed Architecture v1.2 FINAL
 
 **Project:** Federated Agent Messaging
 **Repository:** `federated-agent-messaging`

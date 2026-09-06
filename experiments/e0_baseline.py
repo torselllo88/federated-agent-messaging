@@ -52,7 +52,11 @@ from fam.common.validity import (  # noqa: E402
 )
 from fam.agent.supervisor import AgentProcess  # noqa: E402
 from fam.instrumentation.manifest import RawArtifact, RunManifest  # noqa: E402
-from fam.instrumentation.streams import JsonlStream, runner_record  # noqa: E402
+from fam.instrumentation.streams import (  # noqa: E402
+    JsonlStream,
+    integrity_fields,
+    runner_record,
+)  # noqa: E402
 from fam.matrix.rooms import assert_frozen_room_configuration  # noqa: E402
 from fam.participants.human import HumanParticipant  # noqa: E402
 
@@ -146,6 +150,7 @@ async def run_phase(
                 initiated_monotonic_ns=interaction.initiated_monotonic_ns,
                 completed_monotonic_ns=interaction.completed_monotonic_ns,
                 outcome=outcome.value,
+            **integrity_fields(interaction),
             )
         )
     await asyncio.sleep(SETTLE_SECONDS)

@@ -93,6 +93,9 @@ def runner_record(
     completed_monotonic_ns: int | None,
     outcome: str,
     note: str = "",
+    ack_count: int = 0,
+    duplicate_ack_count: int = 0,
+    duplicate_ack_event_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """One logical interaction as seen by the runner.
 
@@ -120,6 +123,14 @@ def runner_record(
         "completed_monotonic_ns": completed_monotonic_ns,
         "outcome": outcome,
         "note": note,
+        # §11.1 integrity evidence, carried by every experiment rather than
+        # only by E3. E0-E2 already require exactly one ACK per request as an
+        # acceptance criterion; recording the count per interaction is what
+        # makes that requirement reconstructable from the raw stream instead
+        # of only from a run-level aggregate.
+        "ack_count": ack_count,
+        "duplicate_ack_count": duplicate_ack_count,
+        "duplicate_ack_event_ids": list(duplicate_ack_event_ids or []),
     }
 
 
@@ -208,6 +219,9 @@ def benchmark_record(
     live_recovery_episode: int | None = None,
     send_errcode: str = "",
     late_ack_monotonic_ns: int | None = None,
+    ack_count: int = 0,
+    duplicate_ack_count: int = 0,
+    duplicate_ack_event_ids: list[str] | None = None,
     **runner_fields,
 ) -> dict[str, Any]:
     """One E3 benchmark interaction: a runner record plus the E3 fields.
@@ -238,6 +252,28 @@ def benchmark_record(
             "live_recovery_episode": live_recovery_episode,
             "send_errcode": send_errcode,
             "late_ack_monotonic_ns": late_ack_monotonic_ns,
+            # §11.1 integrity evidence. The terminal outcome above is fixed by
+            # the first ACK; these describe what arrived afterwards and never
+            # alter it. Recorded so the duplicate count is reconstructable
+            # independently rather than taken on the runner's word.
+            "ack_count": ack_count,
+            "duplicate_ack_count": duplicate_ack_count,
+            "duplicate_ack_event_ids": list(duplicate_ack_event_ids or []),
         }
     )
     return record
+
+
+def integrity_fields(interaction: Any) -> dict[str, Any]:
+    """The §11.1 evidence for one interaction, in one place.
+
+    Used by the experiments that build records directly, so that E0-E2 carry
+    the same integrity evidence E3 does rather than a subset of it.
+    """
+    return {
+        "ack_count": getattr(interaction, "ack_count", 0),
+        "duplicate_ack_count": getattr(interaction, "duplicate_ack_count", 0),
+        "duplicate_ack_event_ids": list(
+            getattr(interaction, "duplicate_ack_event_ids", []) or []
+        ),
+    }

@@ -6,6 +6,73 @@ Versions apply to the frozen set as a whole: `research-scope.md`, `testbed-archi
 
 ---
 
+## v1.2 — 2026-09-05
+
+**Status:** frozen. Pre-lock. No formal publication data existed when these changes were made; the only experimental data in existence is development data marked `publication_data = false`, and none of it was collected under a rule these changes alter in a way that affects its numbers.
+
+### Provenance
+
+A pre-lock audit reviewed the implementation of Tasks 01-06 against this document set, checked the schemas, manifests and provenance model, checked the analysis code independently of the experiment code, and ran invariant checks over the real development datasets. It found one internal contradiction in the frozen text (H2), one statistic carrying two different definitions, and one measurement limitation worth recording rather than removing. The remediation that followed closed seven implementation-side findings without touching this document set. This version applies the four corrections that do require normative change.
+
+### Summary
+
+| # | Change | Documents | Class |
+|---|---|---|---|
+| 1 | `duplicate_response` removed from the terminal outcome taxonomy; duplicate ACKs become post-terminal integrity observations | protocol §11, §11.1, §12 | `protocol_version` + `analysis_spec_version` |
+| 2 | One statistical definition for `median` | protocol §31 | `analysis_spec_version` |
+| 3 | Batched callback dispatch recorded as an accepted measurement limitation | protocol §10 | clarification |
+| 4 | Sequential deterministic agent frozen as the tested system, with the interpretation boundary stated | protocol §17 | clarification |
+
+### 1. Duplicate ACK semantics (H2)
+
+§11 required every interaction to terminate in exactly one outcome, and §9/§10 place that termination at the first matching ACK. §12 nevertheless assigned the terminal outcome `duplicate_response` from a condition — "a logical request producing multiple distinct ACK events" — that can only become knowable *after* the first ACK has already terminated the interaction. The two rules could not both hold. The contradiction was latent: it bites only when a duplicate actually occurs, and none did in development.
+
+There was a second, quieter problem. §12 declares itself owned by `analysis_spec_version` and describes itself as transforming recorded outcomes into a metric. The `duplicate_response` sentence did not transform an outcome, it *assigned* one — a `protocol_version` concern living in an `analysis_spec_version` section.
+
+Resolved by keeping §9, §10 and §11 intact and moving the duplicate rule instead. The first valid matching ACK fixes `success` and stamps T3; nothing observed afterwards may change the outcome, T3, the RTT or throughput inclusion. A later distinct ACK is recorded as a `duplicate_ack` integrity observation (§11.1), reported separately and prominently, and excluded from the interaction failure rate.
+
+The alternative — keeping `duplicate_response` terminal and defining an observation window in which it could be determined — was rejected as larger, not smaller: it would have required redefining §9, §10 and §11, and it would have made every RTT wait on a duplicate that may never arrive, which a closed-loop workload at concurrency `C` cannot do without leaving the offered load undefined.
+
+Identity is `event_id` (§13): the same ACK delivered twice by sync is one event, not a duplicate. Counting callback invocations instead would have manufactured integrity defects out of ordinary gap recovery.
+
+Formal raw observations now carry `ack_count`, `duplicate_ack_count` and `duplicate_ack_event_ids`, so the count is independently reconstructable. This increments the raw schema version to 2. Records written under version 1 continue to validate against the version 1 schema: raw data is immutable, so a schema revision versions forward rather than invalidating the existing record.
+
+**Why existing development results are unaffected.** The audit examined 62,009 agent responses across the r3 development campaign and found no request answered twice. Because no duplicate occurred, no interaction changes classification under the new rule, and every reported r3 latency and throughput figure is numerically identical. The r3 raw data predates the §11.1 evidence fields and cannot itself answer the duplicate question; it is reported as historical development data collected before this hardening, with zero duplicates independently observed in the available agent telemetry. Formal data under Task 07 uses the corrected schema.
+
+`protocol_version` moves because the outcome taxonomy and the raw observation model changed. `analysis_spec_version` moves because the failure-rate transformation changed. The two counters happen to land on the same number; that is coincidence, not coupling.
+
+### 2. One definition of `median`
+
+v1.1 reported "median run throughput" twice with two different estimators: the descriptive summary selected by nearest rank, the bootstrap used the sample median. For an even number of runs these disagree, so one named statistic had two values — 8.6 and 8.625 for the same twenty runs.
+
+§31 now defines the sample median once, and it is used for every statistic named `median`. Percentiles that are not medians — `p95`, `p99`, and the bootstrap interval bounds — keep the nearest-rank convention, which is now stated explicitly rather than left implicit. The two conventions are named apart because they answer different questions.
+
+**Exact effect on the immutable r3 data**, recomputed from unchanged raw records under the new specification: three descriptive medians moved and nothing else did.
+
+| Metric | v1.1 | v1.2 | Δ |
+|---|---|---|---|
+| C=8 local median observed throughput | 8.6 /s | 8.625 /s | +0.025 |
+| C=8 federated median observed throughput | 5.2667 /s | 5.2917 /s | +0.025 |
+| C=32 local median observed throughput | 8.7833 /s | 8.8 /s | +0.0167 |
+
+Forty-five other primary metrics — every latency percentile, every bootstrap interval, every failure rate, every completion count — are unchanged, and the new descriptive medians now agree with the bootstrap values they previously contradicted. The comparison artifact records all forty-eight.
+
+### 3. Batched callback dispatch (accepted limitation)
+
+`/sync` delivers events in batches and the runner dispatches their callbacks sequentially, so the k-th ACK in a batch has T3 stamped after the preceding callbacks have run. The bias can only delay T3, never advance it. Measured under the audited development workload at roughly 2.9 µs per preceding event, about 92 µs at a batch of 32, or 0.077% of a 120 ms RTT.
+
+Recorded in §10 as an accepted limitation. No numerical correction is applied and no behaviour changed: the alternative is a concurrent dispatch model whose own ordering effects would be harder to characterise than the one being removed. The magnitude belongs to the audited conditions and is not generalised. What the study reports is runner-observed client-side RTT, not idealised wire latency.
+
+### 4. Sequential deterministic agent (interpretation frozen)
+
+Development measurement found the completion rate at `C = 32` little or no higher than at `C = 8`. That is the signature of a service rate set by the agent, which processes and acknowledges one request at a time, rather than by the messaging path.
+
+§17 now states what E3 throughput measures — the observed end-to-end throughput of the tested closed-loop system using the frozen sequential agent runtime — and what it does not: maximum Matrix transport capacity, maximum federation capacity, or infrastructure saturation independent of the agent runtime.
+
+The agent is deliberately **not** made concurrent. Changing the system under test after seeing its measurement, in the direction that improves the measurement, is the specific move this document set exists to prevent. `C = 8` and `C = 32` remain frozen operating points, not a capacity search.
+
+---
+
 ## v1.1 — 2026-09-02
 
 **Status:** frozen. No experimental data existed when these changes were made; nothing here is a post-hoc adjustment to observed results.

@@ -145,6 +145,26 @@ make e4-validate     # checks all recorded sessions
 
 ---
 
+## 5a. Changing the external port
+
+The HTTPS Client-Server port has one canonical name:
+
+```bash
+export FAM_E4_CS_TLS_PORT=9449
+```
+
+It is used by three things that must agree: the port Compose publishes, the
+`public_baseurl` rendered into the Synapse configuration, and the address
+`make e4-prepare` verifies. Set it before `make setup` (or `make config`) so
+the rendered configuration matches the published port — a client is told
+`public_baseurl` after login and uses it for everything afterwards, so a
+mismatch leaves the client hanging on a port nothing listens on.
+
+Changing the port changes the Synapse configuration hash, so the frozen-config
+baseline has to be re-established.
+
+---
+
 ## 6. Provider configuration
 
 The agent needs an LLM credential. It is read from the environment and is

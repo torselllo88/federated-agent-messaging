@@ -52,14 +52,29 @@ E1_QUIET_INTERVAL_SECONDS = 2.0
 # Schema versions are frozen at protocol lock (experimental-protocol.md §46).
 # Task 01 is pre-lock development, so these carry a development marker.
 
-RAW_SCHEMA_VERSION = "1"
+#: v2 adds the duplicate-ACK integrity evidence required by §11.1. Records
+#: written under v1 remain valid under the v1 schema: raw data is immutable,
+#: so a schema revision versions forward rather than invalidating history.
+RAW_SCHEMA_VERSION = "2"
+SUPPORTED_RAW_SCHEMA_VERSIONS = ("1", "2")
 MANIFEST_SCHEMA_VERSION = "1"
 
 #: Set at protocol lock. Development runs record the value that was current
 #: when they executed; a later analysis-spec revision does not invalidate them
 #: (experimental-protocol.md §35, §38).
-EXECUTION_PROTOCOL_VERSION = "1.1-dev"
-EXECUTION_ANALYSIS_SPEC_VERSION = "1.1-dev"
+#: Two counters, moved independently and for different reasons. They happen to
+#: carry the same number here; that is coincidence, not coupling (§3 Phase 4).
+#:
+#: protocol_version 1.2      H2: the terminal outcome taxonomy lost
+#:                           `duplicate_response`, and duplicate ACKs became
+#:                           post-terminal integrity observations with new raw
+#:                           evidence fields. Execution semantics changed.
+#: analysis_spec_version 1.2 the failure rate no longer counts duplicate ACKs,
+#:                           and `median` received one statistical definition.
+#:                           Transformation of raw observations changed; the
+#:                           observations themselves did not.
+EXECUTION_PROTOCOL_VERSION = "1.2-dev"
+EXECUTION_ANALYSIS_SPEC_VERSION = "1.2-dev"
 
 # --- E3, experimental-protocol.md §18, §21, §22, §24, §25 -------------------
 #

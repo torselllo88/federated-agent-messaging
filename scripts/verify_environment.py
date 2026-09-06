@@ -27,6 +27,7 @@ import ssl
 import sys
 import urllib.error
 import urllib.request
+import os
 from pathlib import Path
 
 sys.path.insert(0, "/app/src")
@@ -235,6 +236,34 @@ def check_config_hashes(check: Check, env_dir: Path) -> dict[str, str]:
     return current
 
 
+def check_client_discovery(check: Check) -> dict:
+    """Follow well-known discovery the way a standard client does.
+
+    Every other check here addresses an endpoint directly. A real client does
+    not: it reads `public_baseurl` back as `well_known` and switches to it. An
+    address that names the wrong port passes every direct check and still
+    leaves the client stuck after a successful login, so the redirection has
+    to be followed rather than assumed (testbed-architecture.md §7).
+    """
+    print("\nClient discovery (E4 external client path)")
+    port = os.environ.get("FAM_E4_CS_TLS_PORT", "8449")
+    server = DOMAINS["A"]["server_name"] if isinstance(DOMAINS.get("A"), dict) else "hs-a.test"
+    expected = f"https://{server}:{port}"
+
+    config_path = DOMAINS["A"]["config"] if isinstance(DOMAINS.get("A"), dict) else None
+    advertised = ""
+    if config_path is not None and Path(config_path).exists():
+        document = _load_config(Path(config_path))
+        advertised = str(document.get("public_baseurl", "")).rstrip("/")
+
+    check.record(
+        "public_baseurl names the published Client-Server port",
+        advertised == expected,
+        f"{advertised or '<unset>'} (expected {expected})",
+    )
+    return {"public_baseurl": advertised, "expected": expected, "port": port}
+
+
 def check_rate_limits(check: Check) -> dict:
     """Confirm client-side limits are non-binding for the planned envelope.
 
@@ -293,6 +322,7 @@ def main() -> int:
     check_tls_and_identity(check)
     check_federation_ip_policy(check)
     hashes = check_config_hashes(check, env_dir)
+    discovery = check_client_discovery(check)
     limits = check_rate_limits(check)
 
     report = {
@@ -301,6 +331,7 @@ def main() -> int:
         ],
         "config_hashes": hashes,
         "rate_limits": limits,
+        "client_discovery": discovery,
         "scope_note": (
             "transport and bootstrap readiness only; no room-level federation "
             "behaviour was exercised (experimental-protocol.md §4.1)"

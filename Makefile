@@ -66,8 +66,11 @@ build: guard
 tls: build
 	$(RUN_BOOTSTRAP) python scripts/bootstrap.py tls
 
+# FAM_E4_CS_TLS_PORT is propagated here because it is rendered into
+# `public_baseurl`: a client is told this address after login and uses it for
+# everything afterwards, so it must match the port compose actually publishes.
 config: tls
-	$(RUN_BOOTSTRAP) python scripts/bootstrap.py config
+	$(COMPOSE) run --rm --no-deps -e FAM_E4_CS_TLS_PORT bootstrap python scripts/bootstrap.py config
 
 up: config
 	$(COMPOSE) up -d postgres-a postgres-b synapse-a synapse-b
@@ -86,7 +89,7 @@ setup: hashes
 	@echo "setup complete. next: make verify && make spike && make e0"
 
 verify: guard
-	$(COMPOSE) run --rm bootstrap python scripts/verify_environment.py
+	$(COMPOSE) run --rm -e FAM_E4_CS_TLS_PORT bootstrap python scripts/verify_environment.py
 
 spike: guard
 	$(COMPOSE) run --rm toolbox python scripts/spike_compatibility.py

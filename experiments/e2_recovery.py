@@ -49,6 +49,7 @@ from fam.common.validity import VALID, InteractionOutcome, InvalidRun  # noqa: E
 from fam.instrumentation.manifest import RawArtifact, RunManifest  # noqa: E402
 from fam.instrumentation.streams import (  # noqa: E402
     JsonlStream,
+    integrity_fields,
     monotonic_ns,
     runner_marker,
     runner_record,
@@ -270,6 +271,7 @@ async def execute_run(index: int, root: Path, stamp: str) -> RunResult:
                     # Not a timeout: no runtime exists yet by design. The
                     # deadline begins at restart (experimental-protocol.md §11).
                     outcome=InteractionOutcome.OFFLINE_SEND.value,
+                    **integrity_fields(interaction),
                 )
             )
 
@@ -319,6 +321,7 @@ async def execute_run(index: int, root: Path, stamp: str) -> RunResult:
                         if interaction.completed_monotonic_ns
                         else InteractionOutcome.TIMEOUT.value
                     ),
+                    **integrity_fields(interaction),
                 )
             )
 

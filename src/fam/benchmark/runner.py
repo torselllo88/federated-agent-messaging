@@ -436,6 +436,8 @@ def _write_evidence(
         extra.update(
             {
                 "interactions_initiated": workload.initiated,
+                "duplicate_ack_observations": workload.duplicate_ack_observations,
+                "requests_with_duplicate_acks": workload.requests_with_duplicate_acks,
                 "send_errors": workload.send_errors,
                 "rate_limited_sends": workload.rate_limited_sends,
                 "send_errcodes": sorted(set(workload.rate_limit_errcodes)),

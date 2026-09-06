@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://federated-agent-messaging/schemas/raw-runner-record-2.json",
-  "title": "Runner interaction record (schema version 2)",
-  "description": "Runner observations. record_type distinguishes a logical interaction from a phase marker such as E2's agent-stop and restart boundaries; markers carry no interaction fields because they describe no interaction.",
+  "$id": "https://federated-agent-messaging/schemas/raw-runner-record-1.json",
+  "title": "Runner interaction record (schema version 1)",
+  "description": "Historical. Records written before the duplicate-ACK integrity evidence of experimental-protocol.md 11.1. Immutable raw data validates under the version it declares; it is never revalidated against a later schema.",
   "type": "object",
   "required": [
     "schema_version",
@@ -12,7 +12,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "2"
+      "const": "1"
     },
     "stream": {
       "const": "runner"
@@ -93,11 +93,11 @@
         "timeout",
         "send_error",
         "malformed_response",
+        "duplicate_response",
         "unexpected_response",
         "runner_error",
         "offline_send"
-      ],
-      "description": "Terminal outcome, fixed when the interaction terminates and immutable afterwards (experimental-protocol.md 11). duplicate_response is absent by design: a duplicate ACK is only knowable after termination and is recorded as a post-terminal integrity observation instead (11.1)."
+      ]
     },
     "note": {
       "type": "string"
@@ -183,23 +183,6 @@
         "null"
       ],
       "description": "An ACK observed after the frozen per-interaction timeout expired. Preserved as evidence; it does not change the outcome, which experimental-protocol.md 11 fixes at termination."
-    },
-    "ack_count": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Distinct matching ACK events observed for this request. Identity is event_id (13), so one event delivered twice counts once."
-    },
-    "duplicate_ack_count": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Distinct additional ACK events after the one that terminated the interaction (11.1). Never affects the terminal outcome or the failure rate."
-    },
-    "duplicate_ack_event_ids": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Event ids of those duplicates, so the count is independently reconstructable. The first ACK's event id stays in response_event_id and is never overwritten."
     }
   },
   "not": {
@@ -248,9 +231,7 @@
           "sender",
           "request_txn_id",
           "initiated_monotonic_ns",
-          "outcome",
-          "ack_count",
-          "duplicate_ack_count"
+          "outcome"
         ]
       }
     }

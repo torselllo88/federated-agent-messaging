@@ -96,6 +96,9 @@ class WorkloadResult:
     rate_limit_errcodes: list[str] = field(default_factory=list)
     outstanding_at_window_start: int = 0
     outstanding_at_window_end: int = 0
+    #: §11.1. Reported separately from the failure rate, never merged into it.
+    duplicate_ack_observations: int = 0
+    requests_with_duplicate_acks: int = 0
 
     @property
     def measured_records(self) -> list[dict[str, Any]]:
@@ -139,6 +142,9 @@ def _record(
         live_recovery_episode=interaction.recovery_episode,
         send_errcode=interaction.send_errcode,
         late_ack_monotonic_ns=interaction.late_ack_monotonic_ns,
+        ack_count=interaction.ack_count,
+        duplicate_ack_count=interaction.duplicate_ack_count,
+        duplicate_ack_event_ids=interaction.duplicate_ack_event_ids,
         experiment=EXPERIMENT,
         topology=config.topology_name,
         run_id=config.run_id,
@@ -187,6 +193,7 @@ async def run_latency_workload(
         result.initiated += 1
         result.warmup_initiated += 1
         _tally_send(result, interaction)
+        _tally_integrity(result, interaction)
         result.records.append(
             _record(
                 config,
@@ -217,6 +224,7 @@ async def run_latency_workload(
         )
         result.initiated += 1
         _tally_send(result, interaction)
+        _tally_integrity(result, interaction)
         result.records.append(
             _record(
                 config,
@@ -265,18 +273,22 @@ async def run_throughput_workload(
     result.window_end_ns = window_end_ns
     result.drain_end_ns = drain_end_ns
 
-    completed: list[tuple["Interaction", int]] = []
+    completed: list["Interaction"] = []
 
     async def slot(slot_index: int) -> None:
+        # The loop condition is a scheduler decision and necessarily precedes
+        # T0, which is stamped inside request() immediately before the send.
+        # It decides only whether to *initiate*; it is never used for
+        # accounting, so no second notion of "when this interaction started"
+        # can creep into the record.
         while monotonic_ns() < window_end_ns:
             correlation = Correlation(EXPERIMENT, config.run_id, next(sequence))
-            initiated_ns = monotonic_ns()
             interaction = await human.request(
                 correlation,
                 body_bytes=config.body_bytes,
                 timeout=config.timeout_seconds,
             )
-            completed.append((interaction, initiated_ns))
+            completed.append(interaction)
 
     await asyncio.gather(*(slot(index) for index in range(config.concurrency)))
 
@@ -285,15 +297,22 @@ async def run_throughput_workload(
 
     # Every interaction is already resolved: each slot awaited its own last
     # one under the ordinary per-interaction timeout, which is the drain.
-    for interaction, initiated_ns in completed:
+    #
+    # All accounting below uses T0 — the same timestamp written to the raw
+    # record — so §24 boundary diagnostics are reconstructable from the raw
+    # stream. Using the scheduler's pre-request clock here would leave the
+    # manifest stating figures that nothing else could reproduce.
+    for interaction in completed:
         result.initiated += 1
         _tally_send(result, interaction)
+        _tally_integrity(result, interaction)
 
+        started = interaction.initiated_monotonic_ns
         finished = interaction.completed_monotonic_ns
         if finished is None:
             # Never completed. It belongs to the period it was initiated in;
             # the analysis reads the raw timestamps, not this label.
-            phase = PHASE_WARMUP if initiated_ns < window_start_ns else PHASE_WINDOW
+            phase = PHASE_WARMUP if started < window_start_ns else PHASE_WINDOW
         elif finished < window_start_ns:
             phase = PHASE_WARMUP
         elif finished < window_end_ns:
@@ -303,11 +322,11 @@ async def run_throughput_workload(
 
         if phase == PHASE_WARMUP:
             result.warmup_initiated += 1
-        if initiated_ns < window_start_ns and (
+        if started < window_start_ns and (
             finished is None or finished >= window_start_ns
         ):
             initiated_before_window.append(interaction)
-        if initiated_ns < window_end_ns and (
+        if started < window_end_ns and (
             finished is None or finished >= window_end_ns
         ):
             pending_at_window_end.append(interaction)
@@ -325,6 +344,13 @@ async def run_throughput_workload(
     result.outstanding_at_window_start = len(initiated_before_window)
     result.outstanding_at_window_end = len(pending_at_window_end)
     return result
+
+
+def _tally_integrity(result: WorkloadResult, interaction: "Interaction") -> None:
+    """Post-terminal integrity, counted apart from the terminal outcome."""
+    if interaction.duplicate_ack_count:
+        result.duplicate_ack_observations += interaction.duplicate_ack_count
+        result.requests_with_duplicate_acks += 1
 
 
 def _tally_send(result: WorkloadResult, interaction: "Interaction") -> None:

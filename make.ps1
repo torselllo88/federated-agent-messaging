@@ -92,7 +92,7 @@ switch ($Target) {
         Invoke-Compose @('up', '-d', 'postgres-a', 'postgres-b', 'synapse-a', 'synapse-b')
         Invoke-Compose @('run', '--rm', 'bootstrap', 'python', 'scripts/bootstrap.py', 'wait')
     }
-    'verify'  { Require-ResultsDir; Invoke-Compose @('run', '--rm', 'bootstrap', 'python', 'scripts/verify_environment.py') }
+    'verify'  { Require-ResultsDir; Invoke-Compose @('run', '--rm', '-e', 'FAM_E4_CS_TLS_PORT', 'bootstrap', 'python', 'scripts/verify_environment.py') }
     'spike'   { Require-ResultsDir; Invoke-Compose @('run', '--rm', 'toolbox', 'python', 'scripts/spike_compatibility.py') }
     'e0'      { Require-ResultsDir; Invoke-Compose @('run', '--rm', 'toolbox', 'python', 'experiments/e0_baseline.py') }
     'e1'      { Require-ResultsDir; Invoke-Compose @('run', '--rm', 'toolbox', 'python', 'experiments/e1_federation.py') }

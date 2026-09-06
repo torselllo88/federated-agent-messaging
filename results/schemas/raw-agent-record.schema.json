@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://federated-agent-messaging/schemas/raw-agent-record-1.json",
   "title": "Agent telemetry record",
-  "description": "What no external observer can see: recovered event set, pagination, deduplication decisions, per-request processing outcomes. Mandatory rather than diagnostic, because E2's acceptance criteria are agent-side facts (testbed-architecture.md \u00a722). Uses no privileged interface and does not affect C2.",
+  "description": "What no external observer can see: recovered event set, pagination, deduplication decisions, per-request processing outcomes. Mandatory rather than diagnostic, because E2's acceptance criteria are agent-side facts (testbed-architecture.md §22). Uses no privileged interface and does not affect C2.",
   "type": "object",
   "required": [
     "schema_version",
@@ -14,7 +14,12 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1"
+      "type": "string",
+      "enum": [
+        "1",
+        "2"
+      ],
+      "description": "Agent telemetry is unchanged across raw schema versions 1 and 2: the duplicate-ACK evidence of 11.1 is a sender-side observation. The version travels with the record so a reader never has to infer it."
     },
     "stream": {
       "const": "agent"

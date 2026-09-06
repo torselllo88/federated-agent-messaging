@@ -82,7 +82,7 @@ services:
       # E4 only: HTTPS Client-Server endpoint for the external human client
       # (testbed-architecture.md §7). Domain A alone, because that is where
       # the actual human's account lives.
-      - "${HS_A_CS_TLS_PORT:-8449}:8449"
+      - "${FAM_E4_CS_TLS_PORT:-8449}:8449"
 
   # ---------------------------------------------------------------- Domain B
 

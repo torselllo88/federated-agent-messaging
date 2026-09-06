@@ -39,7 +39,12 @@ class Interaction:
     request_event_id: str | None = None
     response_event_id: str | None = None
     completed_monotonic_ns: int | None = None
-    ack_count: int = 0
+    #: Distinct matching ACK events seen for this request, in arrival order.
+    #: Identity is the Matrix event_id (§13): the same event delivered twice
+    #: by sync is one event, not a duplicate, and counting callback
+    #: invocations instead would manufacture duplicates out of ordinary gap
+    #: recovery.
+    ack_event_ids: list[str] = field(default_factory=list)
     #: Set when the homeserver refused the send. ``M_LIMIT_EXCEEDED`` here is
     #: an experimental observation under the frozen configuration.
     send_errcode: str = ""
@@ -61,6 +66,20 @@ class Interaction:
     @property
     def rate_limited(self) -> bool:
         return self.send_errcode == "M_LIMIT_EXCEEDED"
+
+    @property
+    def ack_count(self) -> int:
+        """Distinct matching ACK events observed."""
+        return len(self.ack_event_ids)
+
+    @property
+    def duplicate_ack_event_ids(self) -> list[str]:
+        """Every ACK after the first: post-terminal integrity observations."""
+        return self.ack_event_ids[1:]
+
+    @property
+    def duplicate_ack_count(self) -> int:
+        return max(0, len(self.ack_event_ids) - 1)
 
 
 class HumanParticipant:
@@ -132,23 +151,37 @@ class HumanParticipant:
         interaction = self._pending.get(key)
         if interaction is None:
             return
-        interaction.ack_count += 1
+        if event.event_id in interaction.ack_event_ids:
+            # The same event delivered twice. One event, not a duplicate
+            # (§13); recording it would invent an integrity defect out of
+            # ordinary sync behaviour.
+            return
+        first = not interaction.ack_event_ids
+        interaction.ack_event_ids.append(event.event_id)
+
         if interaction.timed_out:
             # The deadline already ended this interaction. Record that the ACK
-            # eventually arrived — it is real, and losing it would hide a
-            # slow path — but leave the outcome alone.
+            # eventually arrived — it is real, and losing it would hide a slow
+            # path — but leave the outcome alone. A late ACK after a timeout is
+            # not a duplicate after a success; the two are different facts and
+            # §11 keeps both from touching the terminal outcome.
             if interaction.late_ack_monotonic_ns is None:
                 interaction.late_ack_monotonic_ns = t3
                 interaction.response_event_id = event.event_id
             return
-        if interaction.ack_count == 1:
+
+        if first:
+            # This ACK terminates the interaction. Everything it fixes is
+            # immutable from here: T3, the RTT, the response event and the
+            # terminal outcome (§11).
             interaction.completed_monotonic_ns = t3
             interaction.response_event_id = event.event_id
             interaction.recovery_episode = self.client.current_recovery_episode
             if not interaction.future.done():
                 interaction.future.set_result(interaction)
-        # A second distinct ACK for one logical request is a duplicate and is
-        # counted, not discarded (experimental-protocol.md §12).
+        # Any later distinct ACK is a post-terminal integrity observation
+        # (§11.1). It is recorded in ack_event_ids above and changes nothing
+        # about the interaction that already terminated.
 
     async def request(
         self,
@@ -294,6 +327,13 @@ class HumanParticipant:
         return self._in_flight
 
     def duplicate_acks(self) -> int:
-        return sum(
-            max(0, item.ack_count - 1) for item in self._pending.values()
-        )
+        """Distinct duplicate ACK events across every interaction.
+
+        E0-E2 assert this is zero as an exactly-once correctness requirement.
+        H2 changed how a duplicate affects the *interaction's* outcome; it did
+        not weaken what the experiments demand of the agent.
+        """
+        return sum(item.duplicate_ack_count for item in self._pending.values())
+
+    def requests_with_duplicate_acks(self) -> int:
+        return sum(1 for item in self._pending.values() if item.duplicate_ack_count)

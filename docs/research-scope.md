@@ -1,4 +1,4 @@
-# Research Scope Freeze v1.1 FINAL
+# Research Scope Freeze v1.2 FINAL
 
 **Project:** Federated Agent Messaging
 **Repository:** `federated-agent-messaging`

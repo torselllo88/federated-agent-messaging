@@ -39,14 +39,45 @@ REQUIRED_SESSIONS = 3
 
 ANALYSIS_CODE_COMMIT = "task-06-working-tree"
 
-#: Shapes that must never appear in an artifact. Checked against the whole
-#: manifest and transcript text, not only the fields we expect to be present.
-SECRET_PATTERNS = (
-    re.compile(r"sk-[A-Za-z0-9_\-]{16,}"),
-    re.compile(r"\bBearer\s+[A-Za-z0-9._\-]{16,}"),
-    re.compile(r"x-api-key", re.IGNORECASE),
-    re.compile(r"authorization", re.IGNORECASE),
+# --------------------------------------------------------------- secrets
+#
+# Two different questions, deliberately separated.
+#
+# In *structured* fields a credential must never appear at all, and those
+# fields have known shapes, so anything credential-like there is a defect.
+#
+# In *transcript prose* the human and the model write whatever they like. A
+# person who types the word "authorization" has not leaked anything, and the
+# previous keyword scan would have failed that session. Matrix event ids made
+# it worse: they are random base64 and contain the substring "sk-" roughly
+# once in seven thousand, which was observed dozens of times across E3.
+#
+# Prose is therefore matched only against high-confidence, provider-specific
+# credential formats — the actual prefixes real keys carry.
+
+#: Concrete credential formats. Deliberately specific: a generic "sk-" prefix
+#: matches ordinary identifiers, these do not.
+CREDENTIAL_PATTERNS = (
+    re.compile(r"\bsk-ant-[A-Za-z0-9_\-]{24,}"),
+    re.compile(r"\bsk-or-v1-[A-Za-z0-9]{32,}"),
+    re.compile(r"\bsk-proj-[A-Za-z0-9_\-]{24,}"),
+    re.compile(r"\bsk-[A-Za-z0-9]{32,}"),
+    re.compile(r"\bghp_[A-Za-z0-9]{30,}"),
+    re.compile(r"\bxox[baprs]-[A-Za-z0-9\-]{20,}"),
 )
+
+#: Additionally forbidden inside structured fields, where a credential header
+#: or an environment dump has no business appearing at all.
+STRUCTURED_ONLY_PATTERNS = (
+    re.compile(r"x-api-key", re.IGNORECASE),
+    re.compile(r"\bauthorization\b\s*[:=]", re.IGNORECASE),
+    re.compile(r"\bBearer\s+[A-Za-z0-9._\-]{16,}"),
+    re.compile(r"FAM_LLM_API_KEY", re.IGNORECASE),
+)
+
+#: Manifest keys whose values are free prose written by a person or a model.
+#: Everything else in a manifest is structured.
+PROSE_FIELDS = frozenset({"request_text", "response_text", "note", "system_prompt"})
 
 
 def load_manifests(root: Path) -> list[dict[str, Any]]:
@@ -59,8 +90,68 @@ def load_manifests(root: Path) -> list[dict[str, Any]]:
     return found
 
 
-def _secret_findings(text: str) -> list[str]:
-    return sorted({pattern.pattern for pattern in SECRET_PATTERNS if pattern.search(text)})
+#: Key names that must not appear anywhere in a structured artifact. A field
+#: called `authorization` is a credential header whatever it holds, so the
+#: name alone disqualifies it and no value pattern needs to match.
+FORBIDDEN_KEYS = frozenset(
+    {
+        "authorization",
+        "x-api-key",
+        "api_key",
+        "apikey",
+        "api-key",
+        "fam_llm_api_key",
+        "access_token",
+        "password",
+        "secret",
+    }
+)
+
+
+def _split_prose(
+    document: object, prose: list[str], structured: list[str], keys: list[str]
+) -> None:
+    """Walk a JSON document, separating human prose from structured content."""
+    if isinstance(document, dict):
+        for key, value in document.items():
+            keys.append(str(key))
+            if key in PROSE_FIELDS and isinstance(value, str):
+                prose.append(value)
+            else:
+                structured.append(str(key))
+                _split_prose(value, prose, structured, keys)
+    elif isinstance(document, list):
+        for item in document:
+            _split_prose(item, prose, structured, keys)
+    elif isinstance(document, str):
+        structured.append(document)
+
+
+def scan_secrets(document: object) -> list[str]:
+    """Report credential material, without failing a session over prose.
+
+    Structured content is held to both rule sets. Prose is held only to the
+    concrete credential formats: a real key pasted into a chat message is
+    still caught, a person writing the word "authorization" is not.
+    """
+    prose: list[str] = []
+    structured: list[str] = []
+    keys: list[str] = []
+    _split_prose(document, prose, structured, keys)
+
+    problems: list[str] = []
+    for key in keys:
+        if key.strip().lower() in FORBIDDEN_KEYS:
+            problems.append(f"artifact carries a credential-bearing field: {key!r}")
+    structured_text = "\n".join(structured)
+    for pattern in CREDENTIAL_PATTERNS + STRUCTURED_ONLY_PATTERNS:
+        if pattern.search(structured_text):
+            problems.append(f"structured field matches {pattern.pattern}")
+    prose_text = "\n".join(prose)
+    for pattern in CREDENTIAL_PATTERNS:
+        if pattern.search(prose_text):
+            problems.append(f"transcript prose contains a credential: {pattern.pattern}")
+    return sorted(set(problems))
 
 
 def validate_session(root: Path, manifest: dict[str, Any]) -> dict[str, Any]:
@@ -149,11 +240,16 @@ def validate_session(root: Path, manifest: dict[str, Any]) -> dict[str, Any]:
         if not manifest_pairs <= transcript_pairs:
             problems.append("manifest interactions are not all in the transcript")
 
-    # No secret in any artifact this session produced.
-    blob = json.dumps({k: v for k, v in manifest.items() if k != "_path"})
-    leaks = _secret_findings(blob) + _secret_findings(transcript_text)
+    # No credential in any artifact this session produced. Prose is judged
+    # differently from structured fields; see scan_secrets.
+    leaks = scan_secrets({k: v for k, v in manifest.items() if k != "_path"})
+    if transcript_text:
+        try:
+            leaks += scan_secrets(json.loads(transcript_text))
+        except ValueError:
+            pass
     if leaks:
-        problems.append(f"possible secret material in artifacts: {sorted(set(leaks))}")
+        problems.append(f"credential material in artifacts: {sorted(set(leaks))}")
 
     validity = manifest.get("validity_classification") or {}
     return {

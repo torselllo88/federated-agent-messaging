@@ -28,6 +28,7 @@ from itertools import chain
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from fam.common.validity import failure_rate as frozen_failure_rate
 from fam.common.frozen import (
     DEFAULT_INTERACTION_TIMEOUT_SECONDS,
     E3_BOOTSTRAP_CONFIDENCE,
@@ -63,6 +64,27 @@ def percentile(sorted_values: Sequence[float], q: float) -> float | None:
         return None
     rank = max(1, math.ceil(q * len(sorted_values)))
     return float(sorted_values[min(rank, len(sorted_values)) - 1])
+
+
+def median(values: Sequence[float]) -> float | None:
+    """The sample median, experimental-protocol.md §31.
+
+        odd  n:  x((n+1)/2)
+        even n:  [x(n/2) + x(n/2+1)] / 2
+
+    Distinct from :func:`percentile`, which selects by nearest rank. Both are
+    used deliberately and are named apart: v1.1 computed descriptive median run
+    throughput by nearest rank while the bootstrap used the sample median, so
+    one reported statistic carried two values.
+    """
+    if not values:
+        return None
+    ordered = sorted(values)
+    n = len(ordered)
+    middle = n // 2
+    if n % 2:
+        return float(ordered[middle])
+    return (float(ordered[middle - 1]) + float(ordered[middle])) / 2.0
 
 
 def _ns_to_ms(value: float | None) -> float | None:
@@ -133,16 +155,18 @@ class RunRecords:
     # -- shared ----------------------------------------------------------
 
     def failure_rate(self) -> float | None:
-        """§12, over the interactions this workload counts as initiated."""
+        """§12, over the interactions this workload counts as initiated.
+
+        The formula itself lives in :func:`fam.common.validity.failure_rate`
+        so that one implementation of the frozen rule serves every experiment,
+        including its exclusion of ``offline_send``.
+        """
         population = (
             self.measured
             if self.workload == E3_WORKLOAD_LATENCY
             else [r for r in self.records if r.get("phase") != "warmup"]
         )
-        if not population:
-            return None
-        failures = sum(1 for r in population if r.get("outcome") != SUCCESS)
-        return failures / len(population)
+        return frozen_failure_rate(r.get("outcome", "") for r in population)
 
     def outcome_counts(self) -> dict[str, int]:
         counts: dict[str, int] = {}
@@ -229,6 +253,22 @@ class RunRecords:
         return sum(
             1 for r in self.records if r.get("send_errcode") == "M_LIMIT_EXCEEDED"
         )
+
+    def duplicate_ack_observations(self) -> int:
+        """§11.1. Never enters the failure rate; reported alongside it."""
+        return sum(int(r.get("duplicate_ack_count") or 0) for r in self.records)
+
+    def requests_with_duplicate_acks(self) -> int:
+        return sum(1 for r in self.records if r.get("duplicate_ack_count"))
+
+    def carries_duplicate_evidence(self) -> bool:
+        """Whether this run's raw schema records duplicate-ACK integrity.
+
+        Data collected before §11.1 cannot answer the question either way, and
+        reporting zero for it would assert something the evidence does not
+        support.
+        """
+        return any("duplicate_ack_count" in r for r in self.records)
 
 
 @dataclass
@@ -515,12 +555,6 @@ def paired_bootstrap_throughput(
     if not usable:
         return {}
 
-    def median(values: list[float]) -> float:
-        ordered = sorted(values)
-        n = len(ordered)
-        mid = n // 2
-        return ordered[mid] if n % 2 else (ordered[mid - 1] + ordered[mid]) / 2
-
     point_local = median([local[i] for i in usable])
     point_federated = median([federated[i] for i in usable])
 
@@ -626,7 +660,7 @@ def throughput_topology_summary(
             "runs": len(selected),
             "observed_throughput_runs": [round(v, 4) for v in ordered],
             "median_observed_throughput_per_second": (
-                round(percentile(ordered, 0.5), 4) if ordered else None
+                round(median(ordered), 4) if ordered else None
             ),
             "min_per_second": round(ordered[0], 4) if ordered else None,
             "max_per_second": round(ordered[-1], 4) if ordered else None,
@@ -659,25 +693,110 @@ def derived_c1_check(
             )
             for level, data in throughput.items()
         }
-        consistent = None
-        if predicted is not None:
-            values = [v for v in observed.values() if v]
-            # The closed loop cannot complete fewer interactions at C = 8 than
-            # a single slot does, and cannot exceed C times that rate.
-            consistent = bool(values) and all(
-                predicted * 0.5 <= value <= predicted * max(1, max(
-                    int(level) for level in observed
-                )) * 2
-                for value in values
-            )
+        # Reported descriptively, not as a verdict. §31 asks for a check
+        # against "gross inconsistency" and defines no threshold; the previous
+        # implementation invented a 0.5x-to-64x band, which rejects essentially
+        # nothing while emitting `consistent: true` and the false assurance
+        # that goes with it. Inventing a threshold is what §25 forbids
+        # elsewhere for the same reason, so the ratio is reported and the
+        # judgement is left to a reader.
         out[name] = {
             "mean_rtt_ms": mean_ms,
             "predicted_c1_throughput_per_second": (
                 round(predicted, 4) if predicted else None
             ),
             "observed_median_by_concurrency": observed,
-            "consistent": consistent,
+            "observed_over_predicted_by_concurrency": {
+                level: (round(value / predicted, 4) if predicted and value else None)
+                for level, value in observed.items()
+            },
+            "interpretation": (
+                "Descriptive. The frozen protocol defines no acceptance "
+                "threshold for this comparison, so no pass/fail verdict is "
+                "derived from it. A ratio far below 1 would indicate the "
+                "closed loop completing fewer interactions at C than a single "
+                "slot does, which would point at an instrumentation or "
+                "workload defect rather than a system property."
+            ),
         }
+    return out
+
+
+def agent_send_failures(root: Path, runs: list[RunRecords]) -> dict[str, Any]:
+    """Send failures the agent itself observed, from its own telemetry.
+
+    The sender's ``send_errcode`` covers only one direction. An agent that
+    cannot deliver an ACK — including because it was rate limited — records
+    that in its own stream, and nothing in the analysis used to read it. The
+    interaction still shows as a timeout on the runner side, so the failure
+    was visible but its cause was not.
+
+    Counted per agent record, keyed by request event id so that one logical
+    failure represented in several records is not counted twice.
+    """
+    per_run: list[dict[str, Any]] = []
+    total_failed = 0
+    total_limited = 0
+    for run in runs:
+        artifact = next(
+            (
+                a
+                for a in run.manifest.get("raw_artifacts", [])
+                if a.get("role") == "agent_telemetry_stream"
+            ),
+            None,
+        )
+        if artifact is None:
+            continue
+        path = root / artifact["path"]
+        if not path.exists():
+            continue
+        failed: dict[str, str] = {}
+        limited: dict[str, str] = {}
+        for record in _load_agent_records(path):
+            if record.get("action") not in ("send_failed", "execution_failed"):
+                continue
+            key = record.get("request_event_id") or f"seq:{record.get('sequence_id')}"
+            note = str(record.get("note", ""))
+            failed[key] = note
+            if "M_LIMIT_EXCEEDED" in note:
+                limited[key] = note
+        if failed:
+            total_failed += len(failed)
+            total_limited += len(limited)
+            per_run.append(
+                {
+                    "run_id": run.run_id,
+                    "topology": run.topology,
+                    "workload": run.workload,
+                    "concurrency": run.concurrency,
+                    "agent_send_failed": len(failed),
+                    "agent_m_limit_exceeded": len(limited),
+                    "request_event_ids": sorted(failed)[:20],
+                }
+            )
+    return {
+        "agent_send_failed_total": total_failed,
+        "agent_m_limit_exceeded_total": total_limited,
+        "runs_affected": per_run,
+        "note": (
+            "Agent-side delivery failures, counted separately from the "
+            "sender's send_errcode so the two directions stay "
+            "distinguishable. Deduplicated by request event id."
+        ),
+    }
+
+
+def _load_agent_records(path: Path) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            out.append(json.loads(line))
+        except ValueError:
+            continue
     return out
 
 
@@ -726,7 +845,34 @@ def recovery_and_rate_limit_diagnostics(runs: list[RunRecords]) -> dict[str, Any
                     "m_limit_exceeded_sends": run.rate_limited(),
                 }
             )
+    duplicates = [
+        {
+            "run_id": run.run_id,
+            "topology": run.topology,
+            "workload": run.workload,
+            "concurrency": run.concurrency,
+            "duplicate_ack_observations": run.duplicate_ack_observations(),
+            "requests_with_duplicate_acks": run.requests_with_duplicate_acks(),
+        }
+        for run in runs
+        if run.duplicate_ack_observations()
+    ]
+    without_evidence = [r.run_id for r in runs if not r.carries_duplicate_evidence()]
+
     return {
+        "duplicate_ack_observations_total": sum(
+            r.duplicate_ack_observations() for r in runs
+        ),
+        "runs_with_duplicate_acks": duplicates,
+        "runs_without_duplicate_ack_evidence": len(without_evidence),
+        "duplicate_ack_note": (
+            "§11.1 post-terminal integrity observations, reported separately "
+            "from the terminal outcome and never merged into the failure rate. "
+            "A count of zero means none was observed within the run's defined "
+            "observation lifetime, not that none could ever appear afterwards. "
+            "Runs listed as lacking evidence predate the §11.1 raw fields and "
+            "cannot answer the question from their own records."
+        ),
         "runs_with_live_recovery": affected,
         "runs_with_live_recovery_count": len(affected),
         "runs_with_setup_only_recovery_count": setup_only,
@@ -886,11 +1032,45 @@ def integrity_problems(runs: list[RunRecords]) -> list[str]:
     return problems
 
 
+def _sync_configuration_summary(runs: list[RunRecords]) -> dict[str, Any]:
+    """What was requested, against what was actually observed.
+
+    The configured timeline limit is a *request*. Recording it alone invites
+    the reading that the server demonstrated it, which nothing here shows: the
+    workload never came close to the limit, so its effective ceiling was never
+    exercised. Requested and observed are therefore reported separately and
+    labelled.
+    """
+    if not runs:
+        return {}
+    requested = runs[0].manifest.get("sync_configuration") or {}
+    max_observed = 0
+    limited = 0
+    for run in runs:
+        sender = run.manifest.get("sender_transport_diagnostics") or {}
+        max_observed = max(max_observed, sender.get("max_timeline_events_observed") or 0)
+        limited += sender.get("limited_syncs_observed") or 0
+    return {
+        "requested": requested,
+        "observed": {
+            "max_workload_timeline_events": max_observed,
+            "limited_workload_syncs": limited,
+        },
+        "note": (
+            "`requested.timeline_limit` is what the client asked for. The "
+            "workload never approached it, so the server's effective ceiling "
+            "was not exercised and is not evidenced here. What is evidenced "
+            "is that no workload sync was truncated at the observed occupancy."
+        ),
+    }
+
+
 def analyse(
     runs: list[RunRecords],
     *,
     replicates: int = DEFAULT_REPLICATES,
     seed: int = DEFAULT_BOOTSTRAP_SEED,
+    root: Path | None = None,
 ) -> dict[str, Any]:
     """The complete development E3 analysis over one campaign."""
     latency_runs = [r for r in runs if r.workload == E3_WORKLOAD_LATENCY]
@@ -940,9 +1120,7 @@ def analyse(
         "source_run_ids": sorted(run.run_id for run in runs),
         "source_paired_block_ids": sorted({run.block_id for run in runs if run.block_id}),
         "source_raw_digests": source_digests,
-        "sync_configuration": (
-            runs[0].manifest.get("sync_configuration") if runs else None
-        ),
+        "sync_configuration": _sync_configuration_summary(runs),
         "runs_total": len(runs),
         "runs_valid": sum(1 for r in runs if r.valid),
         "runs_invalid": invalid,
@@ -975,6 +1153,9 @@ def analyse(
         },
         "derived_c1_consistency": derived_c1_check(latency, throughput),
         "diagnostics": recovery_and_rate_limit_diagnostics(runs),
+        "agent_send_failures": (
+            agent_send_failures(root, runs) if root is not None else {}
+        ),
         "environment_drift": environment_drift(runs),
         "outlier_policy": (
             "No trimming, winsorization or outlier removal of any kind "

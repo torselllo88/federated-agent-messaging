@@ -1,4 +1,4 @@
-# Experimental Protocol v1.1 FINAL
+# Experimental Protocol v1.2 FINAL
 
 **Project:** Federated Agent Messaging
 **Repository:** `federated-agent-messaging`
@@ -516,6 +516,21 @@ Both timestamps **SHALL** use the same high-resolution monotonic clock.
 
 T3 **SHALL** be stamped at the very start of the runner callback for the matching ACK: after the `/sync` response is parsed, before any application-level processing of the event. Because `/sync` delivers batches, ACKs arriving in one batch may share a nearly identical T3; the rule above makes that deterministic and identical across topologies rather than implementation-dependent.
 
+### Accepted measurement limitation: batched callback dispatch
+
+`/sync` delivers events in batches, and the runner dispatches a batch's
+callbacks sequentially. The k-th ACK in one parsed batch therefore has its T3
+stamped after the callbacks for the preceding events in that batch have run.
+
+The direction of this bias is known — it can only delay T3, never advance it —
+and it was measured under the audited development workload at approximately
+2.9 µs of dispatch work per preceding event, about 92 µs at a batch of 32
+events, or roughly 0.077% of a 120 ms RTT. No numerical correction is applied.
+
+This magnitude is a property of the audited development conditions and
+**SHALL NOT** be generalised beyond them. What the study reports is
+runner-observed, client-side RTT, not an idealised wire-only latency.
+
 Agent-local timestamps **MAY** be collected diagnostically:
 
 ```text
@@ -542,10 +557,69 @@ success
 timeout
 send_error
 malformed_response
-duplicate_response
 unexpected_response
 runner_error
 ```
+
+### The terminal outcome is fixed when the interaction terminates
+
+A logical interaction terminates at the first of:
+
+- the **first valid matching ACK**, which fixes `success` and stamps T3 (§10); or
+- expiry of the logical-interaction timeout, which fixes `timeout`.
+
+Once fixed, the terminal outcome **SHALL NOT** be mutated by anything observed
+afterwards. In particular a later matching ACK — whether it is a duplicate of
+one already received, or the belated arrival of a response for an interaction
+that has already timed out — changes neither the outcome, nor T3, nor the RTT,
+nor the interaction's inclusion in the throughput numerator.
+
+`duplicate_response` was previously listed here as a terminal outcome while
+§12 assigned it from a fact — "a logical request producing multiple distinct
+ACK events" — that can only become known *after* the interaction has already
+terminated on its first ACK. The two rules could not both hold. Duplicate ACKs
+are now recorded as post-terminal integrity observations (§11.1) rather than
+as a terminal outcome, which keeps §9, §10 and the immutability rule above
+mutually consistent.
+
+### 11.1 Post-terminal integrity observations
+
+A **`duplicate_ack`** is a distinct additional matching ACK event observed for
+a logical request after the first ACK has already terminated that interaction.
+
+Terminal interaction outcomes and post-terminal integrity observations are
+**separate dimensions**. An interaction may be `success` and simultaneously
+carry one or more `duplicate_ack` observations. It remains a success for the
+failure rate (§12); the duplicates are reported separately and prominently, as
+the correctness defect they are.
+
+Identity is the Matrix `event_id` (§13). Two deliveries of the *same* ACK event
+are one event, not a duplicate; only a **distinct** additional ACK event counts.
+
+Formal raw observations **SHALL** carry enough to reconstruct this
+independently:
+
+```text
+ack_count
+duplicate_ack_count
+duplicate_ack_event_ids
+```
+
+The first ACK's event id remains the interaction's response event; a duplicate
+**SHALL NOT** overwrite it.
+
+#### Observation scope
+
+Duplicate ACKs are observed within the run's already-defined lifetime — its
+measurement, drain and inter-run quiescence periods (§22, §25). No additional
+waiting period is introduced to hunt for them, and no latency or throughput
+timing boundary is redefined for their detection.
+
+Consequently:
+
+> `duplicate_ack_count = 0` means no duplicate ACK was observed within the
+> experiment's defined observation lifetime. It is **not** a claim that no
+> arbitrarily late duplicate could appear after observation ended.
 
 The default logical-interaction timeout is:
 
@@ -590,13 +664,22 @@ initiated logical interactions
 
 HTTP or Matrix client retransmission **SHALL NOT** create a new logical interaction.
 
-A logical request producing multiple distinct ACK events **SHALL** be classified as:
+The failure rate is derived **only** from the terminal outcome taxonomy of §11.
+An interaction whose terminal outcome is `success` remains a success in this
+calculation even if `duplicate_ack` observations were later recorded against
+it (§11.1): a duplicate ACK is an integrity defect of the responding agent,
+not a failure of an interaction that completed.
 
-```text
-duplicate_response
-```
+Duplicate ACKs **SHALL** be reported separately and **SHALL NOT** be merged
+into the interaction failure rate.
 
-and therefore unsuccessful.
+This is a change from v1.1, which classified such a request as the terminal
+outcome `duplicate_response` and therefore unsuccessful. That rule could not be
+satisfied together with §11's requirement that the terminal outcome is fixed
+when the interaction terminates, because the condition it tested may only
+become knowable afterwards. It also assigned a terminal outcome from a section
+this document declares to be owned by `analysis_spec_version` (§3 Phase 4),
+while the outcome taxonomy is owned by `protocol_version`.
 
 This formula transforms recorded outcomes into a reported metric. It is governed by `analysis_spec_version` (§3 Phase 4), unlike the outcome taxonomy it consumes.
 
@@ -969,6 +1052,27 @@ federated
 under equivalent deterministic workloads.
 
 The experiment does not attempt to determine maximum possible Matrix capacity.
+
+### What E3 throughput measures
+
+> E3 throughput measures the observed end-to-end throughput of the tested
+> closed-loop interaction system using the frozen **sequential** deterministic
+> agent runtime.
+
+> It does **not** estimate maximum Matrix transport capacity, maximum
+> federation capacity, or infrastructure saturation capacity independent of the
+> agent runtime.
+
+The agent processes and acknowledges one request at a time. That is a property
+of the tested system, deliberately frozen: development measurement found the
+completion rate at `C = 32` little or no higher than at `C = 8`, which is the
+signature of a service rate set by the agent rather than by the messaging path.
+The agent is **not** made concurrent to improve that figure. Doing so after
+observing the result would be optimising the system under test against its own
+measurement.
+
+`C = 8` and `C = 32` are frozen bounded-concurrency operating points, not a
+capacity search.
 
 ---
 
@@ -1497,6 +1601,34 @@ successful interactions completing inside the 60-second measurement window
 /
 60
 ```
+
+### Median
+
+Wherever this protocol reports a statistic named **median**, it means the
+sample median:
+
+```text
+ordered sample x(1) <= ... <= x(n)
+
+odd  n:  median = x((n+1)/2)
+even n:  median = [ x(n/2) + x(n/2 + 1) ] / 2
+```
+
+This definition is used identically for descriptive medians, topology-level
+summaries and every bootstrap resample. Nearest-rank selection **SHALL NOT**
+be used for a median.
+
+Percentiles that are not medians — `p95`, `p99`, and the bootstrap interval
+bounds — use the nearest-rank convention:
+
+```text
+p_q = x( ceil(q * n) )
+```
+
+The two conventions are named separately here because they answer different
+questions and previously differed silently for the same quantity: v1.1
+computed descriptive median run throughput by nearest rank while the bootstrap
+used the sample median, so one statistic had two values.
 
 For each concurrency/topology report:
 

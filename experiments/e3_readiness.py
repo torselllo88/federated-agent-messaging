@@ -45,7 +45,11 @@ from fam.common.results import (  # noqa: E402
 )
 from fam.common.validity import VALID, InteractionOutcome, InvalidRun  # noqa: E402
 from fam.instrumentation.manifest import RawArtifact, RunManifest  # noqa: E402
-from fam.instrumentation.streams import JsonlStream, runner_record  # noqa: E402
+from fam.instrumentation.streams import (  # noqa: E402
+    JsonlStream,
+    integrity_fields,
+    runner_record,
+)  # noqa: E402
 from fam.matrix.rooms import assert_frozen_room_configuration  # noqa: E402
 from fam.participants.human import HumanParticipant  # noqa: E402
 
@@ -230,6 +234,7 @@ async def execute_run(index: int, root: Path, stamp: str) -> RunResult:
                         if interaction.completed_monotonic_ns
                         else InteractionOutcome.TIMEOUT.value
                     ),
+                    **integrity_fields(interaction),
                 )
             )
         result.duplicate_acks = human.duplicate_acks()

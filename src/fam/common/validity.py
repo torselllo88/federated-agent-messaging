@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Iterable
 
 
 class InvalidRunClass(str, Enum):
@@ -43,14 +44,50 @@ class InteractionOutcome(str, Enum):
     TIMEOUT = "timeout"
     SEND_ERROR = "send_error"
     MALFORMED_RESPONSE = "malformed_response"
-    DUPLICATE_RESPONSE = "duplicate_response"
     UNEXPECTED_RESPONSE = "unexpected_response"
     RUNNER_ERROR = "runner_error"
+
+    #: `duplicate_response` is deliberately absent. A duplicate ACK is only
+    #: knowable after the first ACK has already terminated the interaction,
+    #: so it cannot be a terminal outcome without contradicting §11. It is a
+    #: post-terminal integrity observation instead (§11.1).
 
     #: E2 only: sent while the agent runtime is stopped. Not a logical
     #: interaction under §9 and excluded from the failure-rate denominator
     #: until its deadline begins.
     OFFLINE_SEND = "offline_send"
+
+
+#: experimental-protocol.md §12. `offline_send` records are excluded from the
+#: failure-rate denominator until their deadline begins (§11): an interaction
+#: sent while the runtime is deliberately stopped is not yet a logical
+#: interaction, and counting it would report E2 as total failure by
+#: construction.
+EXCLUDED_FROM_FAILURE_RATE = frozenset({InteractionOutcome.OFFLINE_SEND.value})
+
+
+def failure_rate(outcomes: "Iterable[str]") -> float | None:
+    """§12, implemented once and used everywhere.
+
+        failure_rate = unsuccessful logical interactions / initiated logical
+                       interactions
+
+    Outcomes in :data:`EXCLUDED_FROM_FAILURE_RATE` enter neither the numerator
+    nor the denominator. Every other frozen terminal outcome that is not
+    ``success`` counts as unsuccessful.
+
+    Duplicate ACKs do not appear here at all. They are post-terminal integrity
+    observations (§11.1), reported separately; an interaction that succeeded
+    and later attracted a duplicate is still a success for this rate.
+
+    Returns ``None`` for an empty denominator rather than 0.0: no interactions
+    is not the same fact as no failures.
+    """
+    counted = [o for o in outcomes if o not in EXCLUDED_FROM_FAILURE_RATE]
+    if not counted:
+        return None
+    failures = sum(1 for o in counted if o != InteractionOutcome.SUCCESS.value)
+    return failures / len(counted)
 
 
 @dataclass(frozen=True)
