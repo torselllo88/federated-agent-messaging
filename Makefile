@@ -29,7 +29,7 @@ RUN_BOOTSTRAP := $(COMPOSE) run --rm --no-deps bootstrap
 
 export FAM_PROTOCOL_GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 
-.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 e4-prepare e4-ca e4 e4-validate inventory lock lock-validate lock-check analyse spike test down clean logs
+.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 e4-prepare e4-ca e4 e4-validate inventory lock lock-validate lock-check freeze analyse spike test down clean logs
 
 help:
 	@echo "make setup    - build, generate TLS and configs, start both domains, provision accounts"
@@ -50,6 +50,7 @@ help:
 	@echo "make lock     - generate the formal protocol lock (once, before collection)"
 	@echo "make lock-validate - check a lock before it is committed and tagged"
 	@echo "make lock-check - full precondition check: lock, commit and tag agree"
+	@echo "make freeze   - close the collection phase: gate, inventory, archive digest"
 	@echo "make analyse  - digest verification, schema validation, E0-E3 summaries"
 	@echo "make test     - unit tests"
 	@echo "make down     - stop containers"
@@ -228,6 +229,11 @@ lock-check: guard
 	locked=$$(python3 -c "import json;print(json.load(open('results/protocol-lock.json'))['implementation']['git_commit'])")
 	export FAM_IMPLEMENTATION_DIFF="$$(git diff --name-only $$locked HEAD)"
 	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_GIT_TAGS_AT_HEAD -e FAM_PROTOCOL_GIT_COMMIT -e FAM_IMPLEMENTATION_DIFF toolbox python scripts/protocol_lock.py validate --require-tag
+
+# Closes the formal collection phase: completion gate, raw inventory, archive
+# digest. Read-only over the evidence (Task 07 §42, §43, §44).
+freeze: guard
+	$(COMPOSE) run --rm --no-deps toolbox python scripts/freeze_collection.py
 
 analyse: guard
 	$(COMPOSE) run --rm -e FAM_E3_BOOTSTRAP_REPLICATES -e FAM_E3_BOOTSTRAP_SEED \
