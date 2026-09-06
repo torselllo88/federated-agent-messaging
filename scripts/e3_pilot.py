@@ -393,22 +393,68 @@ def check_throughput(
             "rate_limited_sends": workload.rate_limited_sends if workload else 0,
             **stationarity,
         }
+    _report_steady_state(summary)
+    return summary
+
+
+def _report_steady_state(summary: dict[str, dict]) -> None:
+    """Print the §22 steady-state evidence. Reported, never gated.
+
+    §22 requires each run to report both half rates, and requires a *material*
+    difference to be resolved before protocol lock. It deliberately defines no
+    threshold: "material" is a judgement, and §25 forbids inventing one. Two
+    screens above, this file already says so about the per-run ratio; this
+    function used to contradict it on the aggregate.
+
+    The gate that stood here failed the pilot whenever every run's ratio pointed
+    the same way, reasoning that a systematic effect is consistent and noise is
+    not. True, but it has no magnitude dimension, so it inverts on a quiet host.
+    In the development record a run whose second half completed **twelve times**
+    the first passed, because three runs rose and one fell; a set of runs flat
+    to within one completion per five-second bucket failed, because all four
+    rose by a fraction of a percent. A test that accepts 12x and rejects 1.008x
+    is not measuring stationarity.
+
+    What replaces it is the evidence itself. The per-bucket series is what makes
+    a half-to-half difference interpretable: a difference of two completions in
+    seven hundred is integer quantisation of a flat rate rather than a ramp, and
+    only the series shows that. Direction is printed beside the magnitudes and
+    the series rather than on its own, because direction read alone is exactly
+    what misled the gate.
+    """
     ratios = [
         item["second_over_first"]
         for item in summary.values()
         if item.get("second_over_first") is not None
     ]
-    if ratios:
-        rising = sum(1 for r in ratios if r > 1)
-        falling = len(ratios) - rising
-        findings.record(
-            "no systematic ramp or collapse across the pilot runs",
-            not (rising == len(ratios) or falling == len(ratios)) or len(ratios) < 2,
-            f"{rising} runs rising, {falling} falling "
-            f"(ratios {[round(r, 3) for r in ratios]}); a systematic effect "
-            "points the same way in every run, noise does not",
+    if not ratios:
+        return
+
+    print("\n   Steady-state diagnostic (§22) — reported, not gated")
+    for name, item in summary.items():
+        ratio = item.get("second_over_first")
+        if ratio is None:
+            continue
+        direction = "rising" if ratio > 1 else "falling" if ratio < 1 else "level"
+        print(
+            f"     {name:28} halves "
+            f"{item['first_half_completions']} / {item['second_half_completions']}"
+            f"  ratio {ratio}  {direction}"
         )
-    return summary
+        buckets = [b["completions"] for b in item.get("completion_series_5s", [])]
+        if buckets:
+            print(f"       5s completions  {' '.join(str(b) for b in buckets)}")
+        warm = item.get("warmup_over_window")
+        if warm is not None:
+            print(f"       warm-up / window rate  {warm}")
+
+    rising = sum(1 for r in ratios if r > 1)
+    print(
+        f"     {rising} of {len(ratios)} runs rising. Direction alone does not "
+        "establish a trend: where the half-to-half difference is a few "
+        "completions it reflects integer bucket quantisation of a flat rate. "
+        "Judge materiality from the series and the magnitudes above."
+    )
 
 
 def _warmup_rate(records: list[dict], workload) -> float:
