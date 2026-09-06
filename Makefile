@@ -172,8 +172,25 @@ e4-validate: guard
 	$(COMPOSE) run --rm --no-deps toolbox python scripts/e4_validate.py
 
 # Machine-readable state of the testbed, as an input to the protocol lock.
+#
+# Image digests are resolved here rather than in the container: only the host
+# can ask Docker what it actually pulled, and §19 requires the digests in the
+# inventory. Written to the results root, which the container then reads.
 inventory: guard
-	$(COMPOSE) run --rm bootstrap python scripts/testbed_inventory.py
+	mkdir -p "$$FAM_RESULTS_DIR/environment"
+	{
+	  echo "{"
+	  first=1
+	  for image in $$($(COMPOSE) config --images | sort -u); do
+	    digest=$$(docker image inspect --format '{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}{{.Id}}{{end}}' "$$image" 2>/dev/null || echo unresolved)
+	    if [ $$first -eq 0 ]; then echo ","; fi
+	    printf '  "%s": "%s"' "$$image" "$$digest"
+	    first=0
+	  done
+	  echo
+	  echo "}"
+	} > "$$FAM_RESULTS_DIR/environment/image-digests.json"
+	$(COMPOSE) run --rm -e FAM_EXECUTION_HOST -e FAM_HOST_VIRTUALIZATION -e FAM_HOST_DISTRIBUTION -e FAM_LLM_PROVIDER -e FAM_LLM_MODEL -e FAM_E4_CLIENT_NAME -e FAM_E4_CLIENT_VERSION -e FAM_E4_CLIENT_HOST bootstrap python scripts/testbed_inventory.py
 
 # The formal protocol lock. Generated once, after the final configuration
 # freeze and before the first formal run. It is written to $FAM_RESULTS_DIR
