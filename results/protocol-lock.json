@@ -1,0 +1,1151 @@
+{
+  "artifact": "formal_protocol_lock",
+  "lock_schema_version": "1",
+  "generated_at": "2026-09-06T15:19:13Z",
+  "purpose": "Binds the formal campaign to one implementation, one environment and one set of frozen parameters. Once this artifact is committed and tagged, no execution-affecting change may occur during collection (experimental-protocol.md §46, Task 07 §1).",
+  "implementation": {
+    "git_commit": "65fdf5f4d63a9f015ff84b9b460b29b7eb5c7e2d",
+    "git_tag": "protocol-v1.2",
+    "worktree_clean": true,
+    "raw_schema_versions_supported": [
+      "1",
+      "2"
+    ],
+    "schema_digests": {
+      "protocol-lock.schema.json": "70c21a17489db75fe0fa0a92ccf30800437152753e7e34661984756e5b098f1d",
+      "raw-agent-record.schema.json": "83e452d82f574f26020a22faf920942a21f8e92b475a1c8a2450f2ef7236efca",
+      "raw-runner-record-v1.schema.json": "ea3d962ad61e9b8b5c18a7e7993276278db777010c8044c11868beedb71f8946",
+      "raw-runner-record.schema.json": "dbb9df778901b606c5aef0c829783402adfa0a1529e8b5578526282e50a9cd01",
+      "run-manifest.schema.json": "b90c46c1c97eaddc0e8100dc94a07475c589f5c43d4d9a5277e29fd3c44c2434"
+    }
+  },
+  "frozen_parameters": {
+    "protocol_version": "1.2",
+    "analysis_spec_version": "1.2",
+    "raw_schema_version": "2",
+    "manifest_schema_version": "1",
+    "room_version": "12",
+    "room_encryption_enabled": false,
+    "interaction_timeout_seconds": 10.0,
+    "message_body_bytes": 256,
+    "message_padding_character": "x",
+    "e0_runs": 3,
+    "e0_requests_per_phase": 20,
+    "e1_runs": 3,
+    "e1_requests_per_class": 20,
+    "e1_quiet_interval_seconds": 2.0,
+    "e2_runs": 3,
+    "e2_offline_requests": 100,
+    "e2_sync_timeline_limit": 10,
+    "e3_latency_max_in_flight": 1,
+    "e3_latency_warmup_interactions": 50,
+    "e3_latency_measured_interactions": 500,
+    "e3_concurrency_levels": [
+      8,
+      32
+    ],
+    "e3_warmup_seconds": 10.0,
+    "e3_measurement_seconds": 60.0,
+    "e3_drain_seconds": 10.0,
+    "e3_paired_blocks": 20,
+    "e3_inter_run_idle_seconds": 5.0,
+    "e3_sync_timeline_limit": 500,
+    "e3_sync_timeout_ms": 30000,
+    "e3_schedule_seed": 20260905,
+    "e3_bootstrap_seed": 20260905,
+    "e3_bootstrap_replicates": 2000,
+    "e3_bootstrap_confidence": 0.95
+  },
+  "environment": {
+    "formal_run_host_identifier": "fam-formal-linode-48865d44",
+    "host": {
+      "os": "Linux",
+      "kernel": "6.8.0-139-generic",
+      "cpu_model": "AMD EPYC 9845 160-Core Processor",
+      "logical_cpus": 4,
+      "available_ram_bytes": 8325914624,
+      "virtualization": "docker",
+      "host_virtualization": "kvm",
+      "distribution": "Ubuntu 24.04.4 LTS"
+    },
+    "software": {
+      "python": "3.12.14",
+      "matrix_nio": "0.26.0",
+      "synapse_image": "ghcr.io/element-hq/synapse:v1.159.0",
+      "postgres_image": "postgres:16.4",
+      "image_digests": {
+        "fam-toolbox:local": "fam-toolbox@sha256:95c884411f1bda6ec04a80a825ff92c774ced2819508e7a81d3b892f0db3957f",
+        "ghcr.io/element-hq/synapse:v1.159.0": "ghcr.io/element-hq/synapse@sha256:edf259d2b575b669a3e81024918ab8d5cfb7d2fba5a53c9e09695f1abc5645cb",
+        "postgres:16.4": "postgres@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412"
+      }
+    },
+    "config_hashes": {
+      "A": "38f4581044d46f5c4d6a58de8c742aaf328dc34be85cbceaae8e23f2e210325e",
+      "B": "a93c3b0e32dc4f47dbd36a574a270c446d30d204abd3df952c40751e07b7b1c1"
+    },
+    "rate_limits": {},
+    "environment_manifest_generated_at": "2026-09-06T15:19:11Z",
+    "image_digests": {
+      "fam-toolbox:local": "fam-toolbox@sha256:95c884411f1bda6ec04a80a825ff92c774ced2819508e7a81d3b892f0db3957f",
+      "ghcr.io/element-hq/synapse:v1.159.0": "ghcr.io/element-hq/synapse@sha256:edf259d2b575b669a3e81024918ab8d5cfb7d2fba5a53c9e09695f1abc5645cb",
+      "postgres:16.4": "postgres@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412"
+    }
+  },
+  "campaign": {
+    "campaign_id": "fam-formal-eaaf44977a6c7461",
+    "campaign_fingerprint": "eaaf44977a6c74610aff9174ade372418b639104c10bbbcbdf03cc5c8dd35e01",
+    "campaign_parameters": {
+      "execution_protocol_version": "1.2",
+      "runtime_code_revision": "task-05-r3",
+      "protocol_git_commit": "65fdf5f4d63a9f015ff84b9b460b29b7eb5c7e2d",
+      "schedule_seed": 20260905,
+      "paired_blocks": 20,
+      "concurrency_levels": [
+        8,
+        32
+      ],
+      "latency_max_in_flight": 1,
+      "latency_warmup_interactions": 50,
+      "latency_measured_interactions": 500,
+      "warmup_seconds": 10.0,
+      "measurement_seconds": 60.0,
+      "drain_seconds": 10.0,
+      "inter_run_idle_seconds": 5.0,
+      "message_body_bytes": 256,
+      "sync_timeline_limit": 500,
+      "sync_timeout_ms": 30000,
+      "synapse_config_hashes": {
+        "A": "38f4581044d46f5c4d6a58de8c742aaf328dc34be85cbceaae8e23f2e210325e",
+        "B": "a93c3b0e32dc4f47dbd36a574a270c446d30d204abd3df952c40751e07b7b1c1"
+      },
+      "rate_limit_configuration": {}
+    },
+    "result_root": "/results",
+    "experiment_order": [
+      "E0",
+      "E1",
+      "E2",
+      "E3",
+      "E4"
+    ]
+  },
+  "e3_schedule": {
+    "latency": [
+      {
+        "block_id": "lat-block01",
+        "block_index": 1,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block01-local"
+      },
+      {
+        "block_id": "lat-block01",
+        "block_index": 1,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block01-federated"
+      },
+      {
+        "block_id": "lat-block02",
+        "block_index": 2,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block02-local"
+      },
+      {
+        "block_id": "lat-block02",
+        "block_index": 2,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block02-federated"
+      },
+      {
+        "block_id": "lat-block03",
+        "block_index": 3,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block03-federated"
+      },
+      {
+        "block_id": "lat-block03",
+        "block_index": 3,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block03-local"
+      },
+      {
+        "block_id": "lat-block04",
+        "block_index": 4,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block04-local"
+      },
+      {
+        "block_id": "lat-block04",
+        "block_index": 4,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block04-federated"
+      },
+      {
+        "block_id": "lat-block05",
+        "block_index": 5,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block05-local"
+      },
+      {
+        "block_id": "lat-block05",
+        "block_index": 5,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block05-federated"
+      },
+      {
+        "block_id": "lat-block06",
+        "block_index": 6,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block06-local"
+      },
+      {
+        "block_id": "lat-block06",
+        "block_index": 6,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block06-federated"
+      },
+      {
+        "block_id": "lat-block07",
+        "block_index": 7,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block07-federated"
+      },
+      {
+        "block_id": "lat-block07",
+        "block_index": 7,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block07-local"
+      },
+      {
+        "block_id": "lat-block08",
+        "block_index": 8,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block08-local"
+      },
+      {
+        "block_id": "lat-block08",
+        "block_index": 8,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block08-federated"
+      },
+      {
+        "block_id": "lat-block09",
+        "block_index": 9,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block09-local"
+      },
+      {
+        "block_id": "lat-block09",
+        "block_index": 9,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block09-federated"
+      },
+      {
+        "block_id": "lat-block10",
+        "block_index": 10,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block10-federated"
+      },
+      {
+        "block_id": "lat-block10",
+        "block_index": 10,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block10-local"
+      },
+      {
+        "block_id": "lat-block11",
+        "block_index": 11,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block11-federated"
+      },
+      {
+        "block_id": "lat-block11",
+        "block_index": 11,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block11-local"
+      },
+      {
+        "block_id": "lat-block12",
+        "block_index": 12,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block12-federated"
+      },
+      {
+        "block_id": "lat-block12",
+        "block_index": 12,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block12-local"
+      },
+      {
+        "block_id": "lat-block13",
+        "block_index": 13,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block13-local"
+      },
+      {
+        "block_id": "lat-block13",
+        "block_index": 13,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block13-federated"
+      },
+      {
+        "block_id": "lat-block14",
+        "block_index": 14,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block14-federated"
+      },
+      {
+        "block_id": "lat-block14",
+        "block_index": 14,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block14-local"
+      },
+      {
+        "block_id": "lat-block15",
+        "block_index": 15,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block15-federated"
+      },
+      {
+        "block_id": "lat-block15",
+        "block_index": 15,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block15-local"
+      },
+      {
+        "block_id": "lat-block16",
+        "block_index": 16,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block16-federated"
+      },
+      {
+        "block_id": "lat-block16",
+        "block_index": 16,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block16-local"
+      },
+      {
+        "block_id": "lat-block17",
+        "block_index": 17,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block17-local"
+      },
+      {
+        "block_id": "lat-block17",
+        "block_index": 17,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block17-federated"
+      },
+      {
+        "block_id": "lat-block18",
+        "block_index": 18,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block18-federated"
+      },
+      {
+        "block_id": "lat-block18",
+        "block_index": 18,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block18-local"
+      },
+      {
+        "block_id": "lat-block19",
+        "block_index": 19,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block19-local"
+      },
+      {
+        "block_id": "lat-block19",
+        "block_index": 19,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block19-federated"
+      },
+      {
+        "block_id": "lat-block20",
+        "block_index": 20,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block20-federated"
+      },
+      {
+        "block_id": "lat-block20",
+        "block_index": 20,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 1,
+        "key": "latency-c01-lat-block20-local"
+      }
+    ],
+    "throughput_c8": [
+      {
+        "block_id": "thr-c08-block01",
+        "block_index": 1,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block01-federated"
+      },
+      {
+        "block_id": "thr-c08-block01",
+        "block_index": 1,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block01-local"
+      },
+      {
+        "block_id": "thr-c08-block02",
+        "block_index": 2,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block02-federated"
+      },
+      {
+        "block_id": "thr-c08-block02",
+        "block_index": 2,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block02-local"
+      },
+      {
+        "block_id": "thr-c08-block03",
+        "block_index": 3,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block03-local"
+      },
+      {
+        "block_id": "thr-c08-block03",
+        "block_index": 3,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block03-federated"
+      },
+      {
+        "block_id": "thr-c08-block04",
+        "block_index": 4,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block04-local"
+      },
+      {
+        "block_id": "thr-c08-block04",
+        "block_index": 4,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block04-federated"
+      },
+      {
+        "block_id": "thr-c08-block05",
+        "block_index": 5,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block05-local"
+      },
+      {
+        "block_id": "thr-c08-block05",
+        "block_index": 5,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block05-federated"
+      },
+      {
+        "block_id": "thr-c08-block06",
+        "block_index": 6,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block06-local"
+      },
+      {
+        "block_id": "thr-c08-block06",
+        "block_index": 6,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block06-federated"
+      },
+      {
+        "block_id": "thr-c08-block07",
+        "block_index": 7,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block07-federated"
+      },
+      {
+        "block_id": "thr-c08-block07",
+        "block_index": 7,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block07-local"
+      },
+      {
+        "block_id": "thr-c08-block08",
+        "block_index": 8,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block08-federated"
+      },
+      {
+        "block_id": "thr-c08-block08",
+        "block_index": 8,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block08-local"
+      },
+      {
+        "block_id": "thr-c08-block09",
+        "block_index": 9,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block09-local"
+      },
+      {
+        "block_id": "thr-c08-block09",
+        "block_index": 9,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block09-federated"
+      },
+      {
+        "block_id": "thr-c08-block10",
+        "block_index": 10,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block10-federated"
+      },
+      {
+        "block_id": "thr-c08-block10",
+        "block_index": 10,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block10-local"
+      },
+      {
+        "block_id": "thr-c08-block11",
+        "block_index": 11,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block11-local"
+      },
+      {
+        "block_id": "thr-c08-block11",
+        "block_index": 11,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block11-federated"
+      },
+      {
+        "block_id": "thr-c08-block12",
+        "block_index": 12,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block12-federated"
+      },
+      {
+        "block_id": "thr-c08-block12",
+        "block_index": 12,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block12-local"
+      },
+      {
+        "block_id": "thr-c08-block13",
+        "block_index": 13,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block13-local"
+      },
+      {
+        "block_id": "thr-c08-block13",
+        "block_index": 13,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block13-federated"
+      },
+      {
+        "block_id": "thr-c08-block14",
+        "block_index": 14,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block14-federated"
+      },
+      {
+        "block_id": "thr-c08-block14",
+        "block_index": 14,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block14-local"
+      },
+      {
+        "block_id": "thr-c08-block15",
+        "block_index": 15,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block15-local"
+      },
+      {
+        "block_id": "thr-c08-block15",
+        "block_index": 15,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block15-federated"
+      },
+      {
+        "block_id": "thr-c08-block16",
+        "block_index": 16,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block16-local"
+      },
+      {
+        "block_id": "thr-c08-block16",
+        "block_index": 16,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block16-federated"
+      },
+      {
+        "block_id": "thr-c08-block17",
+        "block_index": 17,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block17-federated"
+      },
+      {
+        "block_id": "thr-c08-block17",
+        "block_index": 17,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block17-local"
+      },
+      {
+        "block_id": "thr-c08-block18",
+        "block_index": 18,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block18-federated"
+      },
+      {
+        "block_id": "thr-c08-block18",
+        "block_index": 18,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block18-local"
+      },
+      {
+        "block_id": "thr-c08-block19",
+        "block_index": 19,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block19-federated"
+      },
+      {
+        "block_id": "thr-c08-block19",
+        "block_index": 19,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block19-local"
+      },
+      {
+        "block_id": "thr-c08-block20",
+        "block_index": 20,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block20-local"
+      },
+      {
+        "block_id": "thr-c08-block20",
+        "block_index": 20,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 8,
+        "key": "throughput-c08-thr-c08-block20-federated"
+      }
+    ],
+    "throughput_c32": [
+      {
+        "block_id": "thr-c32-block01",
+        "block_index": 1,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block01-local"
+      },
+      {
+        "block_id": "thr-c32-block01",
+        "block_index": 1,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block01-federated"
+      },
+      {
+        "block_id": "thr-c32-block02",
+        "block_index": 2,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block02-federated"
+      },
+      {
+        "block_id": "thr-c32-block02",
+        "block_index": 2,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block02-local"
+      },
+      {
+        "block_id": "thr-c32-block03",
+        "block_index": 3,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block03-federated"
+      },
+      {
+        "block_id": "thr-c32-block03",
+        "block_index": 3,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block03-local"
+      },
+      {
+        "block_id": "thr-c32-block04",
+        "block_index": 4,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block04-local"
+      },
+      {
+        "block_id": "thr-c32-block04",
+        "block_index": 4,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block04-federated"
+      },
+      {
+        "block_id": "thr-c32-block05",
+        "block_index": 5,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block05-local"
+      },
+      {
+        "block_id": "thr-c32-block05",
+        "block_index": 5,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block05-federated"
+      },
+      {
+        "block_id": "thr-c32-block06",
+        "block_index": 6,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block06-local"
+      },
+      {
+        "block_id": "thr-c32-block06",
+        "block_index": 6,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block06-federated"
+      },
+      {
+        "block_id": "thr-c32-block07",
+        "block_index": 7,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block07-federated"
+      },
+      {
+        "block_id": "thr-c32-block07",
+        "block_index": 7,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block07-local"
+      },
+      {
+        "block_id": "thr-c32-block08",
+        "block_index": 8,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block08-federated"
+      },
+      {
+        "block_id": "thr-c32-block08",
+        "block_index": 8,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block08-local"
+      },
+      {
+        "block_id": "thr-c32-block09",
+        "block_index": 9,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block09-local"
+      },
+      {
+        "block_id": "thr-c32-block09",
+        "block_index": 9,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block09-federated"
+      },
+      {
+        "block_id": "thr-c32-block10",
+        "block_index": 10,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block10-federated"
+      },
+      {
+        "block_id": "thr-c32-block10",
+        "block_index": 10,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block10-local"
+      },
+      {
+        "block_id": "thr-c32-block11",
+        "block_index": 11,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block11-federated"
+      },
+      {
+        "block_id": "thr-c32-block11",
+        "block_index": 11,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block11-local"
+      },
+      {
+        "block_id": "thr-c32-block12",
+        "block_index": 12,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block12-federated"
+      },
+      {
+        "block_id": "thr-c32-block12",
+        "block_index": 12,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block12-local"
+      },
+      {
+        "block_id": "thr-c32-block13",
+        "block_index": 13,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block13-local"
+      },
+      {
+        "block_id": "thr-c32-block13",
+        "block_index": 13,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block13-federated"
+      },
+      {
+        "block_id": "thr-c32-block14",
+        "block_index": 14,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block14-local"
+      },
+      {
+        "block_id": "thr-c32-block14",
+        "block_index": 14,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block14-federated"
+      },
+      {
+        "block_id": "thr-c32-block15",
+        "block_index": 15,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block15-federated"
+      },
+      {
+        "block_id": "thr-c32-block15",
+        "block_index": 15,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block15-local"
+      },
+      {
+        "block_id": "thr-c32-block16",
+        "block_index": 16,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block16-local"
+      },
+      {
+        "block_id": "thr-c32-block16",
+        "block_index": 16,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block16-federated"
+      },
+      {
+        "block_id": "thr-c32-block17",
+        "block_index": 17,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block17-federated"
+      },
+      {
+        "block_id": "thr-c32-block17",
+        "block_index": 17,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block17-local"
+      },
+      {
+        "block_id": "thr-c32-block18",
+        "block_index": 18,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block18-local"
+      },
+      {
+        "block_id": "thr-c32-block18",
+        "block_index": 18,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block18-federated"
+      },
+      {
+        "block_id": "thr-c32-block19",
+        "block_index": 19,
+        "within_block_order": 1,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block19-federated"
+      },
+      {
+        "block_id": "thr-c32-block19",
+        "block_index": 19,
+        "within_block_order": 2,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block19-local"
+      },
+      {
+        "block_id": "thr-c32-block20",
+        "block_index": 20,
+        "within_block_order": 1,
+        "topology": "local",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block20-local"
+      },
+      {
+        "block_id": "thr-c32-block20",
+        "block_index": 20,
+        "within_block_order": 2,
+        "topology": "federated",
+        "concurrency": 32,
+        "key": "throughput-c32-thr-c32-block20-federated"
+      }
+    ]
+  },
+  "e4": {
+    "llm_provider": "openai_compatible",
+    "llm_model": "anthropic/claude-haiku-4.5",
+    "sessions": 3,
+    "human_requests_per_session": 3,
+    "human_client_name": "Element Desktop",
+    "human_client_version": "1.12.27",
+    "human_client_host": "external workstation/Windows 10 Pro 19045",
+    "note": "The actual human's workstation is external to the formal host by design (experimental-protocol.md §39, Task 07 §38)."
+  },
+  "validity_taxonomy": {
+    "terminal_outcomes": [
+      "success",
+      "timeout",
+      "send_error",
+      "malformed_response",
+      "unexpected_response",
+      "runner_error",
+      "offline_send"
+    ],
+    "post_terminal_integrity_observations": [
+      "duplicate_ack"
+    ],
+    "invalid_run_classes": [
+      "protocol_lock_mismatch",
+      "execution_precondition_violation",
+      "frozen_configuration_error",
+      "instrumentation_or_output_failure",
+      "runner_implementation_failure",
+      "infrastructure_failure",
+      "environment_corruption",
+      "external_interference",
+      "external_dependency_or_client_environment_failure"
+    ],
+    "note": "Closed at lock. Adding a class afterwards increments protocol_version and is disclosed (§35, §46)."
+  },
+  "accepted_limitations": [
+    {
+      "id": "L10",
+      "summary": "Sync delivers events in batches and the runner dispatches their callbacks sequentially, so the k-th ACK in a batch has T3 stamped after the preceding callbacks have run. The bias can only delay T3, never advance it.",
+      "correction_applied": false,
+      "development_magnitude": "~2.9 us/event, ~92 us at batch 32, ~0.077% of a 120 ms RTT, measured under development conditions and not generalised to the formal host",
+      "reference": "experimental-protocol.md §10"
+    },
+    {
+      "id": "sequential-agent",
+      "summary": "E3 measures the observed end-to-end throughput of the tested closed-loop system using the frozen sequential deterministic agent. It is not maximum Matrix throughput, maximum federation throughput, or messaging-layer capacity.",
+      "correction_applied": false,
+      "reference": "experimental-protocol.md §17"
+    }
+  ]
+}
