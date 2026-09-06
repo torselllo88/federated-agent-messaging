@@ -94,8 +94,16 @@ def _image_digests(root: Path) -> dict[str, str]:
         return {}
 
 
+def _image_named(fragment: str, digests: dict[str, str]) -> str:
+    for reference in digests:
+        if fragment in reference:
+            return reference
+    return "unresolved"
+
+
 def main() -> int:
     root = ensure_layout(resolve_results_dir())
+    digests = _image_digests(root)
 
     import yaml
 
@@ -130,8 +138,12 @@ def main() -> int:
         "publication_data": False,
         # ---------------------------------------------------- software
         "software": {
-            "synapse_image": os.environ.get("SYNAPSE_IMAGE", "unset"),
-            "postgres_image": os.environ.get("POSTGRES_IMAGE", "unset"),
+            # The images are pinned in docker-compose.yml, not supplied by the
+            # environment, so the resolved digests are the honest source. The
+            # environment variables are legacy and reported "unset" for images
+            # that were in fact pinned all along.
+            "synapse_image": _image_named("synapse", digests),
+            "postgres_image": _image_named("postgres", digests),
             "python": platform.python_version(),
             "matrix_nio": _package_version("matrix-nio"),
             "jsonschema": _package_version("jsonschema"),
@@ -229,7 +241,7 @@ def main() -> int:
             "listeners": listeners,
         },
         "synapse_config_hashes": hashes,
-        "image_digests": _image_digests(root),
+        "image_digests": digests,
         # §3: the machine, not the container. Nothing inside a container can
         # determine these, so the host passes them in.
         "host": {
