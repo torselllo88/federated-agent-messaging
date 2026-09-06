@@ -163,17 +163,29 @@ def test_every_entry_point_observes_its_own_start():
 # ---------------------------------------------------------------- the lock
 
 
+FORMAL_HOST = "fam-formal-host"
+
+
 def _lock_document(**overrides):
     document = {
         "artifact": LOCK_ARTIFACT,
         "lock_schema_version": "1",
         "implementation": {"git_commit": "abc123", "git_tag": "protocol-v1.2"},
         "frozen_parameters": frozen_parameters(),
+        "environment": {"formal_run_host_identifier": FORMAL_HOST},
         "campaign": {"campaign_id": "fam-formal-0123456789abcdef"},
         "e4": {"llm_model": "anthropic/claude-haiku-4.5"},
     }
     document.update(overrides)
     return document
+
+
+def _on_the_formal_host(monkeypatch, path):
+    """The preconditions a real formal run arrives with: the right host, a
+    clean tree, and the lock in place."""
+    monkeypatch.setenv("FAM_PROTOCOL_LOCK", str(path))
+    monkeypatch.setenv("FAM_EXECUTION_HOST", FORMAL_HOST)
+    monkeypatch.setenv("FAM_WORKTREE_STATUS", "")
 
 
 def test_the_lock_describes_the_code_it_was_generated_from():
@@ -208,7 +220,7 @@ def test_a_publication_run_without_a_lock_stops(monkeypatch, tmp_path):
 def test_a_publication_run_matching_its_lock_proceeds(monkeypatch, tmp_path):
     path = tmp_path / "protocol-lock.json"
     path.write_text(json.dumps(_lock_document()), encoding="utf-8")
-    monkeypatch.setenv("FAM_PROTOCOL_LOCK", str(path))
+    _on_the_formal_host(monkeypatch, path)
     document = enforce(publication_data=True, experiment="E3")
     assert document is not None
     assert document["campaign"]["campaign_id"].startswith("fam-formal-")
@@ -219,7 +231,7 @@ def test_a_publication_run_against_a_stale_lock_stops(monkeypatch, tmp_path):
     document["frozen_parameters"]["interaction_timeout_seconds"] = 30.0
     path = tmp_path / "protocol-lock.json"
     path.write_text(json.dumps(document), encoding="utf-8")
-    monkeypatch.setenv("FAM_PROTOCOL_LOCK", str(path))
+    _on_the_formal_host(monkeypatch, path)
     with pytest.raises(ProtocolLockError, match="interaction_timeout_seconds"):
         enforce(publication_data=True, experiment="E3")
 
@@ -230,7 +242,7 @@ def test_an_environment_override_during_a_publication_run_stops(monkeypatch, tmp
     describe -- a §66 stop condition, not a warning."""
     path = tmp_path / "protocol-lock.json"
     path.write_text(json.dumps(_lock_document()), encoding="utf-8")
-    monkeypatch.setenv("FAM_PROTOCOL_LOCK", str(path))
+    _on_the_formal_host(monkeypatch, path)
     monkeypatch.setenv("FAM_E2_TIMELINE_LIMIT", "40")
     with pytest.raises(ProtocolLockError, match="environment overrides"):
         enforce(publication_data=True, experiment="E2")
@@ -242,6 +254,60 @@ def test_a_file_that_is_not_a_lock_is_refused(monkeypatch, tmp_path):
     monkeypatch.setenv("FAM_PROTOCOL_LOCK", str(path))
     with pytest.raises(ProtocolLockError, match="not a protocol lock"):
         enforce(publication_data=True, experiment="E0")
+
+
+# ------------------------------------------ formal-run preconditions (§23)
+
+
+def test_a_publication_run_on_the_wrong_host_stops(monkeypatch, tmp_path):
+    """Otherwise the run's environment manifest would describe a machine the
+    data was never collected on."""
+    path = tmp_path / "protocol-lock.json"
+    path.write_text(json.dumps(_lock_document()), encoding="utf-8")
+    _on_the_formal_host(monkeypatch, path)
+    monkeypatch.setenv("FAM_EXECUTION_HOST", "somebody-elses-laptop")
+    with pytest.raises(ProtocolLockError, match="not the locked formal host"):
+        enforce(publication_data=True, experiment="E3")
+
+
+def test_a_publication_run_that_cannot_identify_its_host_stops(monkeypatch, tmp_path):
+    path = tmp_path / "protocol-lock.json"
+    path.write_text(json.dumps(_lock_document()), encoding="utf-8")
+    _on_the_formal_host(monkeypatch, path)
+    monkeypatch.delenv("FAM_EXECUTION_HOST")
+    with pytest.raises(ProtocolLockError, match="FAM_EXECUTION_HOST is unset"):
+        enforce(publication_data=True, experiment="E3")
+
+
+def test_a_publication_run_from_a_dirty_worktree_stops(monkeypatch, tmp_path):
+    path = tmp_path / "protocol-lock.json"
+    path.write_text(json.dumps(_lock_document()), encoding="utf-8")
+    _on_the_formal_host(monkeypatch, path)
+    monkeypatch.setenv("FAM_WORKTREE_STATUS", " M src/fam/common/frozen.py")
+    with pytest.raises(ProtocolLockError, match="worktree is not clean"):
+        enforce(publication_data=True, experiment="E3")
+
+
+def test_an_unchecked_worktree_is_not_treated_as_a_clean_one(monkeypatch, tmp_path):
+    """The container has no .git, so an absent status means nobody looked.
+    Reading that as 'clean' is the precise mistake this check exists to stop."""
+    path = tmp_path / "protocol-lock.json"
+    path.write_text(json.dumps(_lock_document()), encoding="utf-8")
+    _on_the_formal_host(monkeypatch, path)
+    monkeypatch.delenv("FAM_WORKTREE_STATUS")
+    with pytest.raises(ProtocolLockError, match="FAM_WORKTREE_STATUS is unset"):
+        enforce(publication_data=True, experiment="E3")
+
+
+def test_the_preconditions_do_not_apply_to_a_development_run(monkeypatch, tmp_path):
+    """A pilot on a laptop with a dirty tree is ordinary development work."""
+    path = tmp_path / "protocol-lock.json"
+    path.write_text(json.dumps(_lock_document()), encoding="utf-8")
+    monkeypatch.setenv("FAM_PROTOCOL_LOCK", str(path))
+    monkeypatch.setenv("FAM_EXECUTION_HOST", "a-laptop")
+    monkeypatch.setenv("FAM_WORKTREE_STATUS", " M everything.py")
+    monkeypatch.setenv("FAM_E2_TIMELINE_LIMIT", "40")
+    assert enforce(publication_data=False, experiment="E2") is not None
 
 
 # ------------------------------------------------------------- campaign ids

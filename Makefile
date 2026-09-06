@@ -29,7 +29,7 @@ RUN_BOOTSTRAP := $(COMPOSE) run --rm --no-deps bootstrap
 
 export FAM_PROTOCOL_GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 
-.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 e4-prepare e4-ca e4 e4-validate inventory analyse spike test down clean logs
+.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 e4-prepare e4-ca e4 e4-validate inventory lock lock-validate lock-check analyse spike test down clean logs
 
 help:
 	@echo "make setup    - build, generate TLS and configs, start both domains, provision accounts"
@@ -93,6 +93,12 @@ setup: hashes
 	@echo
 	@echo "setup complete. next: make verify && make spike && make e0"
 
+# Preconditions every formal run is gated on (Task 07 §23). Read here, on the
+# host that can see the repository, and forwarded by name -- never given a
+# compose default, because the gate distinguishes an empty worktree status
+# from an absent one, and a default would turn "nobody looked" into "clean".
+RUN_ENV := -e FAM_WORKTREE_STATUS -e FAM_EXECUTION_HOST -e FAM_PUBLICATION_DATA
+
 verify: guard
 	$(COMPOSE) run --rm -e FAM_E4_CS_TLS_PORT bootstrap python scripts/verify_environment.py
 
@@ -100,18 +106,21 @@ spike: guard
 	$(COMPOSE) run --rm toolbox python scripts/spike_compatibility.py
 
 e0: guard
-	$(COMPOSE) run --rm toolbox python experiments/e0_baseline.py
+	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
+	$(COMPOSE) run --rm $(RUN_ENV) toolbox python experiments/e0_baseline.py
 
 # E1 does not rerun E0.
 e1: guard
-	$(COMPOSE) run --rm toolbox python experiments/e1_federation.py
+	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
+	$(COMPOSE) run --rm $(RUN_ENV) toolbox python experiments/e1_federation.py
 
 e2-pilot: guard
 	$(COMPOSE) run --rm toolbox python scripts/e2_pilot.py
 
 # E2 reruns neither E0 nor E1.
 e2: guard
-	$(COMPOSE) run --rm -e FAM_E2_TIMELINE_LIMIT toolbox python experiments/e2_recovery.py
+	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
+	$(COMPOSE) run --rm $(RUN_ENV) -e FAM_E2_TIMELINE_LIMIT toolbox python experiments/e2_recovery.py
 
 # Transport readiness. Runs no other experiment and measures no performance.
 e3-readiness: guard
@@ -126,10 +135,11 @@ e3-pilot: guard
 		-e FAM_E3_PILOT_WARMUP_S -e FAM_E3_PILOT_MEASUREMENT_S -e FAM_E3_PILOT_DRAIN_S \
 		toolbox python scripts/e3_pilot.py
 
-# The development E3 campaign. Runs no other experiment, and resumes a
-# partially completed campaign instead of restarting it.
+# The E3 campaign. Runs no other experiment, and resumes a partially
+# completed campaign instead of restarting it.
 e3: guard
-	$(COMPOSE) run --rm -e FAM_E3_SCHEDULE_SEED -e FAM_E3_TIMELINE_LIMIT \
+	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
+	$(COMPOSE) run --rm $(RUN_ENV) -e FAM_E3_SCHEDULE_SEED -e FAM_E3_TIMELINE_LIMIT \
 		-e FAM_E3_SYNC_TIMEOUT_MS -e FAM_E3_BLOCKS -e FAM_E3_WORKLOADS \
 		toolbox python experiments/e3_benchmark.py
 
@@ -150,7 +160,8 @@ e4-ca:
 
 # Interactive by design: the session waits for a person. Do not add -T.
 e4: guard
-	$(COMPOSE) run --rm -e FAM_LLM_PROVIDER -e FAM_LLM_MODEL -e FAM_LLM_API_KEY \
+	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
+	$(COMPOSE) run --rm $(RUN_ENV) -e FAM_LLM_PROVIDER -e FAM_LLM_MODEL -e FAM_LLM_API_KEY \
 		-e FAM_LLM_BASE_URL -e FAM_LLM_MAX_TOKENS -e FAM_LLM_SYSTEM_PROMPT \
 		-e FAM_E4_SESSION_ID -e FAM_E4_CLIENT_NAME -e FAM_E4_CLIENT_VERSION \
 		-e FAM_E4_CLIENT_HOST -e FAM_E4_JOIN_TIMEOUT -e FAM_E4_TIMEOUT \

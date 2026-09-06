@@ -134,6 +134,9 @@ services:
     environment:
       FAM_RESULTS_DIR: /results
       FAM_ROLE: bootstrap
+      FAM_PUBLICATION_DATA: ${FAM_PUBLICATION_DATA:-false}
+      FAM_PROTOCOL_GIT_COMMIT: ${FAM_PROTOCOL_GIT_COMMIT:-unknown}
+      FAM_EXECUTION_HOST: ${FAM_EXECUTION_HOST:-}
 
   # --------------------------------------- Unprivileged experiment execution
   #
@@ -163,5 +166,12 @@ services:
       FAM_HS_B_NAME: hs-b.test
       FAM_HS_A_CS_URL: http://synapse-a:8008
       FAM_HS_B_CS_URL: http://synapse-b:8008
-      FAM_PUBLICATION_DATA: "false"
+      # Development by default. A formal run sets this to "true" on the host,
+      # which is exactly when the protocol-lock gate becomes load-bearing: a
+      # publication run whose effective parameters differ from the committed
+      # lock stops before it creates anything (Task 07 §23, §66).
+      FAM_PUBLICATION_DATA: ${FAM_PUBLICATION_DATA:-false}
       FAM_PROTOCOL_GIT_COMMIT: ${FAM_PROTOCOL_GIT_COMMIT:-unknown}
+      # The formal-run host, not the container. Left empty outside a formal
+      # host, where the environment collector falls back to the node name.
+      FAM_EXECUTION_HOST: ${FAM_EXECUTION_HOST:-}

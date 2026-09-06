@@ -186,15 +186,43 @@ def enforce(*, publication_data: bool, experiment: str) -> dict[str, Any] | None
         )
 
     problems = compare(document)
+
     overrides = runtime_overrides()
     if overrides:
         problems.append(
             "environment overrides set during a publication run: "
             + ", ".join(overrides)
         )
+
+    # §23: the correct formal host. The lock names one; a formal run that
+    # silently landed elsewhere would produce data whose environment manifest
+    # describes a machine it never ran on.
+    locked_host = document.get("environment", {}).get("formal_run_host_identifier")
+    running_host = os.environ.get("FAM_EXECUTION_HOST", "").strip()
+    if locked_host:
+        if not running_host:
+            problems.append(
+                f"the lock names host {locked_host!r} but FAM_EXECUTION_HOST is "
+                f"unset, so this run cannot confirm which host it is on"
+            )
+        elif running_host != locked_host:
+            problems.append(
+                f"host {running_host!r} is not the locked formal host {locked_host!r}"
+            )
+
+    # §23: a clean worktree. Read on the host and passed in, because the
+    # container has no .git and would report clean for the wrong reason.
+    status = os.environ.get("FAM_WORKTREE_STATUS")
+    if status is None:
+        problems.append(
+            "FAM_WORKTREE_STATUS is unset, so this run cannot confirm the "
+            "worktree is clean"
+        )
+    elif status.strip():
+        problems.append("the worktree is not clean")
+
     if problems:
         raise ProtocolLockError(
-            f"{experiment}: protocol lock mismatch — "
-            + "; ".join(problems)
+            f"{experiment}: protocol lock mismatch — " + "; ".join(problems)
         )
     return document
