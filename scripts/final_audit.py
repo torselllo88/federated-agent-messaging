@@ -66,8 +66,8 @@ class Findings:
     def failures(self) -> list[tuple[str, bool, str]]:
         return [c for c in self.checks if not c[1]]
 
-    def report(self) -> bool:
-        for name, ok, detail in self.checks:
+    def report(self, subset: list[tuple[str, bool, str]] | None = None) -> bool:
+        for name, ok, detail in self.checks if subset is None else subset:
             mark = "PASS" if ok else "FAIL"
             print(f"  [{mark}] {name}" + (f" — {detail}" if detail else ""))
         return not self.failures
@@ -396,25 +396,26 @@ def main() -> int:
     print(f"  manifests {len(manifests)}")
 
     findings = Findings()
-    print("\n1. impossible states (§61)")
-    impossible_states(root, lock, findings)
-    n = len(findings.checks)
-    findings_so_far = findings.checks[:]
-    for name, ok, detail in findings_so_far:
-        pass
-    print("\n2. schedule and frozen environment (§61)")
-    schedule_and_environment(root, lock, manifests, findings)
-    print("\n3. provenance (§60)")
-    provenance(root, lock, manifests, findings)
-    print("\n4. secrets (§62)")
-    secrets(root, findings)
+    sections = (
+        ("1. impossible states (§61)",
+         lambda: impossible_states(root, lock, findings)),
+        ("2. schedule and frozen environment (§61)",
+         lambda: schedule_and_environment(root, lock, manifests, findings)),
+        ("3. provenance (§60)",
+         lambda: provenance(root, lock, manifests, findings)),
+        ("4. secrets (§62)",
+         lambda: secrets(root, findings)),
+    )
+    for title, run in sections:
+        seen = len(findings.checks)
+        run()
+        print(f"\n{title}")
+        findings.report(findings.checks[seen:])
 
-    print()
-    ok = findings.report()
     passed = len(findings.checks) - len(findings.failures)
     print(f"\n  {passed}/{len(findings.checks)} checks passed")
-    print("\nAUDIT: " + ("PASS" if ok else "FAIL"))
-    return 0 if ok else 1
+    print("\nAUDIT: " + ("PASS" if not findings.failures else "FAIL"))
+    return 0 if not findings.failures else 1
 
 
 if __name__ == "__main__":
