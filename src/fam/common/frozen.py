@@ -123,6 +123,11 @@ E3_PAIRED_BLOCKS = 20
 #: §25. Inter-run quiescence.
 E3_INTER_RUN_IDLE_SECONDS = 5.0
 
+#: Settling time after the agent runtime starts, before a run begins issuing
+#: requests. Part of every E3 run procedure, so it is locked and compared
+#: rather than left pinned by the commit alone.
+E3_AGENT_SETTLE_SECONDS = 2.0
+
 #: §32. Paired-block bootstrap.
 #: The protocol (§32) fixes the resampling method and the confidence level but
 #: not the replicate count. Two thousand is comfortably enough for a 95%

@@ -28,6 +28,7 @@ from fam.common.frozen import (
     E2_OFFLINE_REQUESTS,
     E2_RUNS,
     E2_SYNC_TIMELINE_LIMIT,
+    E3_AGENT_SETTLE_SECONDS,
     E3_BODY_BYTES,
     E3_BOOTSTRAP_CONFIDENCE,
     E3_BOOTSTRAP_REPLICATES,
@@ -100,6 +101,7 @@ def frozen_parameters() -> dict[str, Any]:
         "e3_drain_seconds": E3_DRAIN_SECONDS,
         "e3_paired_blocks": E3_PAIRED_BLOCKS,
         "e3_inter_run_idle_seconds": E3_INTER_RUN_IDLE_SECONDS,
+        "e3_agent_settle_seconds": E3_AGENT_SETTLE_SECONDS,
         "e3_sync_timeline_limit": E3_SYNC_TIMELINE_LIMIT,
         "e3_sync_timeout_ms": E3_SYNC_TIMEOUT_MS,
         # --- seeds, §16 ------------------------------------------------------
@@ -164,8 +166,53 @@ def runtime_overrides() -> list[str]:
         "FAM_E3_WORKLOADS",
         "FAM_E3_BOOTSTRAP_REPLICATES",
         "FAM_E3_CONCURRENCY",
+        # The most consequential of the set, and previously the one omission:
+        # it changes which runs execute in which order while the lock goes on
+        # naming the seed it was generated from.
+        "FAM_E3_SCHEDULE_SEED",
+        "FAM_E3_BOOTSTRAP_SEED",
+        # E4 response shape. The model slug can be correct while the request
+        # that reaches it is not.
+        "FAM_LLM_MAX_TOKENS",
+        "FAM_LLM_SYSTEM_PROMPT",
     )
     return [name for name in watched if os.environ.get(name, "").strip()]
+
+
+def enforce_llm_configuration(
+    document: dict[str, Any] | None,
+    *,
+    config_hash: str,
+    publication_data: bool,
+) -> None:
+    """E4 only: the executor configuration must be the one the lock froze.
+
+    `LLMConfig.config_hash()` covers provider, model, base URL, max tokens,
+    system prompt and history depth, and excludes the API key. Comparing that
+    one value catches every way the request reaching the provider can differ
+    while the model slug still looks right -- a redirected base URL, a widened
+    token budget, an edited system prompt. §36 requires all three sessions to
+    use the same frozen configuration; without this they could only be shown
+    identical to each other, never to what was locked.
+    """
+    if not publication_data:
+        return
+    if document is None:
+        raise ProtocolLockError(
+            "E4: publication_data is true but no protocol lock was found"
+        )
+    locked = document.get("e4", {}).get("agent_config_hash")
+    if not locked:
+        raise ProtocolLockError(
+            "E4: the lock records no agent_config_hash, so the executor "
+            "configuration cannot be checked against it"
+        )
+    if locked != config_hash:
+        raise ProtocolLockError(
+            f"E4: executor configuration {config_hash[:16]} is not the locked "
+            f"configuration {locked[:16]}. Provider, model, base URL, max "
+            f"tokens, system prompt or history depth differs."
+        )
 
 
 def enforce(*, publication_data: bool, experiment: str) -> dict[str, Any] | None:

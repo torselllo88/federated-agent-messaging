@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from fam.common.frozen import (
+    E3_SCHEDULE_SEED,
     E3_BODY_BYTES,
     E3_CONCURRENCY_LEVELS,
     E3_DRAIN_SECONDS,
@@ -42,7 +43,11 @@ from fam.common.frozen import (
 
 #: Development default. Task 05 records this as a recommendation; Task 07
 #: locks the value it actually uses (§53).
-DEFAULT_SCHEDULE_SEED = 20260905
+#: Owned by frozen.py, which is what the protocol lock reports. Kept as a name
+#: because the workload generators and their tests refer to it throughout. Two
+#: constants for one frozen parameter is how a lock ends up recording a number
+#: the code never reads.
+DEFAULT_SCHEDULE_SEED = E3_SCHEDULE_SEED
 
 #: Identity of the benchmark runtime that produced a campaign. Bumped when a
 #: change to the runtime alters what the measurements mean, so that data from

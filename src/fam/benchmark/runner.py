@@ -41,6 +41,7 @@ from fam.common.env import (
     publication_data,
 )
 from fam.common.frozen import (
+    E3_AGENT_SETTLE_SECONDS,
     DEFAULT_INTERACTION_TIMEOUT_SECONDS,
     E3_BODY_BYTES,
     E3_DRAIN_SECONDS,
@@ -57,7 +58,7 @@ from fam.instrumentation.streams import JsonlStream
 from fam.matrix.rooms import assert_frozen_room_configuration
 from fam.participants.human import HumanParticipant
 
-AGENT_SETTLE_SECONDS = 2.0
+AGENT_SETTLE_SECONDS = E3_AGENT_SETTLE_SECONDS
 
 
 @dataclass

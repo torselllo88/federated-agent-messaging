@@ -487,3 +487,97 @@ def test_an_unexamined_gap_is_not_assumed_harmless(monkeypatch):
     and the validator must not read that as agreement."""
     problems = _drift(monkeypatch, None)
     assert problems and "never examined" in problems[0]
+
+
+# ------------------------------------------- pre-flight trace remediation
+
+
+def test_the_schedule_seed_has_one_definition():
+    """It had two: frozen.py declared the value the lock reports, and
+    schedule.py held the value E3 actually read. They agreed by coincidence."""
+    from fam.benchmark import schedule
+
+    assert schedule.DEFAULT_SCHEDULE_SEED is E3_SCHEDULE_SEED
+
+
+def test_the_agent_settle_time_is_a_locked_parameter():
+    """It governs every E3 run and was pinned only by the commit."""
+    from fam.common.frozen import E3_AGENT_SETTLE_SECONDS
+
+    assert frozen_parameters()["e3_agent_settle_seconds"] == E3_AGENT_SETTLE_SECONDS
+
+
+def test_a_changed_settle_time_stops_a_publication_run(monkeypatch, tmp_path):
+    document = _lock_document()
+    document["frozen_parameters"]["e3_agent_settle_seconds"] = 30.0
+    path = tmp_path / "protocol-lock.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    _on_the_formal_host(monkeypatch, path)
+    with pytest.raises(ProtocolLockError, match="e3_agent_settle_seconds"):
+        enforce(publication_data=True, experiment="E3")
+
+
+@pytest.mark.parametrize(
+    "variable",
+    [
+        "FAM_E3_SCHEDULE_SEED",
+        "FAM_E3_BOOTSTRAP_SEED",
+        "FAM_LLM_MAX_TOKENS",
+        "FAM_LLM_SYSTEM_PROMPT",
+    ],
+)
+def test_the_watchlist_covers_what_silently_changes_execution(
+    monkeypatch, tmp_path, variable
+):
+    """The schedule seed was the omission the pre-flight trace found: with it
+    set, the gate passed while block one flipped from local-first to
+    federated-first and the lock went on naming seed 20260905."""
+    path = tmp_path / "protocol-lock.json"
+    path.write_text(json.dumps(_lock_document()), encoding="utf-8")
+    _on_the_formal_host(monkeypatch, path)
+    monkeypatch.setenv(variable, "1")
+    with pytest.raises(ProtocolLockError, match="environment overrides"):
+        enforce(publication_data=True, experiment="E3")
+
+
+# ------------------------------------------------- E4 executor configuration
+
+
+def test_the_locked_executor_configuration_admits_a_matching_session():
+    from fam.common.lock import enforce_llm_configuration
+
+    document = _lock_document()
+    document["e4"]["agent_config_hash"] = "c" * 64
+    enforce_llm_configuration(
+        document, config_hash="c" * 64, publication_data=True
+    )
+
+
+def test_a_different_executor_configuration_stops_the_session():
+    """The model slug can be right while the request reaching it is not: a
+    redirected base URL, a widened token budget, an edited system prompt."""
+    from fam.common.lock import enforce_llm_configuration
+
+    document = _lock_document()
+    document["e4"]["agent_config_hash"] = "c" * 64
+    with pytest.raises(ProtocolLockError, match="not the locked configuration"):
+        enforce_llm_configuration(
+            document, config_hash="d" * 64, publication_data=True
+        )
+
+
+def test_a_lock_without_an_executor_hash_cannot_admit_a_formal_session():
+    from fam.common.lock import enforce_llm_configuration
+
+    document = _lock_document()
+    document["e4"].pop("agent_config_hash", None)
+    with pytest.raises(ProtocolLockError, match="records no agent_config_hash"):
+        enforce_llm_configuration(
+            document, config_hash="c" * 64, publication_data=True
+        )
+
+
+def test_a_development_session_is_not_held_to_the_locked_executor():
+    from fam.common.lock import enforce_llm_configuration
+
+    enforce_llm_configuration(None, config_hash="c" * 64, publication_data=False)

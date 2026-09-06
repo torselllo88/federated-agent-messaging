@@ -18,40 +18,57 @@
     "validity_taxonomy"
   ],
   "properties": {
-    "artifact": { "const": "formal_protocol_lock" },
-    "lock_schema_version": { "const": "1" },
+    "artifact": {
+      "const": "formal_protocol_lock"
+    },
+    "lock_schema_version": {
+      "const": "1"
+    },
     "generated_at": {
       "type": "string",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
     },
-    "purpose": { "type": "string" },
-
+    "purpose": {
+      "type": "string"
+    },
     "implementation": {
       "type": "object",
-      "required": ["git_commit", "git_tag", "worktree_clean", "schema_digests"],
+      "required": [
+        "git_commit",
+        "git_tag",
+        "worktree_clean",
+        "schema_digests"
+      ],
       "properties": {
         "git_commit": {
           "type": "string",
           "pattern": "^[0-9a-f]{40}$",
           "description": "The exact implementation the formal campaign executes."
         },
-        "git_tag": { "type": "string", "minLength": 1 },
+        "git_tag": {
+          "type": "string",
+          "minLength": 1
+        },
         "worktree_clean": {
           "const": true,
           "description": "A lock generated from a dirty tree identifies no reproducible implementation."
         },
         "raw_schema_versions_supported": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "schema_digests": {
           "type": "object",
           "description": "SHA-256 per schema file, so a schema edit after the lock is detectable.",
-          "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
         }
       }
     },
-
     "frozen_parameters": {
       "type": "object",
       "description": "Every execution parameter the campaign is held to. A publication run whose effective value differs from any of these stops (Task 07 §23, §66).",
@@ -87,65 +104,118 @@
         "e3_schedule_seed",
         "e3_bootstrap_seed",
         "e3_bootstrap_replicates",
-        "e3_bootstrap_confidence"
+        "e3_bootstrap_confidence",
+        "e3_agent_settle_seconds"
       ],
       "properties": {
-        "protocol_version": { "const": "1.2" },
-        "analysis_spec_version": { "const": "1.2" },
+        "protocol_version": {
+          "const": "1.2"
+        },
+        "analysis_spec_version": {
+          "const": "1.2"
+        },
         "raw_schema_version": {
           "const": "2",
           "description": "Formal automated runs never fall back to v1; v1 stays read-only compatibility for development data (Task 07 §17)."
         },
-        "room_version": { "const": "12" },
-        "room_encryption_enabled": { "const": false },
-        "message_body_bytes": { "const": 256 },
+        "room_version": {
+          "const": "12"
+        },
+        "room_encryption_enabled": {
+          "const": false
+        },
+        "message_body_bytes": {
+          "const": 256
+        },
         "e3_concurrency_levels": {
           "type": "array",
-          "items": { "type": "integer", "minimum": 1 },
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
           "minItems": 1
         },
-        "e3_bootstrap_confidence": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 }
+        "e3_bootstrap_confidence": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        }
       }
     },
-
     "environment": {
       "type": "object",
-      "required": ["formal_run_host_identifier", "config_hashes"],
+      "required": [
+        "formal_run_host_identifier",
+        "config_hashes",
+        "rate_limits"
+      ],
       "properties": {
-        "formal_run_host_identifier": { "type": "string", "minLength": 1 },
-        "host": { "type": "object" },
-        "software": { "type": "object" },
+        "formal_run_host_identifier": {
+          "type": "string",
+          "minLength": 1
+        },
+        "host": {
+          "type": "object"
+        },
+        "software": {
+          "type": "object"
+        },
         "config_hashes": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
         },
-        "rate_limits": { "type": "object" },
-        "environment_manifest_generated_at": { "type": ["string", "null"] },
-        "image_digests": { "type": "object" }
+        "rate_limits": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "§46 requires the rate-limit configuration. Confirmed by the environment verifier and copied here; an empty object means the lock never carried it."
+        },
+        "environment_manifest_generated_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "image_digests": {
+          "type": "object"
+        }
       }
     },
-
     "campaign": {
       "type": "object",
-      "required": ["campaign_id", "campaign_fingerprint", "experiment_order"],
+      "required": [
+        "campaign_id",
+        "campaign_fingerprint",
+        "experiment_order"
+      ],
       "properties": {
         "campaign_id": {
           "type": "string",
           "pattern": "^fam-formal-[0-9a-f]{16}$",
           "description": "A formal campaign never shares an identifier with a development one (Task 07 §22)."
         },
-        "campaign_fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "campaign_parameters": { "type": "object" },
-        "result_root": { "type": "string" },
+        "campaign_fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "campaign_parameters": {
+          "type": "object"
+        },
+        "result_root": {
+          "type": "string"
+        },
         "experiment_order": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "One deterministic order, fixed before results exist (Task 07 §24)."
         }
       }
     },
-
     "e3_schedule": {
       "type": "object",
       "description": "The complete paired run order, persisted in full rather than as a seed alone (Task 07 §16).",
@@ -154,67 +224,198 @@
         "type": "array",
         "items": {
           "type": "object",
-          "required": ["block_id", "block_index", "within_block_order", "topology", "concurrency"],
+          "required": [
+            "block_id",
+            "block_index",
+            "within_block_order",
+            "topology",
+            "concurrency"
+          ],
           "properties": {
-            "block_id": { "type": "string" },
-            "block_index": { "type": "integer", "minimum": 1 },
-            "within_block_order": { "type": "integer", "minimum": 1 },
-            "topology": { "enum": ["local", "federated"] },
-            "concurrency": { "type": "integer", "minimum": 1 },
-            "key": { "type": "string" }
+            "block_id": {
+              "type": "string"
+            },
+            "block_index": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "within_block_order": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "topology": {
+              "enum": [
+                "local",
+                "federated"
+              ]
+            },
+            "concurrency": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "key": {
+              "type": "string"
+            }
           }
         }
       }
     },
-
     "e4": {
       "type": "object",
-      "required": ["llm_provider", "llm_model", "sessions", "human_requests_per_session"],
+      "required": [
+        "llm_provider",
+        "llm_model",
+        "agent_config_hash",
+        "sessions",
+        "human_requests_per_session"
+      ],
       "properties": {
-        "llm_provider": { "type": "string" },
+        "llm_provider": {
+          "type": "string"
+        },
         "llm_model": {
           "type": "string",
           "description": "The exact frozen model identifier. No alias, no fallback chain (Task 07 §5)."
         },
-        "sessions": { "const": 3 },
-        "human_requests_per_session": { "const": 3 },
-        "human_client_name": { "type": "string" },
-        "human_client_version": { "type": "string" },
-        "human_client_host": { "type": "string" },
-        "note": { "type": "string" }
+        "sessions": {
+          "const": 3
+        },
+        "human_requests_per_session": {
+          "const": 3
+        },
+        "human_client_name": {
+          "type": "string"
+        },
+        "human_client_version": {
+          "type": "string"
+        },
+        "human_client_host": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "agent_config_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "LLMConfig.config_hash(): provider, model, base URL, max tokens, system prompt and history depth, excluding the API key. E4 refuses to open a session whose effective configuration hashes differently, so §36's 'same frozen configuration' is checked against the lock rather than only across sessions."
+        },
+        "base_url": {
+          "type": "string"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "conversation_history_turns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "system_prompt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "system_prompt": {
+          "type": "string"
+        },
+        "session_interaction_timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Operational ceiling on waiting for a person. Recorded, not compared: it bounds how long the runner waits, not what the tested system does."
+        },
+        "session_join_timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
       }
     },
-
     "validity_taxonomy": {
       "type": "object",
-      "required": ["terminal_outcomes", "invalid_run_classes"],
+      "required": [
+        "terminal_outcomes",
+        "invalid_run_classes"
+      ],
       "properties": {
         "terminal_outcomes": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Closed at lock. duplicate_response is absent by design: a duplicate ACK is only knowable after termination and is a post-terminal integrity observation (§11.1)."
         },
         "post_terminal_integrity_observations": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
-        "invalid_run_classes": { "type": "array", "items": { "type": "string" } },
-        "note": { "type": "string" }
+        "invalid_run_classes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
       }
     },
-
     "accepted_limitations": {
       "type": "array",
       "description": "Carried into final reporting rather than corrected in data.",
       "items": {
         "type": "object",
-        "required": ["id", "summary", "correction_applied"],
+        "required": [
+          "id",
+          "summary",
+          "correction_applied"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "summary": { "type": "string" },
-          "correction_applied": { "const": false },
-          "development_magnitude": { "type": "string" },
-          "reference": { "type": "string" }
+          "id": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "correction_applied": {
+            "const": false
+          },
+          "development_magnitude": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "supersedes": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "An earlier lock this one replaces. A published tag is never moved, so a superseded lock is recorded rather than rewritten.",
+      "required": [
+        "tag",
+        "commit",
+        "formal_artifacts_produced"
+      ],
+      "properties": {
+        "tag": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "formal_artifacts_produced": {
+          "const": 0,
+          "description": "A lock that produced evidence cannot be superseded silently; that is a recollection, versioned and accounted for separately (Task 07 §43)."
+        },
+        "note": {
+          "type": "string"
         }
       }
     }

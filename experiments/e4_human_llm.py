@@ -70,7 +70,12 @@ from fam.instrumentation.manifest import (  # noqa: E402
     HumanValidationManifest,
     utc_now,
 )
-from fam.common.lock import ProtocolLockError, enforce  # noqa: E402
+from fam.common.lock import (  # noqa: E402
+    ProtocolLockError,
+    enforce,
+    enforce_llm_configuration,
+    load,
+)
 from fam.matrix.rooms import assert_frozen_room_configuration  # noqa: E402
 from fam.participants.human import HumanParticipant  # noqa: E402
 
@@ -355,6 +360,14 @@ async def run_session(args: argparse.Namespace) -> SessionResult:
     # session identifier.
     llm = config_from_environment()
     api_key = api_key_from_environment()
+
+    # Before the room exists, for the same reason: a session whose executor is
+    # not the locked one must not consume a room or a session identifier.
+    enforce_llm_configuration(
+        load(),
+        config_hash=llm.config_hash(),
+        publication_data=publication_data(),
+    )
 
     raw = root / "raw" / "e4"
     raw.mkdir(parents=True, exist_ok=True)

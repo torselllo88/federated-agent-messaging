@@ -34,7 +34,7 @@ from fam.benchmark.schedule import (  # noqa: E402
     fingerprint,
     generate_workload_schedule,
 )
-from fam.common.digests import file_sha256  # noqa: E402
+from fam.common.digests import bytes_sha256, file_sha256  # noqa: E402
 from fam.common.frozen import (  # noqa: E402
     E3_CONCURRENCY_LEVELS,
     E3_PAIRED_BLOCKS,
@@ -87,6 +87,53 @@ def _environment(root: Path) -> dict[str, Any]:
             f"formal host after the final configuration freeze (Task 07 §14)."
         )
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _rate_limits(root: Path) -> dict[str, Any]:
+    """§46 requires the rate-limit configuration in the lock.
+
+    The environment manifest never carried it: rate limits are confirmed by the
+    environment verifier, which writes them to its own report. Reading them from
+    the manifest left the locked field empty while the data sat one file away.
+    """
+    path = environment_dir(root) / "verify-report.json"
+    if not path.exists():
+        raise ProtocolLockError(
+            f"no verification report at {path}. Run `make verify` on the formal "
+            f"host before generating the lock; §46 requires the rate-limit "
+            f"configuration and this is where it is confirmed."
+        )
+    limits = json.loads(path.read_text(encoding="utf-8")).get("rate_limits") or {}
+    if not limits:
+        raise ProtocolLockError(
+            f"{path} records no rate limits, so the lock cannot carry the "
+            f"configuration §46 requires"
+        )
+    return limits
+
+
+def _llm_configuration() -> dict[str, Any]:
+    """The E4 executor configuration, as one comparable value plus its parts.
+
+    The hash covers provider, model, base URL, max tokens, system prompt and
+    history depth and excludes the API key, so it identifies what reaches the
+    provider without publishing a credential. The readable parts sit beside it
+    so the lock is legible without running code.
+    """
+    from fam.executors.llm import config_from_environment
+
+    config = config_from_environment()
+    public = config.public()
+    return {
+        "agent_config_hash": config.config_hash(),
+        "base_url": public["base_url"],
+        "max_tokens": public["max_tokens"],
+        "conversation_history_turns": public["conversation_history_turns"],
+        "system_prompt_sha256": bytes_sha256(
+            public["system_prompt"].encode("utf-8")
+        ),
+        "system_prompt": public["system_prompt"],
+    }
 
 
 def _inventory(root: Path) -> dict[str, Any]:
@@ -199,10 +246,37 @@ def _worktree_status() -> str:
 # ------------------------------------------------------------------ generate
 
 
+def _supersedes(args: argparse.Namespace) -> dict[str, Any] | None:
+    """The earlier lock this one replaces, if any.
+
+    A published tag is never moved. An earlier lock that produced no evidence
+    still happened, and saying so in the artifact is cheaper than leaving a
+    reader to work out why two tags describe the same protocol version.
+    """
+    if not args.supersedes_tag:
+        return None
+    commit = _git("rev-list", "-n", "1", args.supersedes_tag)
+    return {
+        "tag": args.supersedes_tag,
+        "commit": commit or "unresolved",
+        "reason": args.supersedes_reason,
+        "formal_artifacts_produced": 0,
+        "note": (
+            "Superseded before any formal collection. No manifest, raw stream "
+            "or evidence artifact carries publication_data true under that tag, "
+            "and it is retained rather than moved because a published tag that "
+            "changes what it points at is worse for provenance than a tag that "
+            "is recorded as replaced."
+        ),
+    }
+
+
 def generate(args: argparse.Namespace) -> int:
     root = ensure_layout(resolve_results_dir())
     environment = _environment(root)
     inventory = _inventory(root)
+    rate_limits = _rate_limits(root)
+    llm = _llm_configuration()
 
     commit = _git("rev-parse", "HEAD") or os.environ.get("FAM_PROTOCOL_GIT_COMMIT", "")
     if not commit:
@@ -232,7 +306,7 @@ def generate(args: argparse.Namespace) -> int:
         concurrency_levels=tuple(E3_CONCURRENCY_LEVELS),
         protocol_git_commit=commit,
         config_hashes=config_hashes,
-        rate_limits=environment.get("rate_limits") or {},
+        rate_limits=rate_limits,
     )
     campaign_fingerprint = fingerprint(parameters)
     campaign = args.campaign_id or f"fam-formal-{campaign_fingerprint[:16]}"
@@ -262,7 +336,7 @@ def generate(args: argparse.Namespace) -> int:
             "host": environment.get("host", {}),
             "software": environment.get("software", {}),
             "config_hashes": config_hashes,
-            "rate_limits": environment.get("rate_limits") or {},
+            "rate_limits": rate_limits,
             "environment_manifest_generated_at": environment.get("generated_at"),
             "image_digests": inventory.get("image_digests", {}),
         },
@@ -277,8 +351,22 @@ def generate(args: argparse.Namespace) -> int:
         "e4": {
             "llm_provider": os.environ.get("FAM_LLM_PROVIDER", "unset"),
             "llm_model": os.environ.get("FAM_LLM_MODEL", "unset"),
+            # The whole executor configuration as one comparable value. E4
+            # refuses to open a session whose effective configuration differs,
+            # so §36's "same frozen configuration" is checked against the lock
+            # and not merely across the three sessions.
+            **llm,
             "sessions": 3,
             "human_requests_per_session": 3,
+            # Operational ceilings on waiting for a person, recorded so the
+            # artifact is self-contained. Not compared: they bound how long the
+            # runner waits, not what the tested system does.
+            "session_interaction_timeout_seconds": float(
+                os.environ.get("FAM_E4_TIMEOUT", "1800")
+            ),
+            "session_join_timeout_seconds": float(
+                os.environ.get("FAM_E4_JOIN_TIMEOUT", "900")
+            ),
             "human_client_name": os.environ.get("FAM_E4_CLIENT_NAME", "unset"),
             "human_client_version": os.environ.get("FAM_E4_CLIENT_VERSION", "unset"),
             "human_client_host": os.environ.get("FAM_E4_CLIENT_HOST", "unset"),
@@ -296,6 +384,7 @@ def generate(args: argparse.Namespace) -> int:
                 "protocol_version and is disclosed (§35, §46)."
             ),
         },
+        "supersedes": _supersedes(args),
         "accepted_limitations": [
             {
                 "id": "L10",
@@ -512,6 +601,8 @@ def main() -> int:
     gen = sub.add_parser("generate", help="build the lock from the live environment")
     gen.add_argument("--tag", default="protocol-v1.2")
     gen.add_argument("--campaign-id", default="")
+    gen.add_argument("--supersedes-tag", default="")
+    gen.add_argument("--supersedes-reason", default="")
     gen.set_defaults(func=generate)
 
     val = sub.add_parser("validate", help="check a lock against this environment")
