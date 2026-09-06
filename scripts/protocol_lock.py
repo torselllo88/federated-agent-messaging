@@ -255,10 +255,18 @@ def _supersedes(args: argparse.Namespace) -> dict[str, Any] | None:
     """
     if not args.supersedes_tag:
         return None
-    commit = _git("rev-list", "-n", "1", args.supersedes_tag)
+    # Resolved on the host for the usual reason: the container has no .git, and
+    # "unresolved" in a provenance field defeats the field.
+    commit = _git("rev-list", "-n", "1", args.supersedes_tag) or args.supersedes_commit
+    if not commit:
+        raise ProtocolLockError(
+            f"cannot resolve the commit for superseded tag "
+            f"{args.supersedes_tag!r}. Pass --supersedes-commit, which "
+            f"`make lock` fills in from the host."
+        )
     return {
         "tag": args.supersedes_tag,
-        "commit": commit or "unresolved",
+        "commit": commit,
         "reason": args.supersedes_reason,
         "formal_artifacts_produced": 0,
         "note": (
@@ -603,6 +611,7 @@ def main() -> int:
     gen.add_argument("--campaign-id", default="")
     gen.add_argument("--supersedes-tag", default="")
     gen.add_argument("--supersedes-reason", default="")
+    gen.add_argument("--supersedes-commit", default="")
     gen.set_defaults(func=generate)
 
     val = sub.add_parser("validate", help="check a lock against this environment")
