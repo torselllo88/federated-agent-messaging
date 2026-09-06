@@ -204,11 +204,13 @@ lock: guard
 	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
 	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_PROTOCOL_GIT_COMMIT -e FAM_LLM_PROVIDER -e FAM_LLM_MODEL -e FAM_E4_CLIENT_NAME -e FAM_E4_CLIENT_VERSION -e FAM_E4_CLIENT_HOST toolbox python scripts/protocol_lock.py generate --tag $(TAG)
 
-# Before the tagging commit exists. Use lock-check once it does.
+# Validates the freshly generated artifact, which lives in the results root and
+# is not in the worktree yet -- the whole point being to check it before
+# committing it. `lock-check` validates the committed one afterwards.
 lock-validate: guard
 	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
 	export FAM_GIT_TAGS_AT_HEAD="$$(git tag --points-at HEAD)"
-	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_GIT_TAGS_AT_HEAD -e FAM_PROTOCOL_GIT_COMMIT toolbox python scripts/protocol_lock.py validate
+	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_GIT_TAGS_AT_HEAD -e FAM_PROTOCOL_GIT_COMMIT toolbox python scripts/protocol_lock.py validate --path /results/environment/protocol-lock.json
 
 # The precondition for a formal run: lock, commit and tag all agree.
 #
