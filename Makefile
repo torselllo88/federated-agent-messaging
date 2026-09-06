@@ -29,7 +29,7 @@ RUN_BOOTSTRAP := $(COMPOSE) run --rm --no-deps bootstrap
 
 export FAM_PROTOCOL_GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 
-.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 e4-prepare e4-ca e4 e4-validate inventory lock lock-validate lock-check freeze analyse spike test down clean logs
+.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 e4-prepare e4-ca e4 e4-validate inventory lock lock-validate lock-check freeze figures analyse spike test down clean logs
 
 help:
 	@echo "make setup    - build, generate TLS and configs, start both domains, provision accounts"
@@ -51,6 +51,7 @@ help:
 	@echo "make lock-validate - check a lock before it is committed and tagged"
 	@echo "make lock-check - full precondition check: lock, commit and tag agree"
 	@echo "make freeze   - close the collection phase: gate, inventory, archive digest"
+	@echo "make figures  - publication figures as SVG from the processed tables"
 	@echo "make analyse  - digest verification, schema validation, E0-E3 summaries"
 	@echo "make test     - unit tests"
 	@echo "make down     - stop containers"
@@ -234,6 +235,10 @@ lock-check: guard
 # digest. Read-only over the evidence (Task 07 §42, §43, §44).
 freeze: guard
 	$(COMPOSE) run --rm --no-deps toolbox python scripts/freeze_collection.py
+
+# Figures, drawn from the processed tables. raw -> processed -> here -> SVG.
+figures: guard
+	$(COMPOSE) run --rm --no-deps toolbox python scripts/figures.py
 
 analyse: guard
 	$(COMPOSE) run --rm -e FAM_E3_BOOTSTRAP_REPLICATES -e FAM_E3_BOOTSTRAP_SEED \
