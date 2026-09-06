@@ -78,10 +78,16 @@ services:
         aliases:
           - hs-a.test
     ports:
-      - "${HS_A_CS_PORT:-8008}:8008"
-      # E4 only: HTTPS Client-Server endpoint for the external human client
-      # (testbed-architecture.md §7). Domain A alone, because that is where
-      # the actual human's account lives.
+      # Loopback only. The experiments reach this listener over the Compose
+      # network, never through the published port, so binding it to the host
+      # interface would expose an unencrypted Client-Server API -- including
+      # login -- to anything that can route to the machine. On the formal host,
+      # which is a public VPS, that is an open door and a standing external
+      # interference risk during collection.
+      - "127.0.0.1:${HS_A_CS_PORT:-8008}:8008"
+      # E4 only, and deliberately public: the HTTPS Client-Server endpoint the
+      # external human client connects to (testbed-architecture.md §7). Domain
+      # A alone, because that is where the actual human's account lives.
       - "${FAM_E4_CS_TLS_PORT:-8449}:8449"
 
   # ---------------------------------------------------------------- Domain B
@@ -111,7 +117,8 @@ services:
         aliases:
           - hs-b.test
     ports:
-      - "${HS_B_CS_PORT:-8009}:8008"
+      # Loopback only, as on domain A. Domain B has no external client path.
+      - "127.0.0.1:${HS_B_CS_PORT:-8009}:8008"
 
   # ------------------------------------------------------- Privileged setup
 
@@ -137,6 +144,8 @@ services:
       FAM_PUBLICATION_DATA: ${FAM_PUBLICATION_DATA:-false}
       FAM_PROTOCOL_GIT_COMMIT: ${FAM_PROTOCOL_GIT_COMMIT:-unknown}
       FAM_EXECUTION_HOST: ${FAM_EXECUTION_HOST:-}
+      FAM_HOST_VIRTUALIZATION: ${FAM_HOST_VIRTUALIZATION:-}
+      FAM_HOST_DISTRIBUTION: ${FAM_HOST_DISTRIBUTION:-}
 
   # --------------------------------------- Unprivileged experiment execution
   #

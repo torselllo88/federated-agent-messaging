@@ -74,6 +74,16 @@ def _memory_bytes() -> int:
     return 0
 
 
+def _host_fact(name: str) -> str:
+    """A fact about the machine, or an honest admission that nobody passed it.
+
+    Compose renders an unset variable as an empty string, so the default of
+    ``os.environ.get`` never fires; an empty value has to mean the same thing
+    as an absent one, not an empty answer.
+    """
+    return os.environ.get(name, "").strip() or "unrecorded"
+
+
 def _virtualization() -> str:
     """Record the container runtime honestly.
 
@@ -132,7 +142,13 @@ def main() -> int:
             "cpu_model": _cpu_model(),
             "logical_cpus": os.cpu_count(),
             "available_ram_bytes": _memory_bytes(),
+            # The container runtime this process sees. Deliberately not the
+            # same question as the next field.
             "virtualization": _virtualization(),
+            # What the machine itself runs on, which nothing inside a
+            # container can determine; passed in from the host that can.
+            "host_virtualization": _host_fact("FAM_HOST_VIRTUALIZATION"),
+            "distribution": _host_fact("FAM_HOST_DISTRIBUTION"),
         },
         "config_hashes": hashes,
         "sanitized_config": sanitized,

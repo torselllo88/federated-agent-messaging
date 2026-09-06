@@ -81,7 +81,8 @@ Regenerating the reported tables and figures from the archived raw data:
 export FAM_RESULTS_DIR=/path/to/extracted/archive
 
 git checkout <producing Git tag>
-make verify                       # environment and protocol-lock check
+make verify                       # environment and federation readiness
+make lock-check                   # lock, commit and tag agree
 python scripts/verify_digests.py  # manifest SHA-256 vs archive contents
 make analyse                      # processed datasets, tables, figures
 ```
