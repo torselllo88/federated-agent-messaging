@@ -1,18 +1,18 @@
 {
   "artifact": "formal_protocol_lock",
   "lock_schema_version": "1",
-  "generated_at": "2026-09-06T15:19:13Z",
+  "generated_at": "2026-09-06T16:00:15Z",
   "purpose": "Binds the formal campaign to one implementation, one environment and one set of frozen parameters. Once this artifact is committed and tagged, no execution-affecting change may occur during collection (experimental-protocol.md §46, Task 07 §1).",
   "implementation": {
-    "git_commit": "65fdf5f4d63a9f015ff84b9b460b29b7eb5c7e2d",
-    "git_tag": "protocol-v1.2",
+    "git_commit": "f7bcc00002ddbc1eab17e17d97b3746040db06af",
+    "git_tag": "protocol-v1.2-lock2",
     "worktree_clean": true,
     "raw_schema_versions_supported": [
       "1",
       "2"
     ],
     "schema_digests": {
-      "protocol-lock.schema.json": "70c21a17489db75fe0fa0a92ccf30800437152753e7e34661984756e5b098f1d",
+      "protocol-lock.schema.json": "06d8131508ee9689e233f119fed261e30bb0b7ffdb8b3e1260491a69bc4f1412",
       "raw-agent-record.schema.json": "83e452d82f574f26020a22faf920942a21f8e92b475a1c8a2450f2ef7236efca",
       "raw-runner-record-v1.schema.json": "ea3d962ad61e9b8b5c18a7e7993276278db777010c8044c11868beedb71f8946",
       "raw-runner-record.schema.json": "dbb9df778901b606c5aef0c829783402adfa0a1529e8b5578526282e50a9cd01",
@@ -49,6 +49,7 @@
     "e3_drain_seconds": 10.0,
     "e3_paired_blocks": 20,
     "e3_inter_run_idle_seconds": 5.0,
+    "e3_agent_settle_seconds": 2.0,
     "e3_sync_timeline_limit": 500,
     "e3_sync_timeout_ms": 30000,
     "e3_schedule_seed": 20260905,
@@ -74,7 +75,7 @@
       "synapse_image": "ghcr.io/element-hq/synapse:v1.159.0",
       "postgres_image": "postgres:16.4",
       "image_digests": {
-        "fam-toolbox:local": "fam-toolbox@sha256:95c884411f1bda6ec04a80a825ff92c774ced2819508e7a81d3b892f0db3957f",
+        "fam-toolbox:local": "fam-toolbox@sha256:f9b9304ff2c0157738df3b848377ddde80318a75f1dc347f9156107bb0c2434c",
         "ghcr.io/element-hq/synapse:v1.159.0": "ghcr.io/element-hq/synapse@sha256:edf259d2b575b669a3e81024918ab8d5cfb7d2fba5a53c9e09695f1abc5645cb",
         "postgres:16.4": "postgres@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412"
       }
@@ -83,21 +84,140 @@
       "A": "38f4581044d46f5c4d6a58de8c742aaf328dc34be85cbceaae8e23f2e210325e",
       "B": "a93c3b0e32dc4f47dbd36a574a270c446d30d204abd3df952c40751e07b7b1c1"
     },
-    "rate_limits": {},
-    "environment_manifest_generated_at": "2026-09-06T15:19:11Z",
+    "rate_limits": {
+      "A": {
+        "rc_message": {
+          "per_second": 1000,
+          "burst_count": 20000
+        },
+        "rc_registration": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "rc_login": {
+          "address": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "account": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "failed_attempts": {
+            "per_second": 100,
+            "burst_count": 1000
+          }
+        },
+        "rc_room_creation": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "rc_joins": {
+          "local": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "remote": {
+            "per_second": 100,
+            "burst_count": 1000
+          }
+        },
+        "rc_invites": {
+          "per_room": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "per_user": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "per_issuer": {
+            "per_second": 100,
+            "burst_count": 1000
+          }
+        },
+        "rc_federation": {
+          "window_size": 1000,
+          "sleep_limit": 10,
+          "sleep_delay": 500,
+          "reject_limit": 50,
+          "concurrent": 3
+        }
+      },
+      "B": {
+        "rc_message": {
+          "per_second": 1000,
+          "burst_count": 20000
+        },
+        "rc_registration": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "rc_login": {
+          "address": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "account": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "failed_attempts": {
+            "per_second": 100,
+            "burst_count": 1000
+          }
+        },
+        "rc_room_creation": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "rc_joins": {
+          "local": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "remote": {
+            "per_second": 100,
+            "burst_count": 1000
+          }
+        },
+        "rc_invites": {
+          "per_room": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "per_user": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "per_issuer": {
+            "per_second": 100,
+            "burst_count": 1000
+          }
+        },
+        "rc_federation": {
+          "window_size": 1000,
+          "sleep_limit": 10,
+          "sleep_delay": 500,
+          "reject_limit": 50,
+          "concurrent": 3
+        }
+      }
+    },
+    "environment_manifest_generated_at": "2026-09-06T16:00:12Z",
     "image_digests": {
-      "fam-toolbox:local": "fam-toolbox@sha256:95c884411f1bda6ec04a80a825ff92c774ced2819508e7a81d3b892f0db3957f",
+      "fam-toolbox:local": "fam-toolbox@sha256:f9b9304ff2c0157738df3b848377ddde80318a75f1dc347f9156107bb0c2434c",
       "ghcr.io/element-hq/synapse:v1.159.0": "ghcr.io/element-hq/synapse@sha256:edf259d2b575b669a3e81024918ab8d5cfb7d2fba5a53c9e09695f1abc5645cb",
       "postgres:16.4": "postgres@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412"
     }
   },
   "campaign": {
-    "campaign_id": "fam-formal-eaaf44977a6c7461",
-    "campaign_fingerprint": "eaaf44977a6c74610aff9174ade372418b639104c10bbbcbdf03cc5c8dd35e01",
+    "campaign_id": "fam-formal-651a6ef1b2062472",
+    "campaign_fingerprint": "651a6ef1b2062472f258ca15187e8338a3c9a2571580dd5927f7998092f4964d",
     "campaign_parameters": {
       "execution_protocol_version": "1.2",
-      "runtime_code_revision": "task-05-r3",
-      "protocol_git_commit": "65fdf5f4d63a9f015ff84b9b460b29b7eb5c7e2d",
+      "runtime_code_revision": "task-07-r4",
+      "protocol_git_commit": "f7bcc00002ddbc1eab17e17d97b3746040db06af",
       "schedule_seed": 20260905,
       "paired_blocks": 20,
       "concurrency_levels": [
@@ -118,7 +238,126 @@
         "A": "38f4581044d46f5c4d6a58de8c742aaf328dc34be85cbceaae8e23f2e210325e",
         "B": "a93c3b0e32dc4f47dbd36a574a270c446d30d204abd3df952c40751e07b7b1c1"
       },
-      "rate_limit_configuration": {}
+      "rate_limit_configuration": {
+        "A": {
+          "rc_message": {
+            "per_second": 1000,
+            "burst_count": 20000
+          },
+          "rc_registration": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "rc_login": {
+            "address": {
+              "per_second": 100,
+              "burst_count": 1000
+            },
+            "account": {
+              "per_second": 100,
+              "burst_count": 1000
+            },
+            "failed_attempts": {
+              "per_second": 100,
+              "burst_count": 1000
+            }
+          },
+          "rc_room_creation": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "rc_joins": {
+            "local": {
+              "per_second": 100,
+              "burst_count": 1000
+            },
+            "remote": {
+              "per_second": 100,
+              "burst_count": 1000
+            }
+          },
+          "rc_invites": {
+            "per_room": {
+              "per_second": 100,
+              "burst_count": 1000
+            },
+            "per_user": {
+              "per_second": 100,
+              "burst_count": 1000
+            },
+            "per_issuer": {
+              "per_second": 100,
+              "burst_count": 1000
+            }
+          },
+          "rc_federation": {
+            "window_size": 1000,
+            "sleep_limit": 10,
+            "sleep_delay": 500,
+            "reject_limit": 50,
+            "concurrent": 3
+          }
+        },
+        "B": {
+          "rc_message": {
+            "per_second": 1000,
+            "burst_count": 20000
+          },
+          "rc_registration": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "rc_login": {
+            "address": {
+              "per_second": 100,
+              "burst_count": 1000
+            },
+            "account": {
+              "per_second": 100,
+              "burst_count": 1000
+            },
+            "failed_attempts": {
+              "per_second": 100,
+              "burst_count": 1000
+            }
+          },
+          "rc_room_creation": {
+            "per_second": 100,
+            "burst_count": 1000
+          },
+          "rc_joins": {
+            "local": {
+              "per_second": 100,
+              "burst_count": 1000
+            },
+            "remote": {
+              "per_second": 100,
+              "burst_count": 1000
+            }
+          },
+          "rc_invites": {
+            "per_room": {
+              "per_second": 100,
+              "burst_count": 1000
+            },
+            "per_user": {
+              "per_second": 100,
+              "burst_count": 1000
+            },
+            "per_issuer": {
+              "per_second": 100,
+              "burst_count": 1000
+            }
+          },
+          "rc_federation": {
+            "window_size": 1000,
+            "sleep_limit": 10,
+            "sleep_delay": 500,
+            "reject_limit": 50,
+            "concurrent": 3
+          }
+        }
+      }
     },
     "result_root": "/results",
     "experiment_order": [
@@ -1100,8 +1339,16 @@
   "e4": {
     "llm_provider": "openai_compatible",
     "llm_model": "anthropic/claude-haiku-4.5",
+    "agent_config_hash": "6deb8e2be1a16af89e1540454337aa61cd5a8ea5c9f43d024d5e93f4733d5b8e",
+    "base_url": "https://openrouter.ai/api",
+    "max_tokens": 512,
+    "conversation_history_turns": 0,
+    "system_prompt_sha256": "b55d5dd2c23641844020fffd66d586764796bdaf012fd80e62a06eaf1f968563",
+    "system_prompt": "You are a helpful assistant participating in a Matrix chat room. Answer the user's message directly and concisely in plain text.",
     "sessions": 3,
     "human_requests_per_session": 3,
+    "session_interaction_timeout_seconds": 1800.0,
+    "session_join_timeout_seconds": 900.0,
     "human_client_name": "Element Desktop",
     "human_client_version": "1.12.27",
     "human_client_host": "external workstation/Windows 10 Pro 19045",
@@ -1132,6 +1379,13 @@
       "external_dependency_or_client_environment_failure"
     ],
     "note": "Closed at lock. Adding a class afterwards increments protocol_version and is disclosed (§35, §46)."
+  },
+  "supersedes": {
+    "tag": "protocol-v1.2",
+    "commit": "22b62b802cc1e77f41789cb9ff0a39f68209b225",
+    "reason": "pre-flight trace found an empty rate-limit field required by 46, an unwatched schedule-seed override, and two execution parameters pinned only by the commit",
+    "formal_artifacts_produced": 0,
+    "note": "Superseded before any formal collection. No manifest, raw stream or evidence artifact carries publication_data true under that tag, and it is retained rather than moved because a published tag that changes what it points at is worse for provenance than a tag that is recorded as replaced."
   },
   "accepted_limitations": [
     {
