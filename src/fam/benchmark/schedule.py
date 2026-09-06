@@ -59,7 +59,11 @@ DEFAULT_SCHEDULE_SEED = E3_SCHEDULE_SEED
 #: r3  the logical-interaction timeout is budgeted from T0 rather than armed
 #:     after the send, so no successful interaction can report an RTT longer
 #:     than the timeout that bounds it (§9, §10, §11)
-RUNTIME_CODE_REVISION = "task-05-r3"
+#: r4  duplicate ACKs became post-terminal integrity observations, the manifest
+#:     wall clock records the run rather than the moment it was written, and
+#:     every frozen parameter gained a single definition that the protocol lock
+#:     compares before each formal run (§11.1, §22, §46)
+RUNTIME_CODE_REVISION = "task-07-r4"
 
 
 @dataclass(frozen=True)

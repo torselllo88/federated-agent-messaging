@@ -56,6 +56,8 @@ help:
 	@echo "make clean    - stop containers and delete all volumes (destructive)"
 
 TAG ?= protocol-v1.2
+SUPERSEDES ?=
+SUPERSEDES_REASON ?=
 
 guard:
 	@if [ -z "$${FAM_RESULTS_DIR:-}" ]; then
@@ -202,7 +204,7 @@ inventory: guard image-digests
 # on the host that can actually see the repository, and passed in.
 lock: guard
 	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
-	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_PROTOCOL_GIT_COMMIT -e FAM_LLM_PROVIDER -e FAM_LLM_MODEL -e FAM_E4_CLIENT_NAME -e FAM_E4_CLIENT_VERSION -e FAM_E4_CLIENT_HOST toolbox python scripts/protocol_lock.py generate --tag $(TAG)
+	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_PROTOCOL_GIT_COMMIT -e FAM_LLM_PROVIDER -e FAM_LLM_MODEL -e FAM_LLM_BASE_URL -e FAM_LLM_MAX_TOKENS -e FAM_LLM_SYSTEM_PROMPT -e FAM_E4_CLIENT_NAME -e FAM_E4_CLIENT_VERSION -e FAM_E4_CLIENT_HOST toolbox python scripts/protocol_lock.py generate --tag $(TAG) --supersedes-tag "$(SUPERSEDES)" --supersedes-reason "$(SUPERSEDES_REASON)"
 
 # Validates the freshly generated artifact, which lives in the results root and
 # is not in the worktree yet -- the whole point being to check it before
