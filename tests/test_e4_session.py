@@ -316,3 +316,54 @@ def test_every_script_and_experiment_parses():
             except py_compile.PyCompileError as exc:
                 broken.append(f"{path.relative_to(root)}: {exc.msg.strip()}")
     assert not broken, "entry points with syntax errors:\n" + "\n".join(broken)
+
+
+# ---------------------------------------- publication mode is an input (§22)
+
+
+def _validator():
+    """scripts/e4_validate.py is a command-line reader, loaded by location."""
+    import importlib.util
+    from pathlib import Path as _Path
+
+    for candidate in (_Path("scripts/e4_validate.py"),
+                      _Path("/app/scripts/e4_validate.py")):
+        if candidate.exists():
+            spec = importlib.util.spec_from_file_location(
+                "fam_e4_validate_script", candidate
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+    pytest.skip("e4_validate.py is not on disk here")
+
+
+def test_a_formal_session_is_accepted_when_formal_evidence_is_expected(
+    monkeypatch, tmp_path
+):
+    """The check asserted `publication_data is False`, because every E4 session
+    was development when it was written. Formal evidence must carry true."""
+    monkeypatch.setenv("FAM_PUBLICATION_DATA", "true")
+    validator = _validator()
+    session = _write_session(tmp_path, publication_data=True)
+    problems = validator.validate_session(tmp_path, session)["problems"]
+    assert not any("publication_data" in p for p in problems), problems
+
+
+def test_a_development_session_cannot_pose_as_formal_evidence(
+    monkeypatch, tmp_path
+):
+    """The original safeguard, kept: the guard runs in both directions."""
+    monkeypatch.setenv("FAM_PUBLICATION_DATA", "false")
+    validator = _validator()
+    session = _write_session(tmp_path, publication_data=True)
+    problems = validator.validate_session(tmp_path, session)["problems"]
+    assert any("publication_data" in p for p in problems), problems
+
+
+def test_a_formal_validation_rejects_a_development_session(monkeypatch, tmp_path):
+    monkeypatch.setenv("FAM_PUBLICATION_DATA", "true")
+    validator = _validator()
+    session = _write_session(tmp_path, publication_data=False)
+    problems = validator.validate_session(tmp_path, session)["problems"]
+    assert any("publication_data" in p for p in problems), problems

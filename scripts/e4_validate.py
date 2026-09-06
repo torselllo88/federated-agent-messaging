@@ -24,6 +24,7 @@ from typing import Any
 sys.path.insert(0, "/app/src")
 
 from fam.common.digests import file_sha256  # noqa: E402
+from fam.common.env import publication_data  # noqa: E402
 from fam.common.frozen import EXECUTION_ANALYSIS_SPEC_VERSION  # noqa: E402
 from fam.common.results import (  # noqa: E402
     manifests_dir,
@@ -165,8 +166,18 @@ def validate_session(root: Path, manifest: dict[str, Any]) -> dict[str, Any]:
         )
     if manifest.get("room_version") != "12":
         problems.append(f"room version {manifest.get('room_version')!r}")
-    if manifest.get("publication_data") is not False:
-        problems.append("publication_data is not false for a development session")
+    # The mode is an input, never an assumption. This check was written when
+    # every E4 session was development and asserted `is False`, which is the
+    # opposite of what formal evidence must carry (Task 07 §22). It guards both
+    # directions: a development session must not present itself as publication
+    # evidence, and a formal session must not present itself as development.
+    expected = publication_data()
+    if manifest.get("publication_data") is not expected:
+        problems.append(
+            f"publication_data is {manifest.get('publication_data')!r}, but "
+            f"this validation expects {expected!r} "
+            f"(FAM_PUBLICATION_DATA={os.environ.get('FAM_PUBLICATION_DATA', 'unset')!r})"
+        )
 
     participants = set((manifest.get("participants") or {}).values())
     if participants != EXPECTED_MEMBERSHIP:
