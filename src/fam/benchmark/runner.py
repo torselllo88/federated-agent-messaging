@@ -66,6 +66,11 @@ class BenchmarkRun:
 
     scheduled: ScheduledRun
     run_id: str
+    #: Wall clock when this run began. Carried on the result rather than held
+    #: in the caller's scope, because the manifest is assembled in a separate
+    #: function and a name that only exists in the caller resolves at run time,
+    #: not at import time -- which is how this went out compiling cleanly.
+    started_at: str = ""
     room_id: str = ""
     room_version: str = ""
     encryption_enabled: bool = True
@@ -180,8 +185,9 @@ async def execute_benchmark_run(
 
     # Before anything the run does, so the manifest span covers the whole run
     # rather than the instant the manifest was assembled.
-    started_at = utc_now()
-    result = BenchmarkRun(scheduled=scheduled, run_id=run_id)
+    result = BenchmarkRun(
+        scheduled=scheduled, run_id=run_id, started_at=utc_now()
+    )
     result.host_diagnostics = host.snapshot(
         note=f"captured before {run_id}"
     )
@@ -456,7 +462,7 @@ def _write_evidence(
         publication_data=publication_data(),
         protocol_git_commit=protocol_git_commit(),
         environment_manifest=environment_manifest,
-        started_at=started_at,
+        started_at=result.started_at,
         completed_at=utc_now(),
         completion_status=result.completion_status,
         validity=result.validity,

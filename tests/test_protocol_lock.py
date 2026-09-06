@@ -143,21 +143,77 @@ def test_an_equal_span_is_allowed():
     assert payload["start_timestamp"] == payload["completion_timestamp"]
 
 
-def test_every_entry_point_observes_its_own_start():
-    """No caller may fall back to stamping the clock at manifest-build time."""
-    sources = [
-        Path("experiments/e0_baseline.py"),
-        Path("experiments/e1_federation.py"),
-        Path("experiments/e2_recovery.py"),
-        Path("experiments/e3_readiness.py"),
-        Path("experiments/e4_human_llm.py"),
-        Path("src/fam/benchmark/runner.py"),
-    ]
-    for path in sources:
-        if not path.exists():  # running from an installed package
-            continue
-        text = path.read_text(encoding="utf-8")
-        assert "started_at=" in text, f"{path} builds a manifest without a start"
+def test_the_e3_manifest_path_actually_runs():
+    """Exercises the path rather than grepping it.
+
+    An earlier version of this test only checked that the string `started_at=`
+    appeared in each source file. It passed while `_write_evidence` referenced
+    a name that existed solely in its caller's scope -- which compiles, because
+    Python resolves globals at call time, and fails on the first real run. The
+    fix was to carry the stamp on the result object; this test is what would
+    have caught the original.
+    """
+    pytest.importorskip("nio", reason="the benchmark runner needs matrix-nio")
+
+    from fam.benchmark.engine import RunConfig, WorkloadResult
+    from fam.benchmark.runner import BenchmarkRun, _write_evidence
+    from fam.benchmark.schedule import ScheduledRun
+
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        raw = root / "raw" / "e3" / "latency"
+        raw.mkdir(parents=True)
+
+        scheduled = ScheduledRun(
+            workload="latency",
+            block_id="lat-block01",
+            block_index=1,
+            within_block_order=1,
+            topology="local",
+            concurrency=1,
+        )
+        run = BenchmarkRun(
+            scheduled=scheduled,
+            run_id="e3-test-01",
+            started_at="2026-09-06T12:00:00Z",
+            room_id="!r:hs-a.test",
+        )
+        run.runner_stream = raw / "e3-test-01.runner.jsonl"
+        run.agent_stream = raw / "e3-test-01.agent.jsonl"
+        run.workload_result = WorkloadResult()
+        run.validity = VALID
+        run.completion_status = "complete"
+
+        _write_evidence(
+            run,
+            root=root,
+            campaign_id="fam-formal-0123456789abcdef",
+            campaign_fingerprint="f" * 64,
+            schedule_seed=E3_SCHEDULE_SEED,
+            rate_limit_reference={},
+            environment_manifest="environment/environment-latest.json",
+            sync_timeline_limit=500,
+            sync_timeout_ms=30_000,
+            config=RunConfig(
+                run_id="e3-test-01",
+                workload="latency",
+                block_id="lat-block01",
+                within_block_order=1,
+                topology_name="local",
+                receiver_role="agent",
+                sender="@benchmark-human:hs-a.test",
+                room_id="!r:hs-a.test",
+                concurrency=1,
+            ),
+        )
+
+        written = list((root / "manifests").glob("*.json"))
+        assert len(written) == 1, "the run wrote no manifest"
+        payload = json.loads(written[0].read_text(encoding="utf-8"))
+        assert payload["start_timestamp"] == "2026-09-06T12:00:00Z"
+        assert payload["completion_timestamp"] >= payload["start_timestamp"]
 
 
 # ---------------------------------------------------------------- the lock
