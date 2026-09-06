@@ -423,3 +423,67 @@ def test_the_lock_pins_every_parameter_46_requires():
     }
     missing = required - set(pinned)
     assert not missing, f"the lock does not pin: {sorted(missing)}"
+
+
+# ------------------------------------------- lock artifact vs tagged commit
+
+
+def _lock_script():
+    """Load scripts/protocol_lock.py by path.
+
+    `scripts/` is not a package, and the file is a command-line entry point
+    rather than an importable module, so it is loaded the way the operator
+    invokes it: by location.
+    """
+    import importlib.util
+
+    for candidate in (Path("scripts/protocol_lock.py"),
+                      Path("/app/scripts/protocol_lock.py")):
+        if candidate.exists():
+            spec = importlib.util.spec_from_file_location(
+                "fam_protocol_lock_script", candidate
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+    pytest.skip("protocol_lock.py is not on disk here")
+
+
+def _drift(monkeypatch, diff, locked="a" * 40, head="b" * 40):
+    """The validator's view when git is unavailable, as in the container."""
+    lock_script = _lock_script()
+
+    monkeypatch.setattr(lock_script, "_git", lambda *a: "")
+    if diff is None:
+        monkeypatch.delenv("FAM_IMPLEMENTATION_DIFF", raising=False)
+    else:
+        monkeypatch.setenv("FAM_IMPLEMENTATION_DIFF", diff)
+    return lock_script._implementation_drift(locked, head)
+
+
+def test_the_tagging_commit_may_add_the_lock_and_nothing_else(monkeypatch):
+    """A lock cannot name the commit that carries it: the artifact has to exist
+    before it can be committed. So the tag sits one commit ahead of the
+    implementation the lock names, and that gap must be the lock alone."""
+    assert _drift(monkeypatch, "results/protocol-lock.json") == []
+
+
+def test_code_changing_between_generation_and_tagging_is_caught(monkeypatch):
+    problems = _drift(
+        monkeypatch, "results/protocol-lock.json\nsrc/fam/common/frozen.py"
+    )
+    assert len(problems) == 1
+    assert "frozen.py" in problems[0]
+    assert "more than the lock artifact" in problems[0]
+
+
+def test_a_gap_that_is_not_the_lock_is_caught(monkeypatch):
+    problems = _drift(monkeypatch, "docs/experimental-protocol.md")
+    assert problems and "more than the lock artifact" in problems[0]
+
+
+def test_an_unexamined_gap_is_not_assumed_harmless(monkeypatch):
+    """Same rule as the worktree status: an absent answer means nobody looked,
+    and the validator must not read that as agreement."""
+    problems = _drift(monkeypatch, None)
+    assert problems and "never examined" in problems[0]

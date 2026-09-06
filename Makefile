@@ -86,7 +86,25 @@ wait: up
 provision: wait
 	$(COMPOSE) run --rm bootstrap python scripts/bootstrap.py provision
 
-hashes: provision
+# Resolved here rather than in a container: only the host can ask Docker what
+# it actually pulled. Both the environment manifest and the inventory read the
+# result, so it is produced before either.
+image-digests: guard
+	mkdir -p "$$FAM_RESULTS_DIR/environment"
+	{
+	  echo "{"
+	  first=1
+	  for image in $$($(COMPOSE) config --images | sort -u); do
+	    digest=$$(docker image inspect --format '{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}{{.Id}}{{end}}' "$$image" 2>/dev/null || echo unresolved)
+	    if [ $$first -eq 0 ]; then echo ","; fi
+	    printf '  "%s": "%s"' "$$image" "$$digest"
+	    first=0
+	  done
+	  echo
+	  echo "}"
+	} > "$$FAM_RESULTS_DIR/environment/image-digests.json"
+
+hashes: provision image-digests
 	$(COMPOSE) run --rm bootstrap python scripts/collect_environment.py
 
 setup: hashes
@@ -172,24 +190,7 @@ e4-validate: guard
 	$(COMPOSE) run --rm --no-deps toolbox python scripts/e4_validate.py
 
 # Machine-readable state of the testbed, as an input to the protocol lock.
-#
-# Image digests are resolved here rather than in the container: only the host
-# can ask Docker what it actually pulled, and §19 requires the digests in the
-# inventory. Written to the results root, which the container then reads.
-inventory: guard
-	mkdir -p "$$FAM_RESULTS_DIR/environment"
-	{
-	  echo "{"
-	  first=1
-	  for image in $$($(COMPOSE) config --images | sort -u); do
-	    digest=$$(docker image inspect --format '{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}{{.Id}}{{end}}' "$$image" 2>/dev/null || echo unresolved)
-	    if [ $$first -eq 0 ]; then echo ","; fi
-	    printf '  "%s": "%s"' "$$image" "$$digest"
-	    first=0
-	  done
-	  echo
-	  echo "}"
-	} > "$$FAM_RESULTS_DIR/environment/image-digests.json"
+inventory: guard image-digests
 	$(COMPOSE) run --rm -e FAM_EXECUTION_HOST -e FAM_HOST_VIRTUALIZATION -e FAM_HOST_DISTRIBUTION -e FAM_LLM_PROVIDER -e FAM_LLM_MODEL -e FAM_E4_CLIENT_NAME -e FAM_E4_CLIENT_VERSION -e FAM_E4_CLIENT_HOST bootstrap python scripts/testbed_inventory.py
 
 # The formal protocol lock. Generated once, after the final configuration
@@ -210,10 +211,19 @@ lock-validate: guard
 	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_GIT_TAGS_AT_HEAD -e FAM_PROTOCOL_GIT_COMMIT toolbox python scripts/protocol_lock.py validate
 
 # The precondition for a formal run: lock, commit and tag all agree.
+#
+# A lock cannot name the commit that carries it: the artifact has to exist
+# before it can be committed, so it names the implementation commit and the tag
+# lands on the commit that adds it. FAM_IMPLEMENTATION_DIFF carries the paths
+# that differ between the two, so the validator can insist that the difference
+# is the lock file and nothing else -- which is what makes "the tag reproduces
+# the implementation the lock describes" a checked claim rather than a promise.
 lock-check: guard
 	export FAM_WORKTREE_STATUS="$$(git status --porcelain)"
 	export FAM_GIT_TAGS_AT_HEAD="$$(git tag --points-at HEAD)"
-	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_GIT_TAGS_AT_HEAD -e FAM_PROTOCOL_GIT_COMMIT toolbox python scripts/protocol_lock.py validate --require-tag
+	locked=$$(python3 -c "import json;print(json.load(open('results/protocol-lock.json'))['implementation']['git_commit'])")
+	export FAM_IMPLEMENTATION_DIFF="$$(git diff --name-only $$locked HEAD)"
+	$(COMPOSE) run --rm --no-deps -e FAM_WORKTREE_STATUS -e FAM_GIT_TAGS_AT_HEAD -e FAM_PROTOCOL_GIT_COMMIT -e FAM_IMPLEMENTATION_DIFF toolbox python scripts/protocol_lock.py validate --require-tag
 
 analyse: guard
 	$(COMPOSE) run --rm -e FAM_E3_BOOTSTRAP_REPLICATES -e FAM_E3_BOOTSTRAP_SEED \

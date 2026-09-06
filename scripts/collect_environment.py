@@ -104,9 +104,28 @@ def _virtualization() -> str:
     return "+".join(markers) or "unknown"
 
 
+def _image_digests(env_dir: Path) -> dict[str, str]:
+    """Written by `make image-digests`; a container cannot ask Docker itself."""
+    path = env_dir / "image-digests.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
+
+
+def _image_named(fragment: str, digests: dict[str, str]) -> str:
+    for reference in digests:
+        if fragment in reference:
+            return reference
+    return "unresolved"
+
+
 def main() -> int:
     root = ensure_layout(resolve_results_dir())
     env_dir = environment_dir(root)
+    image_digests = _image_digests(env_dir)
 
     hashes: dict[str, str] = {}
     sanitized: dict[str, dict] = {}
@@ -133,8 +152,13 @@ def main() -> int:
         "software": {
             "python": platform.python_version(),
             "matrix_nio": _package_version("matrix-nio"),
-            "synapse_image": os.environ.get("SYNAPSE_IMAGE", "unset"),
-            "postgres_image": os.environ.get("POSTGRES_IMAGE", "unset"),
+            # The images are pinned in docker-compose.yml, not supplied by the
+            # environment, so the resolved digests are the honest source. The
+            # environment variables are legacy and would report "unset" for
+            # images that were pinned all along.
+            "synapse_image": _image_named("synapse", image_digests),
+            "postgres_image": _image_named("postgres", image_digests),
+            "image_digests": image_digests,
         },
         "host": {
             "os": platform.system(),
@@ -154,7 +178,8 @@ def main() -> int:
         "sanitized_config": sanitized,
         "notes": [
             "Synapse and PostgreSQL image digests are recorded by the host "
-            "tooling; see environment/image-digests.json when present.",
+            "tooling into environment/image-digests.json and reproduced "
+            "under software.image_digests above.",
             "Development environment. publication_data is false and these "
             "values are not publication evidence.",
         ],

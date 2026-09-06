@@ -373,6 +373,43 @@ def generate(args: argparse.Namespace) -> int:
 
 # ------------------------------------------------------------------ validate
 
+#: The one path the tagging commit is allowed to add on top of the
+#: implementation it locks.
+LOCK_ARTIFACT_PATH = "results/protocol-lock.json"
+
+
+def _implementation_drift(locked_commit: str, head: str) -> list[str]:
+    """Paths that differ between the locked implementation and HEAD.
+
+    Empty means the two are identical, which cannot happen here because HEAD is
+    the commit that added the lock. Exactly the lock artifact means the tag
+    reproduces the locked implementation. Anything else is drift: code changed
+    between the lock being generated and the lock being committed.
+    """
+    diff = _git("diff", "--name-only", locked_commit, head)
+    if not diff:
+        raw = os.environ.get("FAM_IMPLEMENTATION_DIFF")
+        if raw is None:
+            return [
+                f"HEAD {head[:12]} != locked commit {locked_commit[:12]} and "
+                f"FAM_IMPLEMENTATION_DIFF is unset, so the difference between "
+                f"them was never examined. Use `make lock-check`."
+            ]
+        diff = raw
+    changed = sorted(p for p in diff.split("\n") if p.strip())
+    unexpected = [p for p in changed if p != LOCK_ARTIFACT_PATH]
+    if unexpected:
+        return [
+            f"HEAD {head[:12]} changes more than the lock artifact relative to "
+            f"the locked implementation {locked_commit[:12]}: {unexpected}"
+        ]
+    if LOCK_ARTIFACT_PATH not in changed:
+        return [
+            f"HEAD {head[:12]} differs from the locked implementation "
+            f"{locked_commit[:12]} but not by the lock artifact"
+        ]
+    return []
+
 
 def validate(args: argparse.Namespace) -> int:
     target = Path(args.path) if args.path else None
@@ -394,7 +431,13 @@ def validate(args: argparse.Namespace) -> int:
             "cannot determine HEAD, so the lock cannot be tied to a commit"
         )
     elif locked_commit and commit != locked_commit:
-        failures.append(f"HEAD {commit[:12]} != locked commit {locked_commit[:12]}")
+        # A lock cannot name the commit that carries it: the artifact must exist
+        # before it can be committed. So it names the implementation commit, and
+        # HEAD is the commit that adds the lock on top. That is only acceptable
+        # while the lock file is the *entire* difference between them -- one
+        # other changed path and the tag no longer reproduces the implementation
+        # the lock describes.
+        failures.extend(_implementation_drift(locked_commit, commit))
 
     try:
         if _worktree_status():
