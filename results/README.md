@@ -37,10 +37,12 @@ everything derived from it, plus the digests that tie the two together.
 |---|---|
 | Campaign | `fam-formal-651a6ef1b2062472` (as named by the lock) |
 | Campaign as executed | `fam-formal-b260ac4df1f524a5` |
-| Aggregate SHA-256 | `24769e5cb638de3b67833df3e4dfe2c1136b9f642bde65047433248c0ddf5a26` |
-| Files | 435 |
-| Size | 216.9 MB |
-| Format | JSON Lines, one stream per run, uncompressed |
+| Aggregate SHA-256 | `391712ab516049b19689f3b897c398096c8b8d05df358493b470d7b99838cc07` |
+| Files | 433 |
+| Size | 216.8 MB |
+| Format | JSON Lines, one stream per run |
+| Archive file | `fam-formal-raw-b260ac4df1f524a5.tar.gz`, 19.0 MB gzip |
+| Archive SHA-256 | `c9ded3458c0cc4717be812e6b693561934fd1c69caa67565f6e8c4551b855d6d` |
 | Producing Git tag | `protocol-v1.2-lock2` |
 | Tagged commit — what executed | `cd3f3c2aaae54be74728bb242f6bd7d606768ef8` |
 | Locked implementation commit | `f7bcc00002ddbc1eab17e17d97b3746040db06af` |
@@ -60,6 +62,8 @@ the sorted `<sha256>  <path>` lines of
 and what they are called, not on tar format, compression or timestamps. That
 inventory is committed here, so the digest can be recomputed from this repository
 against any copy of the raw collection. The collection contains more than one `processed/experiment-summary-*.json`: the analysis was re-run to confirm §63 reproduction, and the copies differ only in `generated_at`. The one committed here is the authoritative summary.
+
+Two files are excluded from the inventory and named in it: the inventory itself and `collection-completion.json`. Both are written after the inventory is computed, so including them would record their previous contents and make the aggregate digest unverifiable against the collection it describes. Skip those two and it recomputes exactly — checked by extracting the archive on a different machine and recomputing from scratch, 433 files, zero per-file mismatches.
 
 **The two campaign identifiers differ, and both are recorded on purpose.** A lock
 cannot name the commit that carries it: the artifact has to exist before it can be

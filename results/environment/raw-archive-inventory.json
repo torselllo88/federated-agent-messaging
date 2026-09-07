@@ -1,14 +1,18 @@
 {
   "artifact": "formal_raw_archive_inventory",
-  "generated_at": "2026-09-07T08:51:49Z",
+  "generated_at": "2026-09-07T09:36:33Z",
   "campaign_id": "fam-formal-651a6ef1b2062472",
   "producing_git_commit": "f7bcc00002ddbc1eab17e17d97b3746040db06af",
   "producing_git_tag": "protocol-v1.2-lock2",
   "result_root": "/results",
-  "file_count": 435,
-  "total_bytes": 216871153,
-  "aggregate_sha256": "24769e5cb638de3b67833df3e4dfe2c1136b9f642bde65047433248c0ddf5a26",
-  "aggregate_definition": "SHA-256 over the newline-joined '<sha256>  <path>' lines of the inventory below, sorted by POSIX path. Defined over content and names rather than over a container, so it does not depend on tar format, compression or timestamps.",
+  "file_count": 433,
+  "total_bytes": 216780337,
+  "aggregate_sha256": "391712ab516049b19689f3b897c398096c8b8d05df358493b470d7b99838cc07",
+  "aggregate_definition": "SHA-256 over the newline-joined '<sha256>  <path>' lines of the inventory below, sorted by POSIX path. Defined over content and names rather than over a container, so it does not depend on tar format, compression or timestamps. This file and collection-completion.json are excluded: they are written after the inventory is computed, so including them would record their previous contents and make the digest unverifiable against the collection it describes.",
+  "excluded_from_inventory": [
+    "environment/collection-completion.json",
+    "environment/raw-archive-inventory.json"
+  ],
   "files": [
     {
       "path": "campaigns/fam-formal-b260ac4df1f524a5.json",
@@ -24,11 +28,6 @@
       "path": "e3-campaign.log",
       "sha256": "13cb1de9845b6092474c5d81df78553f891e77bbf815269103d9ac4244a14274",
       "bytes": 28008
-    },
-    {
-      "path": "environment/collection-completion.json",
-      "sha256": "ac2c1e51b93db7a078c35121d90017535e640711675100a25566f5bf9f8b22f7",
-      "bytes": 953
     },
     {
       "path": "environment/e4-preparation.json",
@@ -94,11 +93,6 @@
       "path": "environment/protocol-lock.json",
       "sha256": "813c847a1c7eace404749c2cc3878cc75abda0ed410aa534765b8427eb1192f8",
       "bytes": 41471
-    },
-    {
-      "path": "environment/raw-archive-inventory.json",
-      "sha256": "11efa076623dbb739045e103bebbea4f01ff4de8aae06fbfd72453705b410f7c",
-      "bytes": 89863
     },
     {
       "path": "environment/testbed-inventory.json",
