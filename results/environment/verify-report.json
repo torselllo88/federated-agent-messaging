@@ -1,0 +1,284 @@
+{
+  "checks": [
+    {
+      "name": "FAM_RESULTS_DIR usable and outside the repository",
+      "ok": true,
+      "detail": "/results"
+    },
+    {
+      "name": "domain A /health",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "domain B /health",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "hs-a.test resolves",
+      "ok": true,
+      "detail": "172.28.0.4"
+    },
+    {
+      "name": "hs-b.test resolves",
+      "ok": true,
+      "detail": "172.28.0.5"
+    },
+    {
+      "name": "hs-a.test:8448 accepts TCP",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "hs-b.test:8448 accepts TCP",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "private CA available",
+      "ok": true,
+      "detail": "/tls/ca.crt"
+    },
+    {
+      "name": "hs-a.test TLS handshake verified against private CA",
+      "ok": true,
+      "detail": "CN=hs-a.test"
+    },
+    {
+      "name": "hs-a.test signing-key discovery",
+      "ok": true,
+      "detail": "server_name=hs-a.test keys=['ed25519:a_facI']"
+    },
+    {
+      "name": "hs-b.test TLS handshake verified against private CA",
+      "ok": true,
+      "detail": "CN=hs-b.test"
+    },
+    {
+      "name": "hs-b.test signing-key discovery",
+      "ok": true,
+      "detail": "server_name=hs-b.test keys=['ed25519:a_PBNz']"
+    },
+    {
+      "name": "domain A may dial hs-b.test (172.28.0.5)",
+      "ok": true,
+      "detail": "whitelist=['172.28.0.0/16']"
+    },
+    {
+      "name": "domain B may dial hs-a.test (172.28.0.4)",
+      "ok": true,
+      "detail": "whitelist=['172.28.0.0/16']"
+    },
+    {
+      "name": "domain A config hash matches frozen baseline",
+      "ok": true,
+      "detail": "38f4581044d46f5c\u2026"
+    },
+    {
+      "name": "domain B config hash matches frozen baseline",
+      "ok": true,
+      "detail": "a93c3b0e32dc4f47\u2026"
+    },
+    {
+      "name": "public_baseurl names the published Client-Server port",
+      "ok": true,
+      "detail": "https://hs-a.test:8449 (expected https://hs-a.test:8449)"
+    },
+    {
+      "name": "domain A rc_message non-binding",
+      "ok": true,
+      "detail": "per_second=1000 burst=20000 planned peak=200"
+    },
+    {
+      "name": "domain A rc_room_creation documented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "domain A rc_joins documented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "domain A rc_invites documented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "domain A rc_login documented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "domain A rc_federation documented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "domain B rc_message non-binding",
+      "ok": true,
+      "detail": "per_second=1000 burst=20000 planned peak=200"
+    },
+    {
+      "name": "domain B rc_room_creation documented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "domain B rc_joins documented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "domain B rc_invites documented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "domain B rc_login documented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "domain B rc_federation documented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "rate-limit configuration identical on both domains",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "config_hashes": {
+    "A": "38f4581044d46f5c4d6a58de8c742aaf328dc34be85cbceaae8e23f2e210325e",
+    "B": "a93c3b0e32dc4f47dbd36a574a270c446d30d204abd3df952c40751e07b7b1c1"
+  },
+  "rate_limits": {
+    "A": {
+      "rc_message": {
+        "per_second": 1000,
+        "burst_count": 20000
+      },
+      "rc_registration": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_login": {
+        "address": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "account": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "failed_attempts": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_room_creation": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_joins": {
+        "local": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "remote": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_invites": {
+        "per_room": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_user": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_issuer": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_federation": {
+        "window_size": 1000,
+        "sleep_limit": 10,
+        "sleep_delay": 500,
+        "reject_limit": 50,
+        "concurrent": 3
+      }
+    },
+    "B": {
+      "rc_message": {
+        "per_second": 1000,
+        "burst_count": 20000
+      },
+      "rc_registration": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_login": {
+        "address": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "account": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "failed_attempts": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_room_creation": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_joins": {
+        "local": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "remote": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_invites": {
+        "per_room": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_user": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_issuer": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_federation": {
+        "window_size": 1000,
+        "sleep_limit": 10,
+        "sleep_delay": 500,
+        "reject_limit": 50,
+        "concurrent": 3
+      }
+    }
+  },
+  "client_discovery": {
+    "public_baseurl": "https://hs-a.test:8449",
+    "expected": "https://hs-a.test:8449",
+    "port": "8449"
+  },
+  "scope_note": "transport and bootstrap readiness only; no room-level federation behaviour was exercised (experimental-protocol.md \u00a74.1)"
+}

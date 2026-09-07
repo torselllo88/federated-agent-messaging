@@ -1,0 +1,92 @@
+{
+  "artifact": "e4_preparation_report",
+  "note": "Credentials are printed to the console only, never recorded here.",
+  "publication_data": true,
+  "cs_tls_port": 8449,
+  "cs_https_endpoint": "https://hs-a.test:8449",
+  "cs_http_internal": "http://synapse-a:8008",
+  "endpoint": {
+    "reachable": true,
+    "subject_alt_names": [
+      "hs-a.test",
+      "*.hs-a.test"
+    ],
+    "client_api_served": true,
+    "federation_endpoint_ok": true,
+    "advertised_base_url": "https://hs-a.test:8449"
+  },
+  "llm": {
+    "provider": "openai_compatible",
+    "model": "anthropic/claude-haiku-4.5",
+    "base_url": "https://openrouter.ai/api",
+    "max_tokens": 512,
+    "system_prompt": "You are a helpful assistant participating in a Matrix chat room. Answer the user's message directly and concisely in plain text.",
+    "conversation_history_turns": 0,
+    "agent_configuration_hash": "6deb8e2be1a16af89e1540454337aa61cd5a8ea5c9f43d024d5e93f4733d5b8e"
+  },
+  "provider_preflight": {
+    "ok": true,
+    "model_reported_by_provider": "anthropic/claude-haiku-4.5",
+    "http_status": 200,
+    "input_tokens": 40,
+    "output_tokens": 4
+  },
+  "checks": [
+    {
+      "check": "@actual-human:hs-a.test provisioned",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "@human-role-b:hs-b.test provisioned",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "@llm-agent:hs-b.test provisioned",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "TLS handshake on 8449 verified against the research CA",
+      "ok": true,
+      "detail": "server name hs-a.test accepted; SAN ['hs-a.test', '*.hs-a.test']"
+    },
+    {
+      "check": "Client-Server API served over HTTPS and trusted by the research CA",
+      "ok": true,
+      "detail": "/_matrix/client/versions -> 200"
+    },
+    {
+      "check": "Server-Server federation endpoint still answers on 8448",
+      "ok": true,
+      "detail": "the E4 client listener is separate and must not disturb it (/_matrix/key/v2/server -> 200)"
+    },
+    {
+      "check": "advertised client base URL names the Client-Server port",
+      "ok": true,
+      "detail": "https://hs-a.test:8449 (expected https://hs-a.test:8449)"
+    },
+    {
+      "check": "the advertised base URL serves the Client-Server API",
+      "ok": true,
+      "detail": "a standard client switches to this address after login (/_matrix/client/versions -> 200)"
+    },
+    {
+      "check": "provider configured",
+      "ok": true,
+      "detail": "openai_compatible / anthropic/claude-haiku-4.5"
+    },
+    {
+      "check": "FAM_LLM_API_KEY present",
+      "ok": true,
+      "detail": "value not shown and never written to an artifact"
+    },
+    {
+      "check": "provider answered a minimal request",
+      "ok": true,
+      "detail": "anthropic/claude-haiku-4.5 responded with 5 characters"
+    }
+  ],
+  "ready": true
+}

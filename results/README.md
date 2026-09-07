@@ -30,78 +30,68 @@ Subdirectories appear when they have content. Empty ones are not committed ([`te
 
 ## Raw-data artifact record
 
-To be completed when the dataset is archived. Until then every field is empty by construction.
+The raw collection lives outside this repository. What is committed here is
+everything derived from it, plus the digests that tie the two together.
 
 | Field | Value |
 |---|---|
-| Archive filename | — |
-| SHA-256 of archive | — |
-| Archive size | — |
-| Format | JSON Lines, gzip-compressed tar |
-| Producing Git commit | — |
-| Producing Git tag | — |
-| Protocol version | — |
-| Result schema version | — |
-| Formal-run host identifier | — |
-| Analysis spec version | — |
-| Analysis code commit | — |
-| Collection start | — |
-| Collection end | — |
-| Formal runs contained | 0 of 129, plus 0 of 3 E4 sessions |
-| Deposit location / DOI | — |
+| Campaign | `fam-formal-651a6ef1b2062472` (as named by the lock) |
+| Campaign as executed | `fam-formal-b260ac4df1f524a5` |
+| Aggregate SHA-256 | `24769e5cb638de3b67833df3e4dfe2c1136b9f642bde65047433248c0ddf5a26` |
+| Files | 435 |
+| Size | 216.9 MB |
+| Format | JSON Lines, one stream per run, uncompressed |
+| Producing Git tag | `protocol-v1.2-lock2` |
+| Tagged commit — what executed | `cd3f3c2aaae54be74728bb242f6bd7d606768ef8` |
+| Locked implementation commit | `f7bcc00002ddbc1eab17e17d97b3746040db06af` |
+| Protocol version | 1.2 |
+| Raw schema version | 2 |
+| Manifest schema version | 1 |
+| Formal-run host | `fam-formal-linode-48865d44` |
+| Analysis spec version | 1.2 |
+| Analysis code commit | `3ce91c0dee6e0566b6729524cd62e09d3948934e` |
+| Collection start | 2026-09-06T16:04:51Z |
+| Collection end | 2026-09-06T19:34:09Z |
+| Formal runs contained | 129 automated, plus 3 E4 sessions |
 
-Per-file digests are in the run manifests, not here. The archive digest identifies the collection as a whole; the manifest digests make it verifiable file by file, so a single corrupted or substituted run is detectable.
+The aggregate digest is defined over the inventory rather than over a container:
+the sorted `<sha256>  <path>` lines of
+`environment/raw-archive-inventory.json`, which depends on what the files contain
+and what they are called, not on tar format, compression or timestamps. That
+inventory is committed here, so the digest can be recomputed from this repository
+against any copy of the raw collection. The collection contains more than one `processed/experiment-summary-*.json`: the analysis was re-run to confirm §63 reproduction, and the copies differ only in `generated_at`. The one committed here is the authoritative summary.
 
-Four provenance identifiers are kept distinct and every imported artifact carries all four: `protocol_git_commit` (the lock the data was produced under), the raw-stream SHA-256s, `analysis_spec_version` (the frozen analytical methodology) and `analysis_code_commit` (the implementation that produced the processed form). The commit that imports them is a fifth, and is none of these.
-
-The last two are separate on purpose: the analysis implementation may be written or corrected after collection, but changing the specification it implements is a methodological revision and is disclosed as one ([`experimental-protocol.md` §3](../docs/experimental-protocol.md) Phase 4).
-
-`protocol_version` and `analysis_spec_version` are independent counters — one can move without the other, and bumping both by reflex would erase the distinction.
-
-## Contents of the archive
-
-| Path in archive | Runs | Streams per run |
-|---|---:|---|
-| `raw/e0/` | 3 | runner interaction, agent telemetry |
-| `raw/e1/` | 3 | runner interaction, agent telemetry |
-| `raw/e2/` | 3 | runner interaction, agent telemetry |
-| `raw/e3/latency/` | 40 | runner interaction, agent telemetry |
-| `raw/e3/throughput/` | 80 | runner interaction, agent telemetry |
-| `raw/e4/` | 3 | session record, transcript, screenshot |
-
-Every automated run produces two append-only streams joined by `run_id`. The agent telemetry stream is not optional: E2's acceptance criteria are agent-side facts that the runner stream cannot evidence.
-
-E4 is described by a different manifest variant — `human_llm_validation_manifest` — because concurrency, warm-up and measurement-window fields do not apply to it ([`experimental-protocol.md` §38](../docs/experimental-protocol.md)).
+**The two campaign identifiers differ, and both are recorded on purpose.** A lock
+cannot name the commit that carries it: the artifact has to exist before it can be
+committed, so the lock embeds the commit it was generated from, and the campaign
+identifier derives from that parameter set. Every execution parameter is identical
+between the two, and the executed schedule matches the locked schedule run for run.
+This is the single deviation the campaign carries.
 
 ## Reproduction path
 
 Regenerating the reported tables and figures from the archived raw data:
 
 ```bash
-export FAM_RESULTS_DIR=/path/to/extracted/archive
+export FAM_RESULTS_DIR=/path/to/the/raw/collection
 
-git checkout <producing Git tag>
+git checkout protocol-v1.2-lock2
 make verify                       # environment and federation readiness
 make lock-check                   # lock, commit and tag agree
-python scripts/verify_digests.py  # manifest SHA-256 vs archive contents
-make analyse                      # processed datasets, tables, figures
+make audit                        # impossible states, provenance, secrets
+make analyse                      # processed datasets and tables
+make figures                      # SVG from the processed tables
 ```
 
-Regenerating the raw data itself — a full re-run rather than a re-analysis:
+`make analyse` and `make figures` read only the raw collection and the processed
+tables respectively, so the chain from evidence to figure is:
 
-```bash
-export FAM_RESULTS_DIR=/path/outside/the/repository
-
-git checkout <producing Git tag>
-make setup
-make verify
-make e0 e1 e2 e3
-make e4                           # requires an LLM API credential and a human
+```text
+raw -> processed -> figure script -> SVG
 ```
 
-A re-run reproduces the *procedure*, not the numbers. E3 timings are specific to the formal-run host recorded in the manifest, and the manuscript makes no cross-host generalization.
-
-Note that a re-run starts its own campaign: `HEAD` returns to the lock tag, `$FAM_RESULTS_DIR` must again be outside the tree, and the results arrive through their own post-experiment import.
+No number in any figure is written by hand; each is read from
+`processed/e3-tables/*.csv`.
 
 ## Integrity rules
 

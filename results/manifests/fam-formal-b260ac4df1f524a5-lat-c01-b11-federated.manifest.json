@@ -1,0 +1,266 @@
+{
+  "manifest_type": "automated_experiment_manifest",
+  "manifest_schema_version": "1",
+  "experiment": "E3",
+  "execution_protocol_version": "1.2",
+  "execution_analysis_spec_version": "1.2",
+  "protocol_git_commit": "cd3f3c2aaae54be74728bb242f6bd7d606768ef8",
+  "raw_schema_version": "2",
+  "publication_data": true,
+  "run_id": "fam-formal-b260ac4df1f524a5-lat-c01-b11-federated",
+  "room_id": "!ms956Gliq-4DDxHCTUsooHR2nuegg5olME-EyRr7pBg",
+  "room_version": "12",
+  "participants": {
+    "benchmark_sender": "@benchmark-human:hs-a.test",
+    "benchmark_agent": "@benchmark-agent-fed:hs-b.test"
+  },
+  "environment_manifest": "environment/environment-latest.json",
+  "execution_host_identifier": "fam-formal-linode-48865d44",
+  "start_timestamp": "2026-09-06T16:38:09Z",
+  "completion_timestamp": "2026-09-06T16:39:56Z",
+  "completion_status": "complete",
+  "validity_classification": {
+    "valid": true,
+    "invalid_class": null,
+    "note": ""
+  },
+  "topology": "federated",
+  "raw_artifacts": [
+    {
+      "role": "runner_interaction_stream",
+      "path": "raw/e3/latency/fam-formal-b260ac4df1f524a5-lat-c01-b11-federated.runner.jsonl",
+      "sha256": "d3d5f11d36c617f4005bfffbdc073269323ff3d5fcfa1857c79cd0876d8cde82",
+      "bytes": 645942
+    },
+    {
+      "role": "agent_telemetry_stream",
+      "path": "raw/e3/latency/fam-formal-b260ac4df1f524a5-lat-c01-b11-federated.agent.jsonl",
+      "sha256": "aa5ce5292948c1b18aa85f9b64343cfd39d1a4d558d6fac22d959e968fe7d5b6",
+      "bytes": 774478
+    }
+  ],
+  "workload_type": "latency",
+  "paired_block_id": "lat-block11",
+  "block_id": "lat-block11",
+  "block_index": 11,
+  "within_block_order": 1,
+  "schedule_seed": 20260905,
+  "campaign_id": "fam-formal-b260ac4df1f524a5",
+  "campaign_fingerprint": "b260ac4df1f524a5c85853721c5d767b36b4652cc5608054241293ebda7cc0a2",
+  "concurrency": 1,
+  "max_in_flight": 1,
+  "message_body_bytes": 256,
+  "interaction_timeout_seconds": 10.0,
+  "sync_configuration": {
+    "timeline_limit": 500,
+    "sync_timeout_ms": 30000,
+    "long_poll": true,
+    "artificial_delay_between_syncs_seconds": 0
+  },
+  "rate_limit_configuration_reference": {
+    "A": {
+      "rc_message": {
+        "per_second": 1000,
+        "burst_count": 20000
+      },
+      "rc_registration": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_login": {
+        "address": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "account": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "failed_attempts": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_room_creation": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_joins": {
+        "local": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "remote": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_invites": {
+        "per_room": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_user": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_issuer": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_federation": {
+        "window_size": 1000,
+        "sleep_limit": 10,
+        "sleep_delay": 500,
+        "reject_limit": 50,
+        "concurrent": 3
+      }
+    },
+    "B": {
+      "rc_message": {
+        "per_second": 1000,
+        "burst_count": 20000
+      },
+      "rc_registration": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_login": {
+        "address": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "account": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "failed_attempts": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_room_creation": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_joins": {
+        "local": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "remote": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_invites": {
+        "per_room": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_user": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_issuer": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_federation": {
+        "window_size": 1000,
+        "sleep_limit": 10,
+        "sleep_delay": 500,
+        "reject_limit": 50,
+        "concurrent": 3
+      }
+    }
+  },
+  "room_membership": [
+    "@benchmark-agent-fed:hs-b.test",
+    "@benchmark-human:hs-a.test"
+  ],
+  "room_encryption_enabled": false,
+  "host_diagnostics": {
+    "host_identifier": "fam-formal-linode-48865d44",
+    "runner_container": "3cb097dd2212",
+    "os": "Linux",
+    "kernel": "6.8.0-139-generic",
+    "machine": "x86_64",
+    "python": "3.12.14",
+    "logical_cpus": 4,
+    "cpu_affinity": 4,
+    "load_average_1_5_15": [
+      1.074,
+      1.345,
+      1.244
+    ],
+    "memtotal_bytes": 8325914624,
+    "memavailable_bytes": 6898323456,
+    "docker_cli_present": false,
+    "synapse_image": "unset",
+    "postgres_image": "unset",
+    "note": "captured before fam-formal-b260ac4df1f524a5-lat-c01-b11-federated",
+    "sender_joined_rooms": 21
+  },
+  "sender_transport_diagnostics": {
+    "live_recovery_episodes": 0,
+    "live_recovery_pages": 0,
+    "live_recovery_failures": 0,
+    "limited_syncs_observed": 0,
+    "recovery_episode_log": [],
+    "sync_slices_observed": 1100,
+    "max_timeline_events_observed": 1,
+    "max_message_events_observed": 1,
+    "sync_timeline_limit": 500,
+    "sync_timeout_ms": 30000
+  },
+  "setup_transport_diagnostics": {
+    "live_recovery_episodes": 1,
+    "live_recovery_pages": 1,
+    "live_recovery_failures": 0,
+    "limited_syncs_observed": 1,
+    "recovery_episode_log": [
+      {
+        "recovery_episode": 1,
+        "room_id": "!ms956Gliq-4DDxHCTUsooHR2nuegg5olME-EyRr7pBg",
+        "started_monotonic_ns": 11376248063347,
+        "reconciled_monotonic_ns": 11376259102630,
+        "history_pages_fetched": 1,
+        "recovered_from_history": 0
+      }
+    ],
+    "sync_slices_observed": 22,
+    "max_timeline_events_observed": 8,
+    "max_message_events_observed": 0,
+    "sync_timeline_limit": 500,
+    "sync_timeout_ms": 30000
+  },
+  "agent_transport_diagnostics": {
+    "acks_emitted": 550,
+    "distinct_sequences_answered": 550,
+    "live_recovery_episodes": 1,
+    "live_recovery_pages": 1,
+    "live_recovery_failures": 0,
+    "limited_syncs": 1,
+    "checkpoint_commits": 1101,
+    "setup_recovery_episodes": 1,
+    "productive_recovery_episodes": 0,
+    "events_recovered_from_history": 0
+  },
+  "problems": [],
+  "scope_note": "Development E3 run. publication_data is false; these numbers are implementation validation and are not publication evidence.",
+  "warmup_interactions": 50,
+  "measured_interactions": 500,
+  "window_start_ns": null,
+  "window_end_ns": null,
+  "drain_end_ns": null,
+  "drain_seconds": null,
+  "interactions_initiated": 550,
+  "duplicate_ack_observations": 0,
+  "requests_with_duplicate_acks": 0,
+  "send_errors": 0,
+  "rate_limited_sends": 0,
+  "send_errcodes": []
+}

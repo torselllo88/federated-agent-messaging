@@ -1,0 +1,49 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='720' height='300' viewBox='0 0 720 300' role='img' aria-label='Federated-to-local ratio for each latency percentile and each tested concurrency, with 95% paired bootstrap intervals.'>
+  <title>E3 paired ratios with confidence intervals</title>
+  <desc>Federated-to-local ratio for each latency percentile and each tested concurrency, with 95% paired bootstrap intervals.</desc>
+  <rect width='720' height='300' fill='#ffffff'/>
+  <line x1='190.0' y1='66' x2='190.0' y2='246' stroke='#d8d8d8' stroke-width='1'/>
+  <text x='190.0' y='264.0' font-family='Helvetica,Arial,sans-serif' font-size='10' text-anchor='middle' fill='#666666' font-weight='normal'>0.75</text>
+  <line x1='307.5' y1='66' x2='307.5' y2='246' stroke='#d8d8d8' stroke-width='1'/>
+  <text x='307.5' y='264.0' font-family='Helvetica,Arial,sans-serif' font-size='10' text-anchor='middle' fill='#666666' font-weight='normal'>1</text>
+  <line x1='425.0' y1='66' x2='425.0' y2='246' stroke='#d8d8d8' stroke-width='1'/>
+  <text x='425.0' y='264.0' font-family='Helvetica,Arial,sans-serif' font-size='10' text-anchor='middle' fill='#666666' font-weight='normal'>1.25</text>
+  <line x1='542.5' y1='66' x2='542.5' y2='246' stroke='#d8d8d8' stroke-width='1'/>
+  <text x='542.5' y='264.0' font-family='Helvetica,Arial,sans-serif' font-size='10' text-anchor='middle' fill='#666666' font-weight='normal'>1.5</text>
+  <line x1='660.0' y1='66' x2='660.0' y2='246' stroke='#d8d8d8' stroke-width='1'/>
+  <text x='660.0' y='264.0' font-family='Helvetica,Arial,sans-serif' font-size='10' text-anchor='middle' fill='#666666' font-weight='normal'>1.75</text>
+  <line x1='307.5' y1='58' x2='307.5' y2='250' stroke='#444444' stroke-width='1' stroke-dasharray='4 3'/>
+  <text x='307.5' y='52.0' font-family='Helvetica,Arial,sans-serif' font-size='9' text-anchor='middle' fill='#666666' font-weight='normal'>no difference</text>
+  <line x1='670.4' y1='96.0' x2='676.5' y2='96.0' stroke='#2f6f9f' stroke-width='2'/>
+  <line x1='670.4' y1='91.0' x2='670.4' y2='101.0' stroke='#2f6f9f' stroke-width='2'/>
+  <line x1='676.5' y1='91.0' x2='676.5' y2='101.0' stroke='#2f6f9f' stroke-width='2'/>
+  <circle cx='673.8' cy='96.0' r='4' fill='#2f6f9f'/>
+  <text x='176.0' y='100.0' font-family='Helvetica,Arial,sans-serif' font-size='11' text-anchor='end' fill='#1a1a1a' font-weight='normal'>latency p50</text>
+  <text x='686.5' y='100.0' font-family='Helvetica,Arial,sans-serif' font-size='10' text-anchor='start' fill='#666666' font-weight='normal'>1.7794</text>
+  <line x1='656.0' y1='126.0' x2='668.5' y2='126.0' stroke='#2f6f9f' stroke-width='2'/>
+  <line x1='656.0' y1='121.0' x2='656.0' y2='131.0' stroke='#2f6f9f' stroke-width='2'/>
+  <line x1='668.5' y1='121.0' x2='668.5' y2='131.0' stroke='#2f6f9f' stroke-width='2'/>
+  <circle cx='661.8' cy='126.0' r='4' fill='#2f6f9f'/>
+  <text x='176.0' y='130.0' font-family='Helvetica,Arial,sans-serif' font-size='11' text-anchor='end' fill='#1a1a1a' font-weight='normal'>latency p95</text>
+  <text x='678.5' y='130.0' font-family='Helvetica,Arial,sans-serif' font-size='10' text-anchor='start' fill='#666666' font-weight='normal'>1.7539</text>
+  <line x1='643.6' y1='156.0' x2='659.9' y2='156.0' stroke='#2f6f9f' stroke-width='2'/>
+  <line x1='643.6' y1='151.0' x2='643.6' y2='161.0' stroke='#2f6f9f' stroke-width='2'/>
+  <line x1='659.9' y1='151.0' x2='659.9' y2='161.0' stroke='#2f6f9f' stroke-width='2'/>
+  <circle cx='652.3' cy='156.0' r='4' fill='#2f6f9f'/>
+  <text x='176.0' y='160.0' font-family='Helvetica,Arial,sans-serif' font-size='11' text-anchor='end' fill='#1a1a1a' font-weight='normal'>latency p99</text>
+  <text x='669.9' y='160.0' font-family='Helvetica,Arial,sans-serif' font-size='10' text-anchor='start' fill='#666666' font-weight='normal'>1.7336</text>
+  <line x1='203.7' y1='186.0' x2='208.3' y2='186.0' stroke='#c2622d' stroke-width='2'/>
+  <line x1='203.7' y1='181.0' x2='203.7' y2='191.0' stroke='#c2622d' stroke-width='2'/>
+  <line x1='208.3' y1='181.0' x2='208.3' y2='191.0' stroke='#c2622d' stroke-width='2'/>
+  <circle cx='206.2' cy='186.0' r='4' fill='#c2622d'/>
+  <text x='176.0' y='190.0' font-family='Helvetica,Arial,sans-serif' font-size='11' text-anchor='end' fill='#1a1a1a' font-weight='normal'>C=8 median observed throughput</text>
+  <text x='218.3' y='190.0' font-family='Helvetica,Arial,sans-serif' font-size='10' text-anchor='start' fill='#666666' font-weight='normal'>0.7844</text>
+  <line x1='195.4' y1='216.0' x2='199.2' y2='216.0' stroke='#c2622d' stroke-width='2'/>
+  <line x1='195.4' y1='211.0' x2='195.4' y2='221.0' stroke='#c2622d' stroke-width='2'/>
+  <line x1='199.2' y1='211.0' x2='199.2' y2='221.0' stroke='#c2622d' stroke-width='2'/>
+  <circle cx='197.2' cy='216.0' r='4' fill='#c2622d'/>
+  <text x='176.0' y='220.0' font-family='Helvetica,Arial,sans-serif' font-size='11' text-anchor='end' fill='#1a1a1a' font-weight='normal'>C=32 median observed throughput</text>
+  <text x='209.2' y='220.0' font-family='Helvetica,Arial,sans-serif' font-size='10' text-anchor='start' fill='#666666' font-weight='normal'>0.7654</text>
+  <text x='20.0' y='26.0' font-family='Helvetica,Arial,sans-serif' font-size='15' text-anchor='start' fill='#1a1a1a' font-weight='600'>Federated relative to local, paired bootstrap</text>
+  <text x='20.0' y='44.0' font-family='Helvetica,Arial,sans-serif' font-size='9' text-anchor='start' fill='#666666' font-weight='normal'>point is the paired ratio; bar is the 95% interval over 20 resampled blocks. Latency above 1 is slower; throughput below 1 is fewer completions.</text>
+</svg>

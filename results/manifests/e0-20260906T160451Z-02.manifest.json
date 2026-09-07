@@ -1,0 +1,92 @@
+{
+  "manifest_type": "automated_experiment_manifest",
+  "manifest_schema_version": "1",
+  "experiment": "E0",
+  "execution_protocol_version": "1.2",
+  "execution_analysis_spec_version": "1.2",
+  "protocol_git_commit": "cd3f3c2aaae54be74728bb242f6bd7d606768ef8",
+  "raw_schema_version": "2",
+  "publication_data": true,
+  "run_id": "e0-20260906T160451Z-02",
+  "room_id": "!RPUYQEJJIh5rk7H4eq-zsR3ttU5wDI5TZgqdbgLHKcw",
+  "room_version": "12",
+  "participants": {
+    "human_a": "@human-a:hs-a.test",
+    "local_agent": "@agent-local:hs-a.test"
+  },
+  "environment_manifest": "environment/environment-latest.json",
+  "execution_host_identifier": "fam-formal-linode-48865d44",
+  "start_timestamp": "2026-09-06T16:05:04Z",
+  "completion_timestamp": "2026-09-06T16:05:17Z",
+  "completion_status": "pass",
+  "validity_classification": {
+    "valid": true,
+    "invalid_class": null,
+    "note": ""
+  },
+  "topology": "same-domain",
+  "raw_artifacts": [
+    {
+      "role": "runner_interaction_stream",
+      "path": "raw/e0/e0-20260906T160451Z-02.runner.jsonl",
+      "sha256": "94a4675c1d4a61bf2f70d22010cd322ed7ea8cc2caaf6417345c7fad9406b36a",
+      "bytes": 32251
+    },
+    {
+      "role": "agent_telemetry_stream",
+      "path": "raw/e0/e0-20260906T160451Z-02.agent.jsonl",
+      "sha256": "020eac973b36f6726f681ba7d6650830ec966ef79fc6d638d12c8292dbec019f",
+      "bytes": 57915
+    }
+  ],
+  "requests_sent": 40,
+  "requests_acked": 40,
+  "duplicate_acks": 0,
+  "phases": [
+    {
+      "name": "pre_restart",
+      "sent": 20,
+      "acked": 20,
+      "timeouts": 0,
+      "duplicates": 0
+    },
+    {
+      "name": "post_restart",
+      "sent": 20,
+      "acked": 20,
+      "timeouts": 0,
+      "duplicates": 0
+    }
+  ],
+  "agent_identity_before_restart": "@agent-local:hs-a.test",
+  "agent_identity_after_restart": "@agent-local:hs-a.test",
+  "resumed_from_transport_checkpoint": true,
+  "membership_before": [
+    "@agent-local:hs-a.test",
+    "@human-a:hs-a.test"
+  ],
+  "membership_while_agent_stopped": [
+    "@agent-local:hs-a.test",
+    "@human-a:hs-a.test"
+  ],
+  "membership_after": [
+    "@agent-local:hs-a.test",
+    "@human-a:hs-a.test"
+  ],
+  "c2_evidence": {
+    "no_privileged_env_vars": true,
+    "privileged_env_vars_found": [],
+    "no_server_paths_visible": true,
+    "server_paths_found": [],
+    "no_signing_keys_visible": true,
+    "signing_keys_found": [],
+    "no_synapse_mounts": true,
+    "synapse_mounts_found": [],
+    "admin_probe_path": "/_synapse/admin/v2/users?from=0&limit=1",
+    "admin_probe_status": 403,
+    "admin_probe_denied": true,
+    "c2_supporting_evidence_complete": true,
+    "note": "Supporting evidence only. C2 rests on the combination of ordinary Client-Server operation, absent privileged credentials and mounts, explicit rejection of privileged API access, and successful E0."
+  },
+  "acceptance_failures": []
+}

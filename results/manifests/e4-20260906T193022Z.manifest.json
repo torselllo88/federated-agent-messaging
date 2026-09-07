@@ -1,0 +1,118 @@
+{
+  "manifest_type": "human_llm_validation_manifest",
+  "manifest_schema_version": "1",
+  "experiment": "E4",
+  "execution_protocol_version": "1.2",
+  "execution_analysis_spec_version": "1.2",
+  "protocol_git_commit": "cd3f3c2aaae54be74728bb242f6bd7d606768ef8",
+  "raw_schema_version": "2",
+  "publication_data": true,
+  "run_id": "e4-20260906T193022Z",
+  "room_id": "!2-qM1nYOQBslFGbOK_z8OGJhIOUSJWSpFMFwVFXgHJg",
+  "room_version": "12",
+  "participants": {
+    "actual_human": "@actual-human:hs-a.test",
+    "human_role_b": "@human-role-b:hs-b.test",
+    "llm_agent": "@llm-agent:hs-b.test"
+  },
+  "environment_manifest": "environment/environment-latest.json",
+  "execution_host_identifier": "fam-formal-linode-48865d44",
+  "start_timestamp": "2026-09-06T19:30:22Z",
+  "completion_timestamp": "2026-09-06T19:31:46Z",
+  "completion_status": "pass",
+  "validity_classification": {
+    "valid": true,
+    "invalid_class": null,
+    "note": ""
+  },
+  "human_client_name": "Element Desktop",
+  "human_client_version": "1.12.27",
+  "human_client_host": "external workstation/Windows 10 Pro 19045",
+  "llm_provider": "openai_compatible",
+  "llm_model": "anthropic/claude-haiku-4.5",
+  "agent_configuration_hash": "6deb8e2be1a16af89e1540454337aa61cd5a8ea5c9f43d024d5e93f4733d5b8e",
+  "executor_identifier": "llm",
+  "interaction_event_ids": [
+    {
+      "request_event_id": "$U0BfxTBPCbytv-iae4ZN5veSrcXHsI2STQJdEcGrM7c",
+      "request_sender": "@actual-human:hs-a.test",
+      "response_event_id": "$gYJyA1UUWQdgPjwxdgs0VW24rb72Od6jV-P8-ICjGlY",
+      "response_sender": "@llm-agent:hs-b.test",
+      "llm_provider": "openai_compatible",
+      "llm_model": "anthropic/claude-haiku-4.5",
+      "execution": {
+        "provider": "openai_compatible",
+        "model": "anthropic/claude-haiku-4.5",
+        "http_status": 200,
+        "stop_reason": "stop",
+        "response_characters": 112,
+        "input_tokens": 39,
+        "output_tokens": 31,
+        "executor": "llm"
+      }
+    },
+    {
+      "request_event_id": "$sBkwdH_ZJmLze7RJFU6lvS-Q8RKNzh_GvZeS9O9fbrg",
+      "request_sender": "@actual-human:hs-a.test",
+      "response_event_id": "$PA9kA05R6PH6mz2hQ5rQynHWq8Z7e-iyEm-zBM_kLpA",
+      "response_sender": "@llm-agent:hs-b.test",
+      "llm_provider": "openai_compatible",
+      "llm_model": "anthropic/claude-haiku-4.5",
+      "execution": {
+        "provider": "openai_compatible",
+        "model": "anthropic/claude-haiku-4.5",
+        "http_status": 200,
+        "stop_reason": "stop",
+        "response_characters": 464,
+        "input_tokens": 39,
+        "output_tokens": 106,
+        "executor": "llm"
+      }
+    },
+    {
+      "request_event_id": "$aJVZ9YH6co9BdazsIX545pL8JcJQVcxLqfwuxlPfWj8",
+      "request_sender": "@actual-human:hs-a.test",
+      "response_event_id": "$4E86qkk3cgmnWxDgbJ0aeqB6l8KmV-AztmB0KTnzsnI",
+      "response_sender": "@llm-agent:hs-b.test",
+      "llm_provider": "openai_compatible",
+      "llm_model": "anthropic/claude-haiku-4.5",
+      "execution": {
+        "provider": "openai_compatible",
+        "model": "anthropic/claude-haiku-4.5",
+        "http_status": 200,
+        "stop_reason": "stop",
+        "response_characters": 688,
+        "input_tokens": 37,
+        "output_tokens": 144,
+        "executor": "llm"
+      }
+    }
+  ],
+  "evidence_artifacts": [
+    {
+      "role": "transcript",
+      "path": "evidence/e4-20260906T193022Z/transcript.json",
+      "sha256": "2653f1ed22421fbfa5cfb4b551178ba645e9e4c31fd1a700ddef60d97ead91cf",
+      "bytes": 4472,
+      "note": "machine-readable"
+    }
+  ],
+  "functional_result": "pass",
+  "three_party_topology_confirmed": true,
+  "llm_model_configured": "anthropic/claude-haiku-4.5",
+  "llm_models_reported_by_provider": [
+    "anthropic/claude-haiku-4.5"
+  ],
+  "request_protocol": "natural_language",
+  "communication_runtime": "identical to E0-E3; only the executor and the request protocol differ",
+  "minimum_requests": 3,
+  "answered_requests_from_human": 3,
+  "human_confirmed_responses_visible": true,
+  "execution_failures": [],
+  "acceptance_failures": [],
+  "agent_telemetry": {
+    "path": "raw/e4/e4-20260906T193022Z.agent.jsonl",
+    "sha256": "da29bf48a4ba684581ea0c87db787b635ff13d5b21a36af0f0208672d862ef0a"
+  },
+  "scope_note": "Development validation. publication_data is false; C4 is not marked collected and no evidence counter is updated."
+}

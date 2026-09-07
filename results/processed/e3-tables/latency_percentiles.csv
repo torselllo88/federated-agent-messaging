@@ -1,0 +1,7 @@
+workload,topology,percentile,value_ms,successful_interactions,initiated_interactions,failure_rate,runs
+latency,local,p50,104.0277,10000,10000,0.0,20
+latency,local,p95,114.4918,10000,10000,0.0,20
+latency,local,p99,122.5013,10000,10000,0.0,20
+latency,federated,p50,185.1116,10000,10000,0.0,20
+latency,federated,p95,200.807,10000,10000,0.0,20
+latency,federated,p99,212.3728,10000,10000,0.0,20

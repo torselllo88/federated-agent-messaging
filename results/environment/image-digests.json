@@ -1,0 +1,5 @@
+{
+  "fam-toolbox:local": "fam-toolbox@sha256:f9b9304ff2c0157738df3b848377ddde80318a75f1dc347f9156107bb0c2434c",
+  "ghcr.io/element-hq/synapse:v1.159.0": "ghcr.io/element-hq/synapse@sha256:edf259d2b575b669a3e81024918ab8d5cfb7d2fba5a53c9e09695f1abc5645cb",
+  "postgres:16.4": "postgres@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412"
+}

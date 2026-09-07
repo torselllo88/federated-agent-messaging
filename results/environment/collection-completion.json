@@ -1,0 +1,32 @@
+{
+  "artifact": "formal_collection_completion",
+  "generated_at": "2026-09-07T08:51:49Z",
+  "publication_data": true,
+  "campaign_id": "fam-formal-651a6ef1b2062472",
+  "protocol_lock": {
+    "git_commit": "f7bcc00002ddbc1eab17e17d97b3746040db06af",
+    "git_tag": "protocol-v1.2-lock2"
+  },
+  "manifests": 132,
+  "runs_by_experiment": {
+    "E0": 3,
+    "E1": 3,
+    "E2": 3,
+    "E3": 120,
+    "E4": 3
+  },
+  "expected_by_experiment": {
+    "E0": 3,
+    "E1": 3,
+    "E2": 3,
+    "E3": 120,
+    "E4": 3
+  },
+  "all_runs_final": true,
+  "all_named_artifacts_verified": true,
+  "notes": [
+    "note: manifests record cd3f3c2aaae5, the lock names f7bcc00002dd -- expected, since a lock cannot name the commit that carries it"
+  ],
+  "collection_phase": "complete",
+  "statement": "Formal collection is closed. No further experiment run may be appended to this campaign; a later recollection is a separate, explicitly versioned campaign (Task 07 §43)."
+}

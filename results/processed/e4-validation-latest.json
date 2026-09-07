@@ -1,0 +1,96 @@
+{
+  "artifact": "e4_validation_summary",
+  "analysis_spec_version": "1.2",
+  "analysis_code_commit": "task-06-working-tree",
+  "publication_data": false,
+  "required_sessions": 3,
+  "sessions": [
+    {
+      "session_id": "e4-20260906T192750Z",
+      "room_id": "!RDZp5mOFhV6VXsft63_H86LTVWuUv2zrSz62wSpfn40",
+      "valid": true,
+      "invalid_class": null,
+      "completion_status": "pass",
+      "functional_result": "pass",
+      "answered_requests_from_human": 3,
+      "participants": [
+        "@actual-human:hs-a.test",
+        "@human-role-b:hs-b.test",
+        "@llm-agent:hs-b.test"
+      ],
+      "llm_provider": "openai_compatible",
+      "llm_model": "anthropic/claude-haiku-4.5",
+      "llm_models_reported_by_provider": [
+        "anthropic/claude-haiku-4.5"
+      ],
+      "agent_configuration_hash": "6deb8e2be1a16af89e1540454337aa61cd5a8ea5c9f43d024d5e93f4733d5b8e",
+      "evidence": [
+        {
+          "role": "transcript",
+          "path": "evidence/e4-20260906T192750Z/transcript.json"
+        }
+      ],
+      "problems": [],
+      "passed": true
+    },
+    {
+      "session_id": "e4-20260906T193022Z",
+      "room_id": "!2-qM1nYOQBslFGbOK_z8OGJhIOUSJWSpFMFwVFXgHJg",
+      "valid": true,
+      "invalid_class": null,
+      "completion_status": "pass",
+      "functional_result": "pass",
+      "answered_requests_from_human": 3,
+      "participants": [
+        "@actual-human:hs-a.test",
+        "@human-role-b:hs-b.test",
+        "@llm-agent:hs-b.test"
+      ],
+      "llm_provider": "openai_compatible",
+      "llm_model": "anthropic/claude-haiku-4.5",
+      "llm_models_reported_by_provider": [
+        "anthropic/claude-haiku-4.5"
+      ],
+      "agent_configuration_hash": "6deb8e2be1a16af89e1540454337aa61cd5a8ea5c9f43d024d5e93f4733d5b8e",
+      "evidence": [
+        {
+          "role": "transcript",
+          "path": "evidence/e4-20260906T193022Z/transcript.json"
+        }
+      ],
+      "problems": [],
+      "passed": true
+    },
+    {
+      "session_id": "e4-20260906T193231Z",
+      "room_id": "!c9Wp7N2wGqZbNhkKTwmANgp4j0UzrIiT1EjtaRwbFdo",
+      "valid": true,
+      "invalid_class": null,
+      "completion_status": "pass",
+      "functional_result": "pass",
+      "answered_requests_from_human": 3,
+      "participants": [
+        "@actual-human:hs-a.test",
+        "@human-role-b:hs-b.test",
+        "@llm-agent:hs-b.test"
+      ],
+      "llm_provider": "openai_compatible",
+      "llm_model": "anthropic/claude-haiku-4.5",
+      "llm_models_reported_by_provider": [
+        "anthropic/claude-haiku-4.5"
+      ],
+      "agent_configuration_hash": "6deb8e2be1a16af89e1540454337aa61cd5a8ea5c9f43d024d5e93f4733d5b8e",
+      "evidence": [
+        {
+          "role": "transcript",
+          "path": "evidence/e4-20260906T193231Z/transcript.json"
+        }
+      ],
+      "problems": [],
+      "passed": true
+    }
+  ],
+  "valid_sessions_passed": 3,
+  "verdict": "3/3 PASS",
+  "scope_note": "Development validation. C4 is not marked collected and no evidence counter is updated (Task 06 §33)."
+}

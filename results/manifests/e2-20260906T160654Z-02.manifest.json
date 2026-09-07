@@ -1,0 +1,68 @@
+{
+  "manifest_type": "automated_experiment_manifest",
+  "manifest_schema_version": "1",
+  "experiment": "E2",
+  "execution_protocol_version": "1.2",
+  "execution_analysis_spec_version": "1.2",
+  "protocol_git_commit": "cd3f3c2aaae54be74728bb242f6bd7d606768ef8",
+  "raw_schema_version": "2",
+  "publication_data": true,
+  "run_id": "e2-20260906T160654Z-02",
+  "room_id": "!8a94PYOK_JlyBkLJGIGb8ol9H900wypp4DLEnzFZuqE",
+  "room_version": "12",
+  "participants": {
+    "human_a": "@human-a:hs-a.test",
+    "human_b": "@human-b:hs-b.test",
+    "agent": "@agent:hs-b.test"
+  },
+  "environment_manifest": "environment/environment-latest.json",
+  "execution_host_identifier": "fam-formal-linode-48865d44",
+  "start_timestamp": "2026-09-06T16:07:15Z",
+  "completion_timestamp": "2026-09-06T16:07:36Z",
+  "completion_status": "pass",
+  "validity_classification": {
+    "valid": true,
+    "invalid_class": null,
+    "note": ""
+  },
+  "topology": "federated",
+  "raw_artifacts": [
+    {
+      "role": "runner_interaction_stream",
+      "path": "raw/e2/e2-20260906T160654Z-02.runner.jsonl",
+      "sha256": "94edaa5c2961f26162e4bebe06322ab8209ceb5556546a54d7e52b6bdc75bf0a",
+      "bytes": 159854
+    },
+    {
+      "role": "agent_telemetry_stream",
+      "path": "raw/e2/e2-20260906T160654Z-02.agent.jsonl",
+      "sha256": "c2f9b90f12b0d0d8677774ea1d38f640c4948c5f894e27749156485b9918f042",
+      "bytes": 143706
+    }
+  ],
+  "offline_request_count": 100,
+  "timeline_limit": 10,
+  "sent_count": 100,
+  "recovered_count": 100,
+  "missing_from_recovery": [],
+  "unexpected_in_recovery": [],
+  "sync_limited": true,
+  "pagination_invoked": true,
+  "history_pages_fetched": 2,
+  "recovered_from_sync": 10,
+  "recovered_from_history": 90,
+  "duplicate_observations": 0,
+  "logically_processed": 100,
+  "ack_count": 100,
+  "duplicate_acks": 0,
+  "agent_identity_before_restart": "@agent:hs-b.test",
+  "agent_identity_after_restart": "@agent:hs-b.test",
+  "checkpoint_resumed": true,
+  "membership": [
+    "@agent:hs-b.test",
+    "@human-a:hs-a.test",
+    "@human-b:hs-b.test"
+  ],
+  "recovery_comparison_artifact": "processed/e2-20260906T160654Z-02.recovery-comparison.json",
+  "acceptance_failures": []
+}

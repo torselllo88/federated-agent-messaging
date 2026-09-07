@@ -1,0 +1,345 @@
+{
+  "manifest_schema_version": "1",
+  "generated_at": "2026-09-06T16:00:12Z",
+  "generated_by": "bootstrap/environment-verifier",
+  "publication_data": false,
+  "execution_protocol_version": "1.2",
+  "execution_analysis_spec_version": "1.2",
+  "raw_schema_version": "2",
+  "protocol_git_commit": "f7bcc00002ddbc1eab17e17d97b3746040db06af",
+  "formal_run_host_identifier": "fam-formal-linode-48865d44",
+  "matrix_room_version": "12",
+  "software": {
+    "python": "3.12.14",
+    "matrix_nio": "0.26.0",
+    "synapse_image": "ghcr.io/element-hq/synapse:v1.159.0",
+    "postgres_image": "postgres:16.4",
+    "image_digests": {
+      "fam-toolbox:local": "fam-toolbox@sha256:f9b9304ff2c0157738df3b848377ddde80318a75f1dc347f9156107bb0c2434c",
+      "ghcr.io/element-hq/synapse:v1.159.0": "ghcr.io/element-hq/synapse@sha256:edf259d2b575b669a3e81024918ab8d5cfb7d2fba5a53c9e09695f1abc5645cb",
+      "postgres:16.4": "postgres@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412"
+    }
+  },
+  "host": {
+    "os": "Linux",
+    "kernel": "6.8.0-139-generic",
+    "cpu_model": "AMD EPYC 9845 160-Core Processor",
+    "logical_cpus": 4,
+    "available_ram_bytes": 8325914624,
+    "virtualization": "docker",
+    "host_virtualization": "kvm",
+    "distribution": "Ubuntu 24.04.4 LTS"
+  },
+  "config_hashes": {
+    "A": "38f4581044d46f5c4d6a58de8c742aaf328dc34be85cbceaae8e23f2e210325e",
+    "B": "a93c3b0e32dc4f47dbd36a574a270c446d30d204abd3df952c40751e07b7b1c1"
+  },
+  "sanitized_config": {
+    "A": {
+      "server_name": "hs-a.test",
+      "pid_file": "/data/homeserver.pid",
+      "public_baseurl": "https://hs-a.test:8449/",
+      "report_stats": false,
+      "signing_key_path": "/data/hs-a.test.signing.key",
+      "listeners": [
+        {
+          "port": 8008,
+          "type": "http",
+          "tls": false,
+          "bind_addresses": [
+            "0.0.0.0"
+          ],
+          "x_forwarded": false,
+          "resources": [
+            {
+              "names": [
+                "client"
+              ],
+              "compress": false
+            }
+          ]
+        },
+        {
+          "port": 8448,
+          "type": "http",
+          "tls": true,
+          "bind_addresses": [
+            "0.0.0.0"
+          ],
+          "resources": [
+            {
+              "names": [
+                "federation"
+              ],
+              "compress": false
+            }
+          ]
+        },
+        {
+          "port": 8449,
+          "type": "http",
+          "tls": true,
+          "bind_addresses": [
+            "0.0.0.0"
+          ],
+          "resources": [
+            {
+              "names": [
+                "client"
+              ],
+              "compress": false
+            }
+          ]
+        }
+      ],
+      "tls_certificate_path": "/tls/hs-a.test.crt",
+      "tls_private_key_path": "<redacted>",
+      "federation_custom_ca_list": [
+        "/tls/ca.crt"
+      ],
+      "federation_verify_certificates": true,
+      "trusted_key_servers": [],
+      "suppress_key_server_warning": true,
+      "ip_range_whitelist": [
+        "172.28.0.0/16"
+      ],
+      "database": {
+        "name": "psycopg2",
+        "args": {
+          "user": "synapse",
+          "password": "<redacted>",
+          "database": "synapse",
+          "host": "postgres-a",
+          "port": 5432,
+          "cp_min": 5,
+          "cp_max": 10
+        }
+      },
+      "default_room_version": "12",
+      "encryption_enabled_by_default_for_room_type": "off",
+      "enable_registration": false,
+      "registration_shared_secret": "<redacted>",
+      "macaroon_secret_key": "<redacted>",
+      "form_secret": "<redacted>",
+      "media_store_path": "/data/media_store",
+      "log_config": "/data/log.config",
+      "rc_message": {
+        "per_second": 1000,
+        "burst_count": 20000
+      },
+      "rc_registration": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_login": {
+        "address": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "account": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "failed_attempts": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_room_creation": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_joins": {
+        "local": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "remote": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_invites": {
+        "per_room": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_user": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_issuer": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_federation": {
+        "window_size": 1000,
+        "sleep_limit": 10,
+        "sleep_delay": 500,
+        "reject_limit": 50,
+        "concurrent": 3
+      },
+      "presence": {
+        "enabled": false
+      },
+      "url_preview_enabled": false,
+      "enable_metrics": false
+    },
+    "B": {
+      "server_name": "hs-b.test",
+      "pid_file": "/data/homeserver.pid",
+      "public_baseurl": "https://hs-b.test:8449/",
+      "report_stats": false,
+      "signing_key_path": "/data/hs-b.test.signing.key",
+      "listeners": [
+        {
+          "port": 8008,
+          "type": "http",
+          "tls": false,
+          "bind_addresses": [
+            "0.0.0.0"
+          ],
+          "x_forwarded": false,
+          "resources": [
+            {
+              "names": [
+                "client"
+              ],
+              "compress": false
+            }
+          ]
+        },
+        {
+          "port": 8448,
+          "type": "http",
+          "tls": true,
+          "bind_addresses": [
+            "0.0.0.0"
+          ],
+          "resources": [
+            {
+              "names": [
+                "federation"
+              ],
+              "compress": false
+            }
+          ]
+        },
+        {
+          "port": 8449,
+          "type": "http",
+          "tls": true,
+          "bind_addresses": [
+            "0.0.0.0"
+          ],
+          "resources": [
+            {
+              "names": [
+                "client"
+              ],
+              "compress": false
+            }
+          ]
+        }
+      ],
+      "tls_certificate_path": "/tls/hs-b.test.crt",
+      "tls_private_key_path": "<redacted>",
+      "federation_custom_ca_list": [
+        "/tls/ca.crt"
+      ],
+      "federation_verify_certificates": true,
+      "trusted_key_servers": [],
+      "suppress_key_server_warning": true,
+      "ip_range_whitelist": [
+        "172.28.0.0/16"
+      ],
+      "database": {
+        "name": "psycopg2",
+        "args": {
+          "user": "synapse",
+          "password": "<redacted>",
+          "database": "synapse",
+          "host": "postgres-b",
+          "port": 5432,
+          "cp_min": 5,
+          "cp_max": 10
+        }
+      },
+      "default_room_version": "12",
+      "encryption_enabled_by_default_for_room_type": "off",
+      "enable_registration": false,
+      "registration_shared_secret": "<redacted>",
+      "macaroon_secret_key": "<redacted>",
+      "form_secret": "<redacted>",
+      "media_store_path": "/data/media_store",
+      "log_config": "/data/log.config",
+      "rc_message": {
+        "per_second": 1000,
+        "burst_count": 20000
+      },
+      "rc_registration": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_login": {
+        "address": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "account": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "failed_attempts": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_room_creation": {
+        "per_second": 100,
+        "burst_count": 1000
+      },
+      "rc_joins": {
+        "local": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "remote": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_invites": {
+        "per_room": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_user": {
+          "per_second": 100,
+          "burst_count": 1000
+        },
+        "per_issuer": {
+          "per_second": 100,
+          "burst_count": 1000
+        }
+      },
+      "rc_federation": {
+        "window_size": 1000,
+        "sleep_limit": 10,
+        "sleep_delay": 500,
+        "reject_limit": 50,
+        "concurrent": 3
+      },
+      "presence": {
+        "enabled": false
+      },
+      "url_preview_enabled": false,
+      "enable_metrics": false
+    }
+  },
+  "notes": [
+    "Synapse and PostgreSQL image digests are recorded by the host tooling into environment/image-digests.json and reproduced under software.image_digests above.",
+    "Development environment. publication_data is false and these values are not publication evidence."
+  ]
+}

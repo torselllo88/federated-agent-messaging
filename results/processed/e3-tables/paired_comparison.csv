@@ -1,0 +1,6 @@
+workload,metric,unit,local,federated,difference,difference_ci_low,difference_ci_high,ratio,ratio_ci_low,ratio_ci_high
+latency,p50,ms,104.0277,185.1116,81.0839,80.6548,81.395,1.7794,1.7722,1.7852
+latency,p95,ms,114.4918,200.807,86.3152,85.2019,87.5654,1.7539,1.7415,1.7681
+latency,p99,ms,122.5013,212.3728,89.8715,87.7562,91.9222,1.7336,1.7152,1.7497
+throughput,C=8 median observed throughput,interactions/second,11.825,9.275,-2.55,-2.6167,-2.4833,0.7844,0.7792,0.789
+throughput,C=32 median observed throughput,interactions/second,12.0083,9.1917,-2.8167,-2.8667,-2.7583,0.7654,0.7614,0.7695

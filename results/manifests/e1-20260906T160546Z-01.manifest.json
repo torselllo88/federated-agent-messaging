@@ -1,0 +1,87 @@
+{
+  "manifest_type": "automated_experiment_manifest",
+  "manifest_schema_version": "1",
+  "experiment": "E1",
+  "execution_protocol_version": "1.2",
+  "execution_analysis_spec_version": "1.2",
+  "protocol_git_commit": "cd3f3c2aaae54be74728bb242f6bd7d606768ef8",
+  "raw_schema_version": "2",
+  "publication_data": true,
+  "run_id": "e1-20260906T160546Z-01",
+  "room_id": "!gfCiG2y5SS1HTKgB6krSK6vb4gz9kCXjbHWy7w68054",
+  "room_version": "12",
+  "participants": {
+    "human_a": "@human-a:hs-a.test",
+    "human_b": "@human-b:hs-b.test",
+    "agent": "@agent:hs-b.test"
+  },
+  "environment_manifest": "environment/environment-latest.json",
+  "execution_host_identifier": "fam-formal-linode-48865d44",
+  "start_timestamp": "2026-09-06T16:05:46Z",
+  "completion_timestamp": "2026-09-06T16:06:04Z",
+  "completion_status": "pass",
+  "validity_classification": {
+    "valid": true,
+    "invalid_class": null,
+    "note": ""
+  },
+  "topology": "federated",
+  "raw_artifacts": [
+    {
+      "role": "runner_interaction_stream",
+      "path": "raw/e1/e1-20260906T160546Z-01.runner.jsonl",
+      "sha256": "9dea385d1da812b4857ce10ef6c4123377a523a5ea732afd7b7b28bd5026b772",
+      "bytes": 32791
+    },
+    {
+      "role": "agent_telemetry_stream",
+      "path": "raw/e1/e1-20260906T160546Z-01.agent.jsonl",
+      "sha256": "9c70a97d35e3cd15638e5c0750d2ffb1f579269ee70d7827b18bf786bdbca4fb",
+      "bytes": 53425
+    }
+  ],
+  "request_classes": {
+    "cross_domain": {
+      "sender": "@human-a:hs-a.test",
+      "sent": 20,
+      "acked": 20,
+      "timeouts": 0,
+      "duplicates": 0
+    },
+    "same_domain": {
+      "sender": "@human-b:hs-b.test",
+      "sent": 20,
+      "acked": 20,
+      "timeouts": 0,
+      "duplicates": 0
+    }
+  },
+  "cross_domain_acked": 20,
+  "same_domain_acked": 20,
+  "membership_after_join": {
+    "A": [
+      "@agent:hs-b.test",
+      "@human-a:hs-a.test",
+      "@human-b:hs-b.test"
+    ],
+    "B": [
+      "@agent:hs-b.test",
+      "@human-a:hs-a.test",
+      "@human-b:hs-b.test"
+    ]
+  },
+  "quiet_interval_seconds": 2.0,
+  "event_set_equal": true,
+  "membership_compatible": true,
+  "a_requests_visible_on_b": true,
+  "b_requests_visible_on_a": true,
+  "expected_event_count": 80,
+  "domain_a_event_count": 80,
+  "domain_b_event_count": 80,
+  "missing_on_a": [],
+  "missing_on_b": [],
+  "unexpected_on_a": [],
+  "unexpected_on_b": [],
+  "federation_comparison_artifact": "processed/e1-20260906T160546Z-01.federation-comparison.json",
+  "acceptance_failures": []
+}

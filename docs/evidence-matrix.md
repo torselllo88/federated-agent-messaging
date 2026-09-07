@@ -1,7 +1,9 @@
 # Evidence Matrix
 
-**Status:** EMPTY — no evidence collected
-**Depends on:** [`research-scope.md`](research-scope.md) (FROZEN, v1.1), [`testbed-architecture.md`](testbed-architecture.md) (FROZEN, v1.1), [`experimental-protocol.md`](experimental-protocol.md) (FROZEN, v1.1)
+**Status:** COLLECTED — formal campaign complete under `protocol-v1.2-lock2`
+**Depends on:** [`research-scope.md`](research-scope.md) (FROZEN, v1.2), [`testbed-architecture.md`](testbed-architecture.md) (FROZEN, v1.2), [`experimental-protocol.md`](experimental-protocol.md) (FROZEN, v1.2)
+
+Campaign `fam-formal-b260ac4df1f524a5`, executed 2026-09-06 on `fam-formal-linode-48865d44`. Every artifact referenced below is committed under [`results/`](../results/) and named by its digest in [`results/environment/raw-archive-inventory.json`](../results/environment/raw-archive-inventory.json).
 
 ---
 
@@ -17,12 +19,12 @@ Every run-generated artifact lives outside this repository for the duration of t
 
 | Requirement | Primary RQ | Experiment | Acceptance criterion | Evidence artifact | Status |
 |---|---|---|---|---|---|
-| **C1** Persistent actor identity | RQ1 | E0, E2 | scope §6 C1; protocol §14, §16 — 3/3 runs pass | — | not collected |
-| **C2** Non-privileged participation | RQ1 | E0 | scope §6 C2; protocol §14 — 3/3 runs pass | — | not collected |
-| **C3** Durable asynchronous interaction | RQ2 | E2 | scope §6 C3; protocol §16 — `S_recovered == S_sent`, 100 unique requests, 0 duplicates, 3/3 runs | — | not collected |
-| **C4** Persistent multi-party space — structural | RQ2 | E1 | scope §6 C4 *Empirical support*; protocol §15 — 3/3 runs pass, programmatic standard accounts | — | not collected |
-| **C4** Persistent multi-party space — completion | RQ2 | E4 | scope §6 C4 *Empirical support*; protocol §41 — three-party federated room containing an actual person, 3/3 sessions pass | — | not collected |
-| **C5** Federated persistent space | RQ2 | E1 | scope §6 C5; protocol §15 — event-set **equality** and exact membership equality between the Domain-A and Domain-B views, 3/3 runs | — | not collected |
+| **C1** Persistent actor identity | RQ1 | E0, E2 | scope §6 C1; protocol §14, §16 — 3/3 runs pass | `e0-…160451Z-01/02/03`, `e2-…160654Z-01/02/03` | **PASS** — E0 3/3 identity stable across full runtime termination; E2 3/3 same identity and checkpoint resumed |
+| **C2** Non-privileged participation | RQ1 | E0 | scope §6 C2; protocol §14 — 3/3 runs pass | `e0-…160451Z-01/02/03` | **PASS** — E0 3/3, C2 supporting evidence complete in every run |
+| **C3** Durable asynchronous interaction | RQ2 | E2 | scope §6 C3; protocol §16 — `S_recovered == S_sent`, 100 unique requests, 0 duplicates, 3/3 runs | `e2-…160654Z-01/02/03` | **PASS** — E2 3/3, `S_recovered == S_sent` at 100 events, 0 missing, 0 unexpected, 100 processed exactly once, 0 duplicate ACKs |
+| **C4** Persistent multi-party space — structural | RQ2 | E1 | scope §6 C4 *Empirical support*; protocol §15 — 3/3 runs pass, programmatic standard accounts | `e1-…160546Z-01/02/03` | **PASS** — E1 3/3, three programmatic participants across two domains |
+| **C4** Persistent multi-party space — completion | RQ2 | E4 | scope §6 C4 *Empirical support*; protocol §41 — three-party federated room containing an actual person, 3/3 sessions pass | `e4-…192750Z`, `…193022Z`, `…193231Z` | **PASS** — 3/3 sessions, an actual person on Domain A through Element Desktop 1.12.27 |
+| **C5** Federated persistent space | RQ2 | E1 | scope §6 C5; protocol §15 — event-set **equality** and exact membership equality between the Domain-A and Domain-B views, 3/3 runs | `e1-…160546Z-01/02/03` | **PASS** — E1 3/3, event sets equal at 80 events on both domain views, membership equal, propagation confirmed in both directions |
 
 C4 is the only requirement with split empirical support, and both halves are required. In E0–E3 every participant is a program and `HumanParticipant` denotes a role, not a person, so E1 establishes the structural case only; E4's three-party room is where "at least one human participant" holds literally. C4 is not satisfied until both rows are collected. The requirement itself was deliberately not weakened to "human-role participant".
 
@@ -30,28 +32,32 @@ C4 is the only requirement with split empirical support, and both halves are req
 
 | RQ | Question | Experiments | Evidence artifact | Status |
 |---|---|---|---|---|
-| **RQ1** | Persistent non-privileged agent participation | E0, E2 | — | not collected |
-| **RQ2** | Federated persistent interaction | E1, E2 | — | not collected |
-| **RQ3** | Federation overhead | E3 latency + throughput | — | not collected |
+| **RQ1** | Persistent non-privileged agent participation | E0, E2 | `e0-…160451Z-01/02/03`, `e2-…160654Z-01/02/03` | **collected** — 6/6 runs pass |
+| **RQ2** | Federated persistent interaction | E1, E2 | `e1-…160546Z-01/02/03`, `e2-…160654Z-01/02/03` | **collected** — 6/6 runs pass |
+| **RQ3** | Federation overhead | E3 latency + throughput | `results/processed/e3-tables/`, `results/figures/` | **collected** — 120/120 runs valid; paired p50 ratio 1.7794 [1.7722, 1.7852] |
 | **RQ4** | Messaging-primitive reuse boundary | architectural analysis (no mandatory experiment) | — | not started |
 
-## 3. Planned formal runs
+**What RQ3 does and does not establish.** E3 measures the observed end-to-end performance of the tested closed-loop interaction system under the frozen local and federated topologies. It is not maximum Matrix throughput, not maximum federation throughput, and not messaging-layer capacity independent of the agent runtime (protocol §17). The formal campaign reproduces the signature the frozen text anticipated: `C = 32` returned no more than `C = 8` — 12.008/s against 11.825/s locally, 9.192/s against 9.275/s federated — which is a service rate set by the sequential deterministic agent, not by the transport. The latency comparison carries no such caveat: at `max_in_flight = 1` there is no queue, and the federated path cost 1.7794x the local one at p50 across 20,000 measured interactions with a zero failure rate.
 
-The frozen experiment set (protocol [§47](experimental-protocol.md)). Nothing has been executed; this is the target inventory against which collection progress is measured.
+## 3. Formal runs collected
+
+The frozen experiment set (protocol [§47](experimental-protocol.md)), executed in full. Every run is valid; none was discarded, repeated or excluded.
 
 | Experiment | Formal runs | Per run | Raw output | Collected |
 |---|---:|---|---|---:|
-| E0 | 3 | 40 interactions | `$FAM_RESULTS_DIR/raw/e0/` | 0 |
-| E1 | 3 | 40 interactions (20 cross-domain + 20 same-domain), fresh room | `.../raw/e1/` | 0 |
-| E2 | 3 | 100 offline sends, fresh room | `.../raw/e2/` | 0 |
-| E3 latency | 40 (20 paired blocks) | 50 warm-up + 500 measured | `.../raw/e3/latency/` | 0 |
-| E3 throughput | 80 (20 paired blocks × C ∈ {8, 32}) | 10 s warm-up (not drained), 60 s measured, 10 s drain | `.../raw/e3/throughput/` | 0 |
-| E4 | 3 sessions | distinct three-party room per session, ≥3 human requests and ≥3 valid LLM responses each | `.../raw/e4/` | 0 |
-| **Total** | **129 + 3 E4 sessions** | | | **0** |
+| E0 | 3 | 40 interactions | `raw/e0/` | **3** |
+| E1 | 3 | 40 interactions (20 cross-domain + 20 same-domain), fresh room | `raw/e1/` | **3** |
+| E2 | 3 | 100 offline sends, fresh room | `raw/e2/` | **3** |
+| E3 latency | 40 (20 paired blocks) | 50 warm-up + 500 measured | `raw/e3/latency/` | **40** |
+| E3 throughput | 80 (20 paired blocks × C ∈ {8, 32}) | 10 s warm-up (not drained), 60 s measured, 10 s drain | `raw/e3/throughput/` | **80** |
+| E4 | 3 sessions | distinct three-party room per session, ≥3 human requests and ≥3 valid LLM responses each | `raw/e4/` | **3** |
+| **Total** | **129 + 3 E4 sessions** | | | **129 + 3** |
 
 Every run produces two streams joined by `run_id`: the runner interaction stream and the agent telemetry stream. E2's acceptance criteria are agent-side facts and cannot be evaluated from the runner stream alone.
 
-Only runs executed against a locked protocol version count (protocol [§3](experimental-protocol.md) Phase 4). Pilot output carries `publication_data = false` and is never merged here.
+Only runs executed against a locked protocol version count (protocol [§3](experimental-protocol.md) Phase 4). Pilot output carries `publication_data = false` and is never merged here; the pre-lock host acceptance ran against a separate result root and contributed nothing to the figures above.
+
+82,399 interactions were initiated and 82,399 completed successfully: no timeout, no send error, no rate-limit response, no interaction delivered through gap recovery, and no run classified invalid. Every one of the 23 checks in the final integrity audit passed.
 
 ## 4. Minimum publication success conditions
 
@@ -59,14 +65,14 @@ The eight conditions from scope §18. The empirical core is complete only when a
 
 | # | Condition | Source experiment | Status |
 |---|---|---|---|
-| 1 | Autonomous participant maintains a stable communication identity across runtime restart | E0, E2 | ☐ |
-| 2 | Normal agent participation uses ordinary messaging interfaces | E0 | ☐ |
-| 3 | At least three mixed participants share a persistent interaction space | E1 structural + E4 with an actual person — both required | ☐ |
-| 4 | The space spans at least two separately configured federation domains using native federation | E1 | ☐ |
-| 5 | Relevant persistent interaction events are accessible through the participating domains after federation propagation | E1 | ☐ |
-| 6 | An autonomous runtime can disappear, return, retrieve missed interaction, and resume processing | E2 | ☐ |
-| 7 | Same-domain and federated interaction paths are quantitatively compared under a deterministic workload | E3 | ☐ |
-| 8 | At least one functional scenario uses an LLM-backed execution layer | E4 — 3/3 sessions | ☐ |
+| 1 | Autonomous participant maintains a stable communication identity across runtime restart | E0, E2 | ☑ `e0-…160451Z-01/02/03`, `e2-…160654Z-01/02/03` |
+| 2 | Normal agent participation uses ordinary messaging interfaces | E0 | ☑ `e0-…160451Z-01/02/03` |
+| 3 | At least three mixed participants share a persistent interaction space | E1 structural + E4 with an actual person — both required | ☑ `e1-…160546Z-01/02/03` + `e4-…192750Z`, `…193022Z`, `…193231Z` |
+| 4 | The space spans at least two separately configured federation domains using native federation | E1 | ☑ `e1-…160546Z-01/02/03` |
+| 5 | Relevant persistent interaction events are accessible through the participating domains after federation propagation | E1 | ☑ `e1-…160546Z-01/02/03` |
+| 6 | An autonomous runtime can disappear, return, retrieve missed interaction, and resume processing | E2 | ☑ `e2-…160654Z-01/02/03` |
+| 7 | Same-domain and federated interaction paths are quantitatively compared under a deterministic workload | E3 | ☑ 120 runs, `results/processed/e3-tables/` |
+| 8 | At least one functional scenario uses an LLM-backed execution layer | E4 — 3/3 sessions | ☑ `e4-…192750Z`, `…193022Z`, `…193231Z` |
 
 ## 5. Secondary properties — optional, not on the critical path
 

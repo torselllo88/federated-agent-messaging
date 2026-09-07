@@ -1,0 +1,180 @@
+{
+  "artifact": "testbed_configuration_inventory",
+  "generated_at": "2026-09-06T16:00:13Z",
+  "purpose": "Input to Task 07. Not the protocol lock: nothing here is frozen by being recorded, and every recommendation names the evidence that produced it.",
+  "publication_data": false,
+  "software": {
+    "synapse_image": "ghcr.io/element-hq/synapse:v1.159.0",
+    "postgres_image": "postgres:16.4",
+    "python": "3.12.14",
+    "matrix_nio": "0.26.0",
+    "jsonschema": "4.23.0",
+    "pyyaml": "6.0.2",
+    "cryptography": "43.0.1"
+  },
+  "frozen": {
+    "matrix_room_version": "12",
+    "room_encryption_enabled": false,
+    "execution_protocol_version": "1.2",
+    "execution_analysis_spec_version": "1.2",
+    "raw_schema_version": "2",
+    "manifest_schema_version": "1",
+    "interaction_timeout_seconds": 10.0,
+    "e3_message_body_bytes": 256,
+    "e3_concurrency_levels": [
+      8,
+      32
+    ],
+    "e3_latency_warmup_interactions": 50,
+    "e3_latency_measured_interactions": 500,
+    "e3_warmup_seconds": 10.0,
+    "e3_measurement_seconds": 60.0,
+    "e3_drain_seconds": 10.0,
+    "e3_inter_run_idle_seconds": 5.0,
+    "e3_paired_blocks": 20
+  },
+  "development_recommendations": {
+    "e2_sync_timeline_limit": {
+      "value": 10,
+      "evidence": "Task 03 pilot: selected to maximise history coverage so recovery is genuinely exercised."
+    },
+    "e3_sync_timeline_limit": {
+      "value": 500,
+      "evidence": "Confirmed on the formal Linux host: peak workload timeline occupancy 18-22 events, 22.7x headroom, zero truncated syncs during the workload and zero interactions delivered through gap recovery. The development host observed 21-25 events; §14 makes the Linux-host observation the formal baseline."
+    },
+    "e3_sync_timeout_ms": {
+      "value": 30000,
+      "evidence": "Task 05 pilot."
+    },
+    "e3_schedule_seed": {
+      "value": 20260905,
+      "evidence": "Task 05: counterbalancing verified at 10 local-first and 10 federated-first per workload."
+    },
+    "e3_bootstrap_seed": {
+      "value": 20260905,
+      "evidence": "Task 05 analysis."
+    },
+    "e3_bootstrap_replicates": {
+      "value": 2000,
+      "evidence": "Task 05: sufficient for a 95% percentile interval over twenty clusters."
+    }
+  },
+  "implementation": {
+    "protocol_git_commit": "f7bcc00002ddbc1eab17e17d97b3746040db06af",
+    "worktree_clean": true,
+    "runtime_code_revision": "task-07-formal",
+    "raw_schema_versions_supported": [
+      "1",
+      "2"
+    ],
+    "terminal_outcome_taxonomy": [
+      "success",
+      "timeout",
+      "send_error",
+      "malformed_response",
+      "unexpected_response",
+      "runner_error",
+      "offline_send"
+    ],
+    "post_terminal_integrity_observations": [
+      "duplicate_ack"
+    ],
+    "median_definition": "sample median; nearest rank is used only for percentiles that are not medians (experimental-protocol.md 31)",
+    "deterministic_executor": "deterministic",
+    "llm_executor": "llm",
+    "request_protocols": [
+      "controlled",
+      "natural_language"
+    ],
+    "e3_agent_concurrency": {
+      "mode": "sequential",
+      "note": "The agent awaits its response send inline in the sync handler, serving roughly 9-12 requests/s regardless of offered load. Task 05 measured C=32 returning the same throughput as C=8. Deliberately unchanged in Task 06 (Task 06 §32); Task 07 reproduces this system unless an explicit methodological decision is taken first."
+    }
+  },
+  "endpoints": {
+    "client_server_http_internal": "http://synapse-a:8008",
+    "client_server_https_external": "https://hs-a.test:8449",
+    "federation": "https://hs-{a,b}.test:8448",
+    "https_external_client_mode": "direct Synapse TLS on a dedicated client listener; no proxy, no bridge, no relay",
+    "listeners": {
+      "A": [
+        {
+          "port": 8008,
+          "tls": false,
+          "resources": [
+            "client"
+          ]
+        },
+        {
+          "port": 8448,
+          "tls": true,
+          "resources": [
+            "federation"
+          ]
+        },
+        {
+          "port": 8449,
+          "tls": true,
+          "resources": [
+            "client"
+          ]
+        }
+      ],
+      "B": [
+        {
+          "port": 8008,
+          "tls": false,
+          "resources": [
+            "client"
+          ]
+        },
+        {
+          "port": 8448,
+          "tls": true,
+          "resources": [
+            "federation"
+          ]
+        },
+        {
+          "port": 8449,
+          "tls": true,
+          "resources": [
+            "client"
+          ]
+        }
+      ]
+    }
+  },
+  "synapse_config_hashes": {
+    "A": "38f4581044d46f5c4d6a58de8c742aaf328dc34be85cbceaae8e23f2e210325e",
+    "B": "a93c3b0e32dc4f47dbd36a574a270c446d30d204abd3df952c40751e07b7b1c1"
+  },
+  "image_digests": {
+    "fam-toolbox:local": "fam-toolbox@sha256:f9b9304ff2c0157738df3b848377ddde80318a75f1dc347f9156107bb0c2434c",
+    "ghcr.io/element-hq/synapse:v1.159.0": "ghcr.io/element-hq/synapse@sha256:edf259d2b575b669a3e81024918ab8d5cfb7d2fba5a53c9e09695f1abc5645cb",
+    "postgres:16.4": "postgres@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412"
+  },
+  "host": {
+    "identifier": "fam-formal-linode-48865d44",
+    "distribution": "Ubuntu 24.04.4 LTS",
+    "virtualization": "kvm",
+    "kernel": "6.8.0-139-generic",
+    "architecture": "x86_64",
+    "logical_cpus": 4
+  },
+  "e4": {
+    "llm_provider": "openai_compatible",
+    "llm_model": "anthropic/claude-haiku-4.5",
+    "human_client_name": "Element Desktop",
+    "human_client_version": "1.12.27",
+    "human_client_host": "external workstation/Windows 10 Pro 19045",
+    "conversation_history_turns": 0,
+    "note": "No conversational memory. Each request is answered on its own; only the system instruction and the one request text reach the provider."
+  },
+  "known_deviations": [
+    "raw/e3/pilot/ and raw/readiness/ sit outside the frozen §37 experiment tree so pilot and readiness output cannot be mistaken for campaign evidence. §37's structure is 'Recommended'.",
+    "An E4-only HTTPS Client-Server listener runs on port 8449 and is published for Domain A. Required by testbed-architecture.md §7. It is the only port reachable from outside the host: both plaintext Client-Server ports are bound to loopback.",
+    "The §22 steady-state check is reported, never gated. The protocol requires a material difference to be resolved before lock but defines no threshold, and §25 forbids inventing one. Observed on this host: completion series flat to within one to two completions per five-second bucket, half-to-half ratios within 1.1% and not reproducible in direction across repeated pilots.",
+    "Warm-up to window completion rate at C=32 federated is approximately 0.91, reproduced across two pilots on this host, so a residual transient persists past the frozen 10-second warm-up. warmup_seconds stays 10 (§15 freezes it, Task 07 §2 forbids changing it); recorded as an observation, not corrected."
+  ]
+}
