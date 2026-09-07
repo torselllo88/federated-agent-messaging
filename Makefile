@@ -247,7 +247,9 @@ figures: guard
 	$(COMPOSE) run --rm --no-deps toolbox python scripts/figures.py
 
 analyse: guard
+	export FAM_ANALYSIS_CODE_COMMIT="$$(git rev-parse HEAD)"
 	$(COMPOSE) run --rm -e FAM_E3_BOOTSTRAP_REPLICATES -e FAM_E3_BOOTSTRAP_SEED \
+		-e FAM_ANALYSIS_CODE_COMMIT -e FAM_PUBLICATION_DATA \
 		--no-deps toolbox python scripts/analyse.py
 
 test: build
