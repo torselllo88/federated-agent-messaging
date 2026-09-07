@@ -808,9 +808,18 @@ def main() -> int:
         # it from the run ids.
         "protocol_lock_tag": _lock_field("implementation", "git_tag"),
         "protocol_lock_commit": _lock_field("implementation", "git_commit"),
-        "campaign_id": _lock_field("campaign", "campaign_id"),
-        "bootstrap_seed": seed or e3_analysis.DEFAULT_BOOTSTRAP_SEED,
-        "bootstrap_replicates": replicates or e3_analysis.DEFAULT_REPLICATES,
+        # The campaign that executed, taken from the runs themselves rather
+        # than from the lock. Both are recorded because they differ: the lock
+        # embeds the commit it was generated from, which cannot be the commit
+        # that carries it, and the campaign id is derived from that parameter
+        # set. Recording only one would hide the difference instead of
+        # documenting it.
+        "campaign_id": e3.get("campaign_id"),
+        "campaign_fingerprint": e3.get("campaign_fingerprint"),
+        "protocol_lock_campaign_id": _lock_field("campaign", "campaign_id"),
+        "schedule_seed": e3.get("schedule_seed"),
+        "bootstrap_seed": e3.get("bootstrap_seed"),
+        "bootstrap_replicates": e3.get("bootstrap_replicates"),
         "protocol_git_commits_by_experiment": _protocol_commits(root),
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source_run_ids": [
