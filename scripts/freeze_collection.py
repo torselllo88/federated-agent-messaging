@@ -56,18 +56,32 @@ def _manifests(root: Path) -> list[dict[str, Any]]:
     return found
 
 
+#: The two artifacts this script writes. They are excluded from the inventory
+#: because a manifest cannot contain itself: the inventory is computed before
+#: they are written, so including them records their previous contents and the
+#: aggregate digest can never be reproduced from the collection it describes --
+#: which is the one thing §44 needs it to do.
+SELF_WRITTEN = (
+    "environment/collection-completion.json",
+    "environment/raw-archive-inventory.json",
+)
+
+
 def _inventory(root: Path) -> list[dict[str, Any]]:
     """Every file the collection produced, in one deterministic order.
 
     Sorted by relative path with forward slashes, so the same collection
     inventoried on a different platform yields the same list and therefore the
-    same aggregate digest.
+    same aggregate digest. Excludes this script's own output, so re-freezing an
+    unchanged collection reproduces the same digest.
     """
     entries = []
     for path in sorted(root.rglob("*")):
         if not path.is_file():
             continue
         relative = path.relative_to(root).as_posix()
+        if relative in SELF_WRITTEN:
+            continue
         entries.append(
             {
                 "path": relative,
@@ -259,8 +273,13 @@ def main() -> int:
             "SHA-256 over the newline-joined '<sha256>  <path>' lines of the "
             "inventory below, sorted by POSIX path. Defined over content and "
             "names rather than over a container, so it does not depend on tar "
-            "format, compression or timestamps."
+            "format, compression or timestamps. This file and "
+            "collection-completion.json are excluded: they are written after "
+            "the inventory is computed, so including them would record their "
+            "previous contents and make the digest unverifiable against the "
+            "collection it describes."
         ),
+        "excluded_from_inventory": list(SELF_WRITTEN),
         "files": entries,
     }
 
