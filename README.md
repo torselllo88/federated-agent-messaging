@@ -231,19 +231,17 @@ carries `publication_data = true`.
 
 ## Claim discipline
 
-Several individual elements of this architecture have substantial prior art — XMPP/SPADE-style multi-agent communication, classical shared-state and coordination systems, existing Matrix-based LLM assistants, and contemporary federated agent-messaging protocols. The scope document records these explicitly (§2, §20) and lists what the manuscript **shall not** claim novelty for (§16).
+Several individual elements of this architecture have substantial prior art — XMPP/SPADE-style multi-agent communication, classical shared-state and coordination systems, existing Matrix-based LLM assistants, and contemporary federated agent-messaging protocols. The scope document records these explicitly (§2, §20) and enumerates in §16 the elements for which no novelty is claimed.
 
-The intended differentiation is the systematic formulation and controlled empirical evaluation of persistent replicated interaction spaces as a shared communication substrate across human and autonomous participants belonging to federation domains. This remains a **target contribution**, not an unconditional first-of-kind claim. Phrases such as "the first" shall not appear unless independently justified by the final literature review.
-
-The literature review is complete and the rule held: the manuscript claims the *combination* has not been evaluated jointly, qualified as "to the best of our knowledge", and claims novelty for none of the individual ingredients.
+The differentiation claimed is the systematic formulation and controlled empirical evaluation of persistent replicated interaction spaces as a shared communication substrate across human and autonomous participants belonging to federation domains. It is not a first-of-kind claim. The manuscript claims that this *combination* has not been evaluated jointly, qualified as "to the best of our knowledge", and claims novelty for none of the individual ingredients.
 
 ## Industrial reference boundary
 
 Chums Chat is the industrial implementation that motivated the research abstraction. It is **not** part of the reproducible artifact.
 
-This repository shall contain only public specifications, public APIs, open-source infrastructure and independently written research code. No proprietary Chums code, and no code derived from proprietary implementation details, may be committed here. Industrial evidence, where publication permission exists, is kept separate from controlled testbed evidence and is not directly compared with it unless the environments and workload definitions make that comparison methodologically valid (§15).
+This repository contains only public specifications, public APIs, open-source infrastructure and independently written research code. No proprietary Chums code, and no code derived from proprietary implementation details, is committed here, and none may be — that boundary is normative for contributions ([`testbed-architecture.md` §2](docs/testbed-architecture.md)).
 
-**The paper must remain reproducible without access to Chums.**
+**Everything reported was produced without access to Chums**, and the testbed can be rebuilt and the analysis rerun from this repository and the archived raw data alone. No industrial evidence is used anywhere in the results.
 
 ## Reproducibility intent
 
@@ -255,4 +253,4 @@ Where both homeservers run inside the same controlled infrastructure, performanc
 
 Apache License 2.0 — see [`LICENSE`](LICENSE).
 
-Chosen as a single permissive licence covering both research code and documentation, with an explicit patent grant appropriate to an industrially adjacent project. If the target venue requires a different arrangement for the prose — CC-BY-4.0 is common — that is a one-file change plus a note here.
+One permissive licence covers both the research code and the documentation, and it carries an explicit patent grant.

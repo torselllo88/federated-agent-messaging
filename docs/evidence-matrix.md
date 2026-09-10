@@ -9,11 +9,11 @@ Campaign `fam-formal-b260ac4df1f524a5`, executed 2026-09-06 on `fam-formal-linod
 
 This document is the traceability ledger: every frozen requirement to the experiment that exercises it, to the concrete artifact that evidences it, to its current status.
 
-The rows below are derived from the frozen documents. The **Evidence artifact** and **Status** columns are the working part and are empty by construction until the testbed produces output.
+The rows below are derived from the frozen documents. The **Evidence artifact** and **Status** columns record what the formal campaign actually produced.
 
 Two related tables live in the protocol and are not duplicated here: the experiment-to-claim mapping ([§42](experimental-protocol.md)) and the claim/required-evidence/failure-condition table ([§43](experimental-protocol.md)). This document tracks *what has actually been collected*; those tables define *what would count*.
 
-Every run-generated artifact lives outside this repository for the duration of the formal campaign, under `$FAM_RESULTS_DIR` (architecture §22, protocol §37) — raw streams, manifests, E4 evidence and environment output alike. Archival copies of manifests, processed datasets and figures are imported in a post-experiment commit (protocol §3 Phase 5), each retaining its `protocol_git_commit`, raw-stream SHA-256 provenance and `analysis_code_commit`. Those imported copies are what the artifact column below will point at.
+Every run-generated artifact lives outside this repository for the duration of the formal campaign, under `$FAM_RESULTS_DIR` (architecture §22, protocol §37) — raw streams, manifests, E4 evidence and environment output alike. Archival copies of manifests, processed datasets and figures are imported in a post-experiment commit (protocol §3 Phase 5), each retaining its `protocol_git_commit`, raw-stream SHA-256 provenance and `analysis_code_commit`. Those imported copies are what the artifact column below points at.
 
 ## 1. Requirement → experiment → evidence
 
@@ -87,7 +87,7 @@ Recorded so that incidental observations have a place to land without expanding 
 | **K2** Context isolation | correctness | outside mandatory scope, follows D1 | — | not evaluated |
 | **K3** Semantic event conformance | correctness | outside mandatory scope, follows D2 | — | not evaluated |
 
-**D3 note.** E4 is on the critical path; D3 is not. E4 evidences that this communication architecture can host an LLM-backed execution layer. It does not establish D3 as a general architectural property, and the manuscript must not treat the one as proof of the other (scope §7, protocol §41).
+**D3 note.** E4 is on the critical path; D3 is not. E4 evidences that this communication architecture can host an LLM-backed execution layer. It does not establish D3 as a general architectural property, and the one is not evidence of the other (scope §7, protocol §41).
 
 ## 6. Evidence provenance separation
 
@@ -148,3 +148,7 @@ Per scope §19 and architecture §40, an implementation finding outside C1–C5 
 | Date | Observation | Classification | Disposition |
 |---|---|---|---|
 | — | — | — | — |
+
+Nothing was logged during the formal campaign: no implementation finding fell
+outside C1–C5 that needed recording here. The table is empty because there was
+nothing to enter, not because it went unused.
