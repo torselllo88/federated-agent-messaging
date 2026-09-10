@@ -95,7 +95,7 @@ Per scope §15, testbed evidence and industrial evidence are kept apart and are 
 
 | Class | Source | Reproducible without Chums? | Entries |
 |---|---|---|---|
-| **Controlled testbed evidence** | This repository's testbed and experiments | yes | none yet |
+| **Controlled testbed evidence** | This repository's testbed and experiments | yes | 132 formal runs — see §1 and §3 |
 | **Industrial reference evidence** | Chums Chat, where publication permission exists — architectural observations, deployment experience, sanitized measurements | no | none yet |
 
 ## 7. Excluded and failed runs
@@ -107,6 +107,22 @@ Protocol [§35](experimental-protocol.md) is the single authoritative definition
 | — | — | — | — | — | — |
 
 Classification is either `invalid run`, which names one of the nine §35 class identifiers verbatim and may be repeated, or `valid experimental failure`, which names no class and stays in the dataset.
+
+**The table is empty because both counts are zero, not because it was left unfilled.**
+
+| | Formal campaign |
+|---|---|
+| Runs executed | 132 |
+| Invalid runs | 0 — no §35 class was needed, and none was added |
+| Valid experimental failures | 0 — no terminal timeout, send failure or duplicate acknowledgement was observed |
+| Runs excluded from analysis | 0 |
+| Runs repeated | 0 |
+
+Zero valid failures is an outcome of the tested workload, not a reliability
+result. The closed loop is bound by the sequential deterministic agent, so at
+the frozen concurrency levels the queueing delay stays well inside the frozen
+10-second interaction timeout; a timeout was not a likely event under this
+design. §8 records the boundary this places on interpretation.
 
 ## 8. Stated limitations
 
@@ -121,6 +137,9 @@ Boundaries the frozen documents impose on what the collected evidence can suppor
 | Both homeservers run in one controlled environment; results are not WAN or Internet federation estimates | scope §9 RQ3, §13, architecture §30 |
 | All formal E0–E3 evidence comes from one Linux host; no cross-host or cross-platform generalization | architecture §33, protocol §39 |
 | Throughput is an observed rate at tested concurrency, never a maximum or capacity claim | scope §9, protocol §19.2 |
+| The E3 service rate is set by the sequential deterministic agent, so `C = 32` returns no more than `C = 8`; the measurement characterises the tested closed-loop system and not the messaging layer | protocol §17 |
+| `/sync` delivers events in batches and the runner dispatches their callbacks sequentially, so T3 for a later acknowledgement in a batch can be stamped after the preceding callbacks have run. The bias can only delay T3. Measured on the development host at roughly 2.9 µs per preceding event; **not** remeasured on the formal host, so that magnitude is not carried across and no correction is applied | protocol §10 |
+| No terminal failure occurred in the formal campaign, so the evidence bounds behaviour under the tested workload and says nothing about behaviour under overload | §7 |
 
 ## 9. Out-of-scope observations log
 

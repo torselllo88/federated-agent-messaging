@@ -30,22 +30,32 @@ frozen `human_llm_validation_manifest` schema requires.
 ## 2. Resolve the server name
 
 The client must reach the Domain A Client-Server endpoint by the server name
-in the certificate, `hs-a.test`. On the machine running the testbed, add a
-hosts entry:
+in the certificate, `hs-a.test`. Add a hosts entry on **the workstation running
+the client**, which is not usually the machine running the testbed.
+
+- **Windows**: `C:\Windows\System32\drivers\etc\hosts`, edited as Administrator
+- **Linux / macOS**: `/etc/hosts`, edited as root
+
+**Client on a separate workstation** — the configuration the formal E4 sessions
+used, and the one the architecture intends:
+
+```text
+<address of the testbed host>  hs-a.test
+```
+
+TCP port 8449 must be reachable from that workstation. If the testbed host sits
+behind a cloud firewall, open 8449 there too; the plaintext Client-Server ports
+are bound to loopback by design and stay closed.
+
+**Client on the testbed host itself** — convenient for a local trial:
 
 ```text
 127.0.0.1  hs-a.test
 ```
 
-- **Windows**: `C:\Windows\System32\drivers\etc\hosts`, edited as Administrator
-- **Linux / macOS**: `/etc/hosts`, edited as root
-
-If the client runs on a *different* workstation, point `hs-a.test` at the
-testbed host's address instead of `127.0.0.1`, and make sure TCP port 8449 is
-reachable from that workstation.
-
-Connecting to `https://localhost:8449` will **not** work: the certificate
-names `hs-a.test`, and a standard client is right to refuse a name mismatch.
+Either way, connecting to `https://localhost:8449` will **not** work: the
+certificate names `hs-a.test`, and a standard client is right to refuse a name
+mismatch.
 
 ---
 

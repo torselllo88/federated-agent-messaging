@@ -28,6 +28,48 @@ The lock is what every formal run checks itself against: a run with `publication
 
 Subdirectories appear when they have content. Empty ones are not committed ([`testbed-architecture.md` §31](../docs/testbed-architecture.md)).
 
+## Headline results
+
+Read from [`processed/e3-tables/paired_comparison.csv`](processed/e3-tables/paired_comparison.csv);
+`make analyse` regenerates that file and this table follows it.
+
+| Metric | Local | Federated | Federated / local, 95% CI |
+|---|---|---|---|
+| latency p50 | 104.0277 ms | 185.1116 ms | 1.7794 [1.7722, 1.7852] |
+| latency p95 | 114.4918 ms | 200.807 ms | 1.7539 [1.7415, 1.7681] |
+| latency p99 | 122.5013 ms | 212.3728 ms | 1.7336 [1.7152, 1.7497] |
+| C=8 throughput | 11.825 /s | 9.275 /s | 0.7844 [0.7792, 0.789] |
+| C=32 throughput | 12.0083 /s | 9.1917 /s | 0.7654 [0.7614, 0.7695] |
+
+Latency is over 20,000 measured interactions, 20 paired blocks per
+topology, with a failure rate of 0.0 in both. Throughput
+is the sample median of per-run observed throughput over the frozen 60-second
+window. Intervals are paired-block bootstrap, 2000
+replicates, seed 20260905.
+
+**Throughput here is the observed rate of the tested closed-loop system,
+including the sequential deterministic agent.** It is not maximum Matrix
+throughput, not maximum federation throughput, and not a capacity claim. The
+near-equal rates at `C = 8` and `C = 32` are the signature of that agent, not
+of the messaging layer.
+
+Functional results: E0 3/3, E1 3/3,
+E2 3/3 and E4 3/3 sessions passed;
+all 120 E3 runs are valid. No run was excluded, repeated or classified
+invalid. Which frozen requirement each result satisfies is recorded in
+[`../docs/evidence-matrix.md`](../docs/evidence-matrix.md).
+
+### Where the numbers live
+
+| File | Contents |
+|---|---|
+| [`processed/e3-tables/latency_percentiles.csv`](processed/e3-tables/latency_percentiles.csv) | p50, p95, p99 per topology, with sample sizes and failure rate |
+| [`processed/e3-tables/paired_comparison.csv`](processed/e3-tables/paired_comparison.csv) | paired differences and ratios with bootstrap intervals |
+| [`processed/e3-tables/throughput_runs.csv`](processed/e3-tables/throughput_runs.csv) | observed throughput of every individual run |
+| [`processed/e3-tables/stationarity.csv`](processed/e3-tables/stationarity.csv) | first-half and second-half completion rates per run |
+| [`processed/`](processed) | full analysis output, E1 and E2 comparisons, E4 validation |
+| [`figures/`](figures) | the same values drawn, generated from the tables |
+
 ## Raw-data artifact record
 
 The raw collection lives outside this repository. What is committed here is
