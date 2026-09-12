@@ -144,5 +144,7 @@ E3_BOOTSTRAP_CONFIDENCE = 0.95
 E3_WORKLOAD_LATENCY = "latency"
 E3_WORKLOAD_THROUGHPUT = "throughput"
 
-#: §22. The three named periods of a throughput run. No parallel names exist.
+#: §22. The three named periods of a throughput run. A latency run has its own
+#: two-phase labelling, `warmup` and `measured`, so the raw schema admits four
+#: phase values in total and this tuple is not the whole set.
 E3_PHASES = ("warmup", "window", "drain")

@@ -1,9 +1,9 @@
 """Run manifests.
 
 The common envelope and its two type-specific bodies are frozen in
-experimental-protocol.md §38. This module writes the envelope plus the
-``automated_experiment_manifest`` body; the ``human_llm_validation_manifest``
-body belongs to E4 and is not implemented in this slice.
+experimental-protocol.md §38. This module writes the envelope and both bodies:
+``automated_experiment_manifest`` for E0-E3, and
+``human_llm_validation_manifest`` for E4.
 
 Manifests are written under ``$FAM_RESULTS_DIR`` with every other
 run-generated artifact. Archival copies are imported into ``results/manifests/``

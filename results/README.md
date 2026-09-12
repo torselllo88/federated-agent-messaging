@@ -72,11 +72,15 @@ invalid. Which frozen requirement each result satisfies is recorded in
 
 ## Raw-data artifact record
 
-The raw collection lives outside this repository. What is committed here is
-everything derived from it, plus the digests that tie the two together.
+The raw collection lives outside this repository, deposited as a citable
+dataset. What is committed here is everything derived from it, plus the digests
+that tie the two together.
+
+**Dataset:** [`10.5281/zenodo.22727175`](https://doi.org/10.5281/zenodo.22727175)
 
 | Field | Value |
 |---|---|
+| Dataset DOI | [`10.5281/zenodo.22727175`](https://doi.org/10.5281/zenodo.22727175) |
 | Campaign | `fam-formal-651a6ef1b2062472` (as named by the lock) |
 | Campaign as executed | `fam-formal-b260ac4df1f524a5` |
 | Aggregate SHA-256 | `391712ab516049b19689f3b897c398096c8b8d05df358493b470d7b99838cc07` |
@@ -119,7 +123,9 @@ This is the single deviation the campaign carries.
 Regenerating the reported tables and figures from the archived raw data:
 
 ```bash
-export FAM_RESULTS_DIR=/path/to/the/raw/collection
+# fetch and unpack the dataset: doi.org/10.5281/zenodo.22727175
+tar xzf fam-formal-raw-b260ac4df1f524a5.tar.gz
+export FAM_RESULTS_DIR=$PWD/fam-formal-results
 
 git checkout protocol-v1.2-lock2
 make verify                       # environment and federation readiness
@@ -138,6 +144,15 @@ raw -> processed -> figure script -> SVG
 
 No number in any figure is written by hand; each is read from
 `processed/e3-tables/*.csv`.
+
+The analysis core depends only on the Python standard library, so it does not
+need the toolbox image to reproduce the numbers — the container matters for
+running the testbed, not for reading its output. Every reported statistic was
+recomputed from a clean clone and a freshly unpacked archive on a different
+interpreter and operating system (Python 3.14 on Windows, against the frozen
+Python 3.12 on Linux) and reproduced exactly: all six latency percentiles,
+three latency ratios and two throughput ratios, each with its bootstrap
+interval, to the last recorded digit.
 
 ## Integrity rules
 

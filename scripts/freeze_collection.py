@@ -182,13 +182,11 @@ def _completion_gate(root: Path, manifests: list[dict[str, Any]]) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--allow-notes",
-        action="store_true",
-        help="treat findings prefixed 'note:' as informational rather than blocking",
-    )
-    args = parser.parse_args()
+    # Findings prefixed "note:" are always informational: the one this campaign
+    # produces -- the manifests recording the tagging commit while the lock
+    # names the commit it was generated from -- is structural and expected, so
+    # there was never a mode in which it should block the freeze.
+    argparse.ArgumentParser(description=__doc__).parse_args()
 
     root = ensure_layout(resolve_results_dir())
     manifests = _manifests(root)

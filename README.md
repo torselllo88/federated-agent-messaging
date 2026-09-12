@@ -81,7 +81,7 @@ Raw experiment data is deliberately **not** in this tree. Formal runs write to `
 | Protocol lock | `protocol-v1.2-lock2`, created before collection and tagged |
 | Experiments E0–E4 | complete — 129 automated runs and 3 E4 sessions, all valid |
 | Evidence collected | 132 manifests, 12 processed artifacts, 3 figures |
-| Raw archive | 433 files, 216.8 MB, held outside this repository |
+| Raw archive | 433 files, 216.8 MB, deposited as [`10.5281/zenodo.22727175`](https://doi.org/10.5281/zenodo.22727175) |
 | Related-work review | complete |
 
 Campaign `fam-formal-b260ac4df1f524a5`. No run was discarded, repeated or excluded, and no invalidity class was needed.
@@ -93,6 +93,7 @@ this repository, so there is one place to change when the analysis is rerun:
 
 | What | Where |
 |---|---|
+| Raw observations, manifests, environment records | [`10.5281/zenodo.22727175`](https://doi.org/10.5281/zenodo.22727175) — outside this repository |
 | Headline comparison, raw-archive record, reproduction path | [`results/README.md`](results/README.md) |
 | Latency percentiles, paired comparison, per-run throughput, stationarity | [`results/processed/e3-tables/`](results/processed/e3-tables) |
 | Full analysis output with provenance | [`results/processed/`](results/processed) |

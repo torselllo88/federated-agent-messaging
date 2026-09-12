@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+message: >-
+  If you use this testbed, its protocol or its results, please cite the
+  software entry below and the dataset it produced.
+title: >-
+  Federated Agent Messaging: a Matrix testbed for persistent human-agent
+  interaction across federation domains
+abstract: >-
+  A reproducible two-domain Matrix/Synapse testbed and frozen experimental
+  protocol for evaluating whether a federated messaging system can serve as a
+  persistent shared interaction substrate for humans and autonomous agents.
+  Contains the implementation, the frozen research documents, the protocol
+  lock the formal campaign executed under, the analysis code, and the processed
+  results and figures derived from the archived raw observations.
+type: software
+license: Apache-2.0
+repository-code: https://github.com/torselllo88/federated-agent-messaging
+version: protocol-v1.2-lock2
+date-released: 2026-09-06
+
+authors:
+  - family-names: Nikitinsky
+    given-names: Nikita
+    email: torselllo88@gmail.com
+
+keywords:
+  - Matrix
+  - federation
+  - autonomous agents
+  - persistent messaging
+  - reproducible research
+
+references:
+  - type: data
+    title: >-
+      Formal campaign raw observations, manifests and environment records
+      (campaign fam-formal-b260ac4df1f524a5)
+    authors:
+      - family-names: Nikitinsky
+        given-names: Nikita
+    doi: 10.5281/zenodo.22727175
+    year: 2026
+    notes: >-
+      The immutable raw evidence the reported results derive from. Archive
+      SHA-256 c9ded3458c0cc4717be812e6b693561934fd1c69caa67565f6e8c4551b855d6d;
+      aggregate inventory digest
+      391712ab516049b19689f3b897c398096c8b8d05df358493b470d7b99838cc07 over 433
+      files. Produced by the implementation tagged protocol-v1.2-lock2.
