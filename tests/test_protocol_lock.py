@@ -581,3 +581,50 @@ def test_a_development_session_is_not_held_to_the_locked_executor():
     from fam.common.lock import enforce_llm_configuration
 
     enforce_llm_configuration(None, config_hash="c" * 64, publication_data=False)
+
+
+# ------------------------------------------ §54 analysis revision, one source
+
+
+def test_the_analysis_revision_has_one_definition():
+    """Seven entry points used to carry a constant of their own --
+    "task-02-working-tree" and siblings -- naming a working tree nobody can
+    check out. §54 asks which revision produced a processed artifact, and a
+    label that cannot be resolved answers it in form only."""
+    from fam.common import env
+
+    assert callable(env.analysis_code_commit)
+
+
+def test_an_unresolvable_revision_says_so(monkeypatch):
+    from fam.common.env import analysis_code_commit
+
+    monkeypatch.delenv("FAM_ANALYSIS_CODE_COMMIT", raising=False)
+    assert analysis_code_commit() == "unresolved"
+    monkeypatch.setenv("FAM_ANALYSIS_CODE_COMMIT", "   ")
+    assert analysis_code_commit() == "unresolved"
+
+
+def test_the_host_supplied_revision_is_used(monkeypatch):
+    from fam.common.env import analysis_code_commit
+
+    monkeypatch.setenv("FAM_ANALYSIS_CODE_COMMIT", "cd3f3c2aaae54be74728bb242f6bd7d6")
+    assert analysis_code_commit() == "cd3f3c2aaae54be74728bb242f6bd7d6"
+
+
+def test_no_entry_point_reintroduces_a_placeholder_constant():
+    """The regression: a per-file ANALYSIS_CODE_COMMIT naming a working tree."""
+    import re
+
+    offenders = []
+    for directory in ("src", "experiments", "scripts"):
+        base = Path(directory)
+        if not base.exists():
+            continue
+        for path in base.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            if re.search(r'^ANALYSIS_CODE_COMMIT\s*=\s*["\']', text, re.M):
+                offenders.append(str(path))
+            if re.search(r'["\']task-\d+-working-tree["\']', text):
+                offenders.append(f"{path} (working-tree label)")
+    assert not offenders, offenders

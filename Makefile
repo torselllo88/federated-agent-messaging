@@ -29,6 +29,11 @@ RUN_BOOTSTRAP := $(COMPOSE) run --rm --no-deps bootstrap
 
 export FAM_PROTOCOL_GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 
+# §54: every processed artifact names the revision that produced it. Resolved
+# here because a container cannot reach git, and forwarded to every target
+# that writes one.
+export FAM_ANALYSIS_CODE_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unresolved)
+
 .PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 e4-prepare e4-ca e4 e4-validate inventory lock lock-validate lock-check freeze figures audit analyse spike test down clean logs
 
 help:
@@ -120,7 +125,7 @@ setup: hashes
 # host that can see the repository, and forwarded by name -- never given a
 # compose default, because the gate distinguishes an empty worktree status
 # from an absent one, and a default would turn "nobody looked" into "clean".
-RUN_ENV := -e FAM_WORKTREE_STATUS -e FAM_EXECUTION_HOST -e FAM_PUBLICATION_DATA
+RUN_ENV := -e FAM_WORKTREE_STATUS -e FAM_EXECUTION_HOST -e FAM_PUBLICATION_DATA -e FAM_ANALYSIS_CODE_COMMIT
 
 verify: guard
 	$(COMPOSE) run --rm -e FAM_E4_CS_TLS_PORT bootstrap python scripts/verify_environment.py
@@ -138,7 +143,7 @@ e1: guard
 	$(COMPOSE) run --rm $(RUN_ENV) toolbox python experiments/e1_federation.py
 
 e2-pilot: guard
-	$(COMPOSE) run --rm toolbox python scripts/e2_pilot.py
+	$(COMPOSE) run --rm -e FAM_ANALYSIS_CODE_COMMIT toolbox python scripts/e2_pilot.py
 
 # E2 reruns neither E0 nor E1.
 e2: guard
@@ -147,13 +152,13 @@ e2: guard
 
 # Transport readiness. Runs no other experiment and measures no performance.
 e3-readiness: guard
-	$(COMPOSE) run --rm -e FAM_READINESS_REQUESTS -e FAM_READINESS_CONCURRENCY \
+	$(COMPOSE) run --rm -e FAM_ANALYSIS_CODE_COMMIT -e FAM_READINESS_REQUESTS -e FAM_READINESS_CONCURRENCY \
 		-e FAM_READINESS_TIMELINE_LIMIT toolbox python experiments/e3_readiness.py
 
 # Development E3 pilot: benchmark mechanics, sync limit, stationarity.
 # Not an E3 repetition and not publication evidence.
 e3-pilot: guard
-	$(COMPOSE) run --rm -e FAM_E3_TIMELINE_LIMIT -e FAM_E3_SYNC_TIMEOUT_MS \
+	$(COMPOSE) run --rm -e FAM_ANALYSIS_CODE_COMMIT -e FAM_E3_TIMELINE_LIMIT -e FAM_E3_SYNC_TIMEOUT_MS \
 		-e FAM_E3_PILOT_LATENCY_WARMUP -e FAM_E3_PILOT_LATENCY_MEASURED \
 		-e FAM_E3_PILOT_WARMUP_S -e FAM_E3_PILOT_MEASUREMENT_S -e FAM_E3_PILOT_DRAIN_S \
 		toolbox python scripts/e3_pilot.py
@@ -192,7 +197,7 @@ e4: guard
 		toolbox python experiments/e4_human_llm.py
 
 e4-validate: guard
-	$(COMPOSE) run --rm --no-deps toolbox python scripts/e4_validate.py
+	$(COMPOSE) run --rm --no-deps -e FAM_ANALYSIS_CODE_COMMIT -e FAM_PUBLICATION_DATA toolbox python scripts/e4_validate.py
 
 # Machine-readable state of the testbed, as an input to the protocol lock.
 inventory: guard image-digests
@@ -247,7 +252,6 @@ figures: guard
 	$(COMPOSE) run --rm --no-deps toolbox python scripts/figures.py
 
 analyse: guard
-	export FAM_ANALYSIS_CODE_COMMIT="$$(git rev-parse HEAD)"
 	$(COMPOSE) run --rm -e FAM_E3_BOOTSTRAP_REPLICATES -e FAM_E3_BOOTSTRAP_SEED \
 		-e FAM_ANALYSIS_CODE_COMMIT -e FAM_PUBLICATION_DATA \
 		--no-deps toolbox python scripts/analyse.py

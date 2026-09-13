@@ -36,6 +36,7 @@ from fam.common.digests import file_sha256  # noqa: E402
 from fam.common.env import (  # noqa: E402
     account,
     agent_state_dir,
+    analysis_code_commit,
     protocol_git_commit,
     publication_data,
 )
@@ -85,7 +86,6 @@ CLASS_CROSS_DOMAIN = "cross_domain"
 CLASS_SAME_DOMAIN = "same_domain"
 
 SETTLE_SECONDS = 2.0
-ANALYSIS_CODE_COMMIT = "task-02-working-tree"
 
 
 @dataclass
@@ -381,7 +381,7 @@ def _write_artifacts(result: RunResult, root: Path) -> None:
     # digests alongside the frozen provenance triple.
     provenance = {
         "analysis_spec_version": EXECUTION_ANALYSIS_SPEC_VERSION,
-        "analysis_code_commit": ANALYSIS_CODE_COMMIT,
+        "analysis_code_commit": analysis_code_commit(),
         "protocol_git_commit": protocol_git_commit(),
         "source_run_id": result.run_id,
         "source_raw_digests": {

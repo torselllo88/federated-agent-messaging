@@ -34,6 +34,7 @@ from fam.common.digests import file_sha256  # noqa: E402
 from fam.common.env import (  # noqa: E402
     account,
     agent_state_dir,
+    analysis_code_commit,
     protocol_git_commit,
     publication_data,
 )
@@ -85,9 +86,6 @@ TIMELINE_LIMIT = int(os.environ.get("FAM_E2_TIMELINE_LIMIT", str(E2_SYNC_TIMELIN
 #: The response deadline begins with the restart and recovery phase, never at
 #: offline-send time (experimental-protocol.md §11).
 RECOVERY_DEADLINE_SECONDS = 180.0
-
-ANALYSIS_CODE_COMMIT = "task-03-working-tree"
-
 
 def read_jsonl(path: Path) -> list[dict]:
     if not path.exists():
@@ -464,7 +462,7 @@ def _write_artifacts(result: RunResult, root: Path) -> None:
     recovery = result.recovery
     provenance = {
         "analysis_spec_version": EXECUTION_ANALYSIS_SPEC_VERSION,
-        "analysis_code_commit": ANALYSIS_CODE_COMMIT,
+        "analysis_code_commit": analysis_code_commit(),
         "protocol_git_commit": protocol_git_commit(),
         "source_run_id": result.run_id,
         "source_raw_digests": {

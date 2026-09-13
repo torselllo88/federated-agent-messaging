@@ -42,7 +42,11 @@ from fam.benchmark.schedule import (  # noqa: E402
     generate_campaign_schedule,
 )
 from fam.common.digests import file_sha256  # noqa: E402
-from fam.common.env import protocol_git_commit, publication_data  # noqa: E402
+from fam.common.env import (  # noqa: E402
+    analysis_code_commit,
+    protocol_git_commit,
+    publication_data,
+)
 from fam.common.frozen import (  # noqa: E402
     E3_BODY_BYTES,
     E3_CONCURRENCY_LEVELS,
@@ -60,8 +64,6 @@ from fam.common.results import (  # noqa: E402
     resolve_results_dir,
 )
 from fam.common.validity import InvalidRun, InvalidRunClass  # noqa: E402
-
-ANALYSIS_CODE_COMMIT = "task-05-working-tree"
 
 #: Candidate development sync timeline limit. Chosen far above the
 #: bounded-concurrency envelope rather than just above it: at C = 32 both
@@ -905,7 +907,7 @@ async def main_async() -> int:
         "artifact": "e3_pilot_summary",
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "analysis_spec_version": EXECUTION_ANALYSIS_SPEC_VERSION,
-        "analysis_code_commit": ANALYSIS_CODE_COMMIT,
+        "analysis_code_commit": analysis_code_commit(),
         "protocol_git_commit": protocol_git_commit(),
         "publication_data": publication_data(),
         "scope_note": (

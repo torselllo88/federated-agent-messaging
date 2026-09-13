@@ -24,7 +24,10 @@ from pathlib import Path
 sys.path.insert(0, "/app/src")
 
 from fam.common.digests import file_sha256  # noqa: E402
-from fam.common.env import publication_data  # noqa: E402
+from fam.common.env import (  # noqa: E402
+    analysis_code_commit,
+    publication_data,
+)
 from fam.common.frozen import (  # noqa: E402
     EXECUTION_ANALYSIS_SPEC_VERSION,
     RAW_SCHEMA_VERSION,
@@ -39,14 +42,9 @@ from verify_digests import verify as verify_digests  # noqa: E402
 
 #: The analysis implementation may be written or corrected after collection;
 #: the specification it implements may not change without a disclosed
-#: methodological revision (experimental-protocol.md §3 Phase 4, §40).
-#: Fallback when the analysis runs somewhere git cannot be reached, which is
-#: the container. `make analyse` passes the real commit in.
-ANALYSIS_CODE_COMMIT = "unresolved-working-tree"
-
-
-def _analysis_code_commit() -> str:
-    return os.environ.get("FAM_ANALYSIS_CODE_COMMIT", "").strip() or ANALYSIS_CODE_COMMIT
+#: methodological revision (experimental-protocol.md §3 Phase 4, §40). The
+#: revision itself comes from `fam.common.env.analysis_code_commit`, shared by
+#: every entry point that writes a processed artifact.
 
 
 def _lock_field(section: str, key: str) -> str | None:
@@ -801,7 +799,7 @@ def main() -> int:
         # specification and its implementation are separate identifiers, and
         # neither is the protocol commit.
         "analysis_spec_version": EXECUTION_ANALYSIS_SPEC_VERSION,
-        "analysis_code_commit": _analysis_code_commit(),
+        "analysis_code_commit": analysis_code_commit(),
         "protocol_git_commit": _protocol_commit(root),
         # §54. The lock and the campaign it produced, so a processed artifact
         # names the collection it summarises without a reader having to infer

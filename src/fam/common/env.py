@@ -99,6 +99,19 @@ def protocol_git_commit() -> str:
     return os.environ.get("FAM_PROTOCOL_GIT_COMMIT", "unknown")
 
 
+def analysis_code_commit() -> str:
+    """Revision of the code that produced a processed artifact (§54).
+
+    One definition, resolved on the host and passed in, because a container
+    cannot reach git. Seven entry points used to carry a constant of their own
+    -- ``task-02-working-tree`` and siblings -- naming a working tree nobody
+    can check out, which satisfies §54 in form and not in substance. A run that
+    cannot resolve the revision now says so instead of naming something that
+    never existed.
+    """
+    return os.environ.get("FAM_ANALYSIS_CODE_COMMIT", "").strip() or "unresolved"
+
+
 def agent_state_dir() -> Path:
     path = Path(os.environ.get("FAM_AGENT_STATE_DIR", "/tmp/fam-agent-state"))
     path.mkdir(parents=True, exist_ok=True)

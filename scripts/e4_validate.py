@@ -24,7 +24,10 @@ from typing import Any
 sys.path.insert(0, "/app/src")
 
 from fam.common.digests import file_sha256  # noqa: E402
-from fam.common.env import publication_data  # noqa: E402
+from fam.common.env import (  # noqa: E402
+    analysis_code_commit,
+    publication_data,
+)
 from fam.common.frozen import EXECUTION_ANALYSIS_SPEC_VERSION  # noqa: E402
 from fam.common.results import (  # noqa: E402
     manifests_dir,
@@ -37,8 +40,6 @@ LLM_AGENT = "@llm-agent:hs-b.test"
 EXPECTED_MEMBERSHIP = {ACTUAL_HUMAN, HUMAN_ROLE_B, LLM_AGENT}
 MINIMUM_REQUESTS = 3
 REQUIRED_SESSIONS = 3
-
-ANALYSIS_CODE_COMMIT = "task-06-working-tree"
 
 # --------------------------------------------------------------- secrets
 #
@@ -330,7 +331,7 @@ def main() -> int:
     report = {
         "artifact": "e4_validation_summary",
         "analysis_spec_version": EXECUTION_ANALYSIS_SPEC_VERSION,
-        "analysis_code_commit": ANALYSIS_CODE_COMMIT,
+        "analysis_code_commit": analysis_code_commit(),
         "publication_data": False,
         "required_sessions": REQUIRED_SESSIONS,
         "sessions": results,

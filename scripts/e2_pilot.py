@@ -30,6 +30,7 @@ from fam.agent.supervisor import AgentProcess  # noqa: E402
 from fam.common.env import (  # noqa: E402
     account,
     agent_state_dir,
+    analysis_code_commit,
     protocol_git_commit,
     publication_data,
 )
@@ -48,9 +49,6 @@ OFFLINE_REQUESTS = 100
 #: Tried in order. The first that reliably exposes a limited timeline and
 #: forces history recovery is recommended.
 CANDIDATES = [int(x) for x in os.environ.get("FAM_E2_CANDIDATES", "100,50,10").split(",")]
-
-ANALYSIS_CODE_COMMIT = "task-03-working-tree"
-
 
 def read_jsonl(path: Path) -> list[dict]:
     if not path.exists():
@@ -190,7 +188,7 @@ async def main_async() -> int:
 
     artifact = {
         "analysis_spec_version": EXECUTION_ANALYSIS_SPEC_VERSION,
-        "analysis_code_commit": ANALYSIS_CODE_COMMIT,
+        "analysis_code_commit": analysis_code_commit(),
         "protocol_git_commit": protocol_git_commit(),
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "publication_data": publication_data(),

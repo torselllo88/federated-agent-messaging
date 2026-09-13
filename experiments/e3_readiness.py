@@ -33,6 +33,7 @@ from fam.common.digests import file_sha256  # noqa: E402
 from fam.common.env import (  # noqa: E402
     account,
     agent_state_dir,
+    analysis_code_commit,
     protocol_git_commit,
     publication_data,
 )
@@ -73,7 +74,6 @@ DEV_TIMELINE_LIMIT = int(os.environ.get("FAM_READINESS_TIMELINE_LIMIT", "10"))
 
 REQUEST_TIMEOUT_SECONDS = 120.0
 DRAIN_SECONDS = 20.0
-ANALYSIS_CODE_COMMIT = "task-04-working-tree"
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -352,7 +352,7 @@ def _write_artifacts(result: RunResult, root: Path) -> None:
     agent = result.agent
     payload = {
         "analysis_spec_version": EXECUTION_ANALYSIS_SPEC_VERSION,
-        "analysis_code_commit": ANALYSIS_CODE_COMMIT,
+        "analysis_code_commit": analysis_code_commit(),
         "protocol_git_commit": protocol_git_commit(),
         "source_run_id": result.run_id,
         "source_raw_digests": {
