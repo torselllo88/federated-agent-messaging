@@ -407,8 +407,14 @@ def _write_evidence(
         "setup_transport_diagnostics": result.setup_transport,
         "agent_transport_diagnostics": result.agent_transport,
         "problems": result.problems,
+        # Follows the flag rather than asserting one. Written unconditionally,
+        # this said "publication_data is false" on 120 formal manifests that
+        # carry true, so every one of them contradicted itself.
         "scope_note": (
-            "Development E3 run. publication_data is false; these numbers "
+            "Formal E3 run executed under the protocol lock. These numbers are "
+            "publication evidence."
+            if publication_data()
+            else "Development E3 run. publication_data is false; these numbers "
             "are implementation validation and are not publication evidence."
         ),
     }

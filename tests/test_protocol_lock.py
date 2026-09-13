@@ -628,3 +628,41 @@ def test_no_entry_point_reintroduces_a_placeholder_constant():
             if re.search(r'["\']task-\d+-working-tree["\']', text):
                 offenders.append(f"{path} (working-tree label)")
     assert not offenders, offenders
+
+
+# ------------------------------ a manifest must not contradict its own status
+
+
+def _scope_note_sources():
+    return [Path("src/fam/benchmark/runner.py"),
+            Path("experiments/e4_human_llm.py")]
+
+
+def test_no_scope_note_asserts_a_publication_status_unconditionally():
+    """The defect that reached the deposited archive.
+
+    A hardcoded "publication_data is false" rode along on 123 formal manifests
+    that carry true, so each of them contradicted itself. Every scope_note that
+    mentions the flag must branch on it.
+    """
+    import re
+
+    offenders = []
+    for path in _scope_note_sources():
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(r'"scope_note": \((.*?)\n\s*\),', text, re.S):
+            body = match.group(1)
+            if "publication_data is false" in body and "publication_data()" not in body:
+                offenders.append(f"{path}: {body.strip()[:60]}")
+    assert not offenders, offenders
+
+
+def test_the_note_follows_the_flag_in_both_directions(monkeypatch):
+    from fam.common.env import publication_data
+
+    monkeypatch.setenv("FAM_PUBLICATION_DATA", "true")
+    assert publication_data() is True
+    monkeypatch.setenv("FAM_PUBLICATION_DATA", "false")
+    assert publication_data() is False

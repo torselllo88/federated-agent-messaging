@@ -21,7 +21,8 @@ message they send is genuinely theirs.
 The agent runs the same communication runtime as E0-E3. Only the executor and
 the request protocol differ (testbed-architecture.md §14.2).
 
-Task 06 sessions are development validation: publication_data is false.
+A session is development validation or formal evidence according to
+``publication_data``; nothing here assumes one or the other.
 """
 
 from __future__ import annotations
@@ -614,9 +615,16 @@ def _write_manifest(
                 if result.agent_stream and result.agent_stream.exists()
                 else None
             ),
+            # Follows the flag rather than asserting one. Written
+            # unconditionally, this said "publication_data is false" on three
+            # formal session manifests that carry true.
             "scope_note": (
-                "Development validation. publication_data is false; C4 is not "
-                "marked collected and no evidence counter is updated."
+                "Formal E4 session under the protocol lock. Supplies the "
+                "actual-human component of C4; no latency, throughput or "
+                "model-quality claim is derived from it."
+                if publication_data()
+                else "Development validation. publication_data is false; C4 is "
+                "not marked collected and no evidence counter is updated."
             ),
         },
     )
