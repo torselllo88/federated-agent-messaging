@@ -245,14 +245,47 @@ raw -> processed -> figure script -> SVG
 No number in any figure is written by hand; each is read from
 `processed/e3-tables/*.csv`.
 
-The analysis core depends only on the Python standard library, so it does not
-need the toolbox image to reproduce the numbers — the container matters for
-running the testbed, not for reading its output. Every reported statistic was
-recomputed from a clean clone and a freshly unpacked archive on a different
-interpreter and operating system (Python 3.14 on Windows, against the frozen
-Python 3.12 on Linux) and reproduced exactly: all six latency percentiles,
-three latency ratios and two throughput ratios, each with its bootstrap
-interval, to the last recorded digit.
+### Running this without Docker
+
+The container matters for running the testbed, not for reading its output, and
+the numerical core in `fam.analysis.e3` uses only the Python standard library.
+The entry points divide on one line:
+
+| Needs nothing installed | Needs `requirements.txt` |
+|---|---|
+| `verify_digests.py` — per-file digests against the manifests | `analyse.py` — the processed datasets and tables |
+| `final_audit.py` — the 23 integrity checks | `protocol_lock.py validate` — the lock against its schema |
+| `figures.py` — SVG from the processed tables | |
+| `decompose.py` — the round-trip decomposition | |
+
+So the archive can be verified, audited and its figures redrawn with a bare
+interpreter. The two on the right validate against the tracked JSON Schemas
+and therefore need `jsonschema`:
+
+```bash
+pip install -r requirements.txt      # or just: pip install jsonschema==4.23.0
+PYTHONPATH=src python scripts/analyse.py
+```
+
+Both are **fail-closed**. If the library is absent or a schema file is missing,
+the run stops before reading any record — `analyse.py` with
+`FAIL (dependency)` — and says which of the two it was. Neither degrades to a
+weaker check: "could not validate" and "validated, found a problem" are
+different statements and are never merged.
+
+Every reported statistic was recomputed this way — from a clean clone and a
+freshly unpacked archive, on a different interpreter and operating system
+(Python 3.14 on Windows, against the frozen Python 3.12 on Linux) — and
+reproduced exactly: all six latency percentiles, three latency ratios and two
+throughput ratios, each with its bootstrap interval, to the last recorded
+digit. The four `e3-tables/*.csv` come back byte-identical to the copies
+committed here, and the regenerated summary differs from the committed one in
+`generated_at` and `analysis_code_commit` and in no analytical field.
+
+One caution when re-running against an extracted archive: `analyse.py` writes a
+new `processed/experiment-summary-<stamp>.json` each time. Point
+`FAM_RESULTS_DIR` at a copy, or the archive gains a summary the errata does not
+list.
 
 ## Integrity rules
 

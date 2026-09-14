@@ -33,7 +33,11 @@ from fam.common.frozen import (  # noqa: E402
     RAW_SCHEMA_VERSION,
     SUPPORTED_RAW_SCHEMA_VERSIONS,
 )
-from fam.common.results import manifests_dir, resolve_results_dir  # noqa: E402
+from fam.common.results import (  # noqa: E402
+    manifests_dir,
+    resolve_results_dir,
+    schema_dir,
+)
 from fam.analysis import e3 as e3_analysis  # noqa: E402
 from fam.analysis import integrity  # noqa: E402
 
@@ -55,19 +59,6 @@ def _lock_field(section: str, key: str) -> str | None:
         return None
     return document.get(section, {}).get(key)
 
-REQUIRED_RUNNER_FIELDS = {
-    "schema_version",
-    "experiment",
-    "run_id",
-    "sequence_id",
-    "room_id",
-    "sender",
-    "request_txn_id",
-    "initiated_monotonic_ns",
-    "outcome",
-}
-REQUIRED_AGENT_FIELDS = {"schema_version", "experiment", "run_id", "agent_mxid", "action"}
-
 #: Never persisted as authoritative raw evidence; derived during analysis.
 FORBIDDEN_RAW_FIELDS = {"counted_in_window"}
 
@@ -85,23 +76,37 @@ def load_jsonl(path: Path) -> list[dict]:
     return records
 
 
-SCHEMA_DIR = Path("/app/results/schemas")
+class ValidationUnavailable(RuntimeError):
+    """Schema validation could not be performed at all.
+
+    Distinct from a schema violation: nothing was checked, so nothing is
+    known. It is raised before any record is read, and it stops the analysis
+    -- a publication pipeline that cannot validate its inputs must not go on
+    to report numbers derived from them.
+    """
 
 
-def _load_schema(name: str) -> dict | None:
-    path = SCHEMA_DIR / name
+def _load_schema(name: str) -> dict:
+    path = schema_dir() / name
     if not path.exists():
-        return None
+        raise ValidationUnavailable(
+            f"JSON Schema {name} is missing from {schema_dir()}. It is tracked "
+            "in the repository under results/schemas; a checkout that lacks it "
+            "is incomplete."
+        )
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _validator(schema: dict | None):
-    if schema is None:
-        return None
+def _validator(schema: dict):
     try:
         from jsonschema import Draft202012Validator
-    except ImportError:  # pragma: no cover - jsonschema is a pinned dependency
-        return None
+    except ImportError as exc:
+        raise ValidationUnavailable(
+            "jsonschema is required to validate raw records and manifests. "
+            "Install the pinned dependencies with "
+            "`pip install -r requirements.txt`, or run this through "
+            "`make analyse`, which executes inside the toolbox image."
+        ) from exc
     return Draft202012Validator(schema)
 
 
@@ -123,10 +128,18 @@ def _raw_schema_versions(root: Path) -> dict[str, int]:
 
 
 def validate_streams(root: Path) -> tuple[bool, list[str]]:
-    """Validate raw streams against the tracked JSON Schemas.
+    """Validate raw streams and manifests against the tracked JSON Schemas.
 
-    The field-level fallback runs when a schema is unavailable, so validation
-    degrades to something useful rather than to nothing.
+    Fail-closed. Every validator is constructed before the first record is
+    read, so an unavailable schema or a missing library stops the run with
+    :class:`ValidationUnavailable` instead of being discovered per record and
+    reported as though the data were at fault.
+
+    There is deliberately no degraded mode. An earlier version checked a
+    handful of required field names when a validator could not be built, which
+    reads as reassurance and is not: it accepts records a schema would reject,
+    and it ran only for agent streams, so the two kinds of record were held to
+    different standards without saying so.
     """
     problems: list[str] = []
     # One validator per declared raw schema version. A record is checked
@@ -153,7 +166,6 @@ def validate_streams(root: Path) -> tuple[bool, list[str]]:
             continue
 
         validator = validators[kind]
-        required = REQUIRED_RUNNER_FIELDS if kind == "runner" else REQUIRED_AGENT_FIELDS
 
         for index, record in enumerate(records, 1):
             leaked = FORBIDDEN_RAW_FIELDS & record.keys()
@@ -172,36 +184,32 @@ def validate_streams(root: Path) -> tuple[bool, list[str]]:
                 )
                 break
             if kind == "runner":
+                # Checked against the version it declares, never a later one.
+                # SUPPORTED_RAW_SCHEMA_VERSIONS is enforced above, so a
+                # declared version with no validator means the two constants
+                # have drifted apart in the source, not that the data is odd.
                 validator = runner_validators.get(declared)
                 if validator is None:
-                    problems.append(
-                        f"{path.name}:{index} no runner schema available for "
-                        f"version {declared!r}"
+                    raise ValidationUnavailable(
+                        f"no runner schema is built for raw schema version "
+                        f"{declared!r}, although it is listed in "
+                        f"SUPPORTED_RAW_SCHEMA_VERSIONS "
+                        f"({list(SUPPORTED_RAW_SCHEMA_VERSIONS)})"
                     )
-                    break
-            if validator is not None:
-                errors = sorted(validator.iter_errors(record), key=lambda e: e.path)
-                if errors:
-                    problems.append(
-                        f"{path.name}:{index} schema violation: {errors[0].message}"
-                    )
-                    break
-            else:
-                missing = required - record.keys()
-                if missing:
-                    problems.append(
-                        f"{path.name}:{index} missing fields {sorted(missing)}"
-                    )
-                    break
-
-    if manifest_validator is not None:
-        for manifest_path in sorted(manifests_dir(root).glob("*.manifest.json")):
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            errors = sorted(manifest_validator.iter_errors(manifest), key=lambda e: e.path)
+            errors = sorted(validator.iter_errors(record), key=lambda e: e.path)
             if errors:
                 problems.append(
-                    f"{manifest_path.name} schema violation: {errors[0].message}"
+                    f"{path.name}:{index} schema violation: {errors[0].message}"
                 )
+                break
+
+    for manifest_path in sorted(manifests_dir(root).glob("*.manifest.json")):
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        errors = sorted(manifest_validator.iter_errors(manifest), key=lambda e: e.path)
+        if errors:
+            problems.append(
+                f"{manifest_path.name} schema violation: {errors[0].message}"
+            )
 
     return not problems, problems
 
@@ -745,7 +753,15 @@ def main() -> int:
     versions = _raw_schema_versions(root)
     if versions:
         print(f"   raw schema versions present: {versions}")
-    schema_ok, schema_problems = validate_streams(root)
+    try:
+        schema_ok, schema_problems = validate_streams(root)
+    except ValidationUnavailable as exc:
+        # Not a finding about the data: validation never ran. Reported apart
+        # from FAIL (schema) so that "we could not check" is never read as
+        # "we checked and it was wrong".
+        print(f"   ! {exc}")
+        print("\nANALYSE: FAIL (dependency)")
+        return 1
     for problem in schema_problems:
         print(f"   ! {problem}")
     print(f"   {'ok' if schema_ok else 'problems found'}")

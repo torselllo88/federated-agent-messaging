@@ -62,6 +62,7 @@ from fam.common.results import (  # noqa: E402
     ensure_layout,
     environment_dir,
     resolve_results_dir,
+    schema_dir,
 )
 from fam.common.validity import InvalidRun, InvalidRunClass  # noqa: E402
 
@@ -664,13 +665,16 @@ def check_schemas(findings: Findings, runs: dict[str, BenchmarkRun]) -> dict[str
         findings.record("jsonschema available", False, "not installed")
         return {}
 
-    schema_dir = Path("/app/results/schemas")
+    # The pilot reports rather than gates: unlike the publication analysis it
+    # records an unavailable schema as a finding and carries on, because its
+    # output is a development observation and never publication evidence.
+    schemas = schema_dir()
     validators = {}
     for key, name in (
         ("runner", "raw-runner-record.schema.json"),
         ("manifest", "run-manifest.schema.json"),
     ):
-        path = schema_dir / name
+        path = schemas / name
         if not path.exists():
             findings.record(f"schema present: {name}", False, str(path))
             continue

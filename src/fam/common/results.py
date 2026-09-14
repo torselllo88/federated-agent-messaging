@@ -28,12 +28,18 @@ RAW_SUBDIRS = (
 )
 
 
-def _repository_root() -> Path | None:
+def repository_root() -> Path | None:
     """Best-effort location of the tracked worktree.
 
     Inside the toolbox container only read-only source is mounted, so this
     resolves to the mount point rather than a git checkout. Both are treated
     the same way: results must not live underneath either.
+
+    Two callers, for opposite reasons. This module uses it to refuse a results
+    directory that lies inside the repository. Entry points use it to find a
+    tracked input they must read -- the JSON Schemas. It resolves from this
+    file's own location rather than from the working directory, so a script
+    invoked by absolute path from somewhere else still finds them.
     """
     here = Path(__file__).resolve()
     for candidate in here.parents:
@@ -42,6 +48,25 @@ def _repository_root() -> Path | None:
         if (candidate / "src").is_dir() and (candidate / "scripts").is_dir():
             return candidate
     return None
+
+
+def schema_dir() -> Path:
+    """The tracked JSON Schema directory.
+
+    One definition, because three entry points each carried their own. Two
+    named the container path and nothing else, so off-container they resolved
+    to a directory that does not exist and validated nothing; the third fell
+    back to a path relative to the working directory, which held only while it
+    was run from the repository root.
+    """
+    root = repository_root()
+    if root is None:
+        raise RuntimeError(
+            "cannot locate the repository root from "
+            f"{Path(__file__).resolve()}, so the tracked JSON Schemas under "
+            "results/schemas cannot be found"
+        )
+    return root / "results" / "schemas"
 
 
 def resolve_results_dir(create: bool = True) -> Path:
@@ -67,7 +92,7 @@ def resolve_results_dir(create: bool = True) -> Path:
             f"FAM_RESULTS_DIR cannot be resolved: {exc}",
         ) from exc
 
-    repo = _repository_root()
+    repo = repository_root()
     if repo is not None and _is_within(path, repo):
         raise InvalidRun(
             InvalidRunClass.EXECUTION_PRECONDITION_VIOLATION,

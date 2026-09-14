@@ -58,12 +58,15 @@ from fam.common.results import (  # noqa: E402
     ensure_layout,
     environment_dir,
     resolve_results_dir,
+    schema_dir,
 )
 from fam.common.validity import InteractionOutcome, InvalidRunClass  # noqa: E402
 
-SCHEMA_DIR = Path("/app/results/schemas")
-if not SCHEMA_DIR.exists():
-    SCHEMA_DIR = Path("results/schemas")
+#: Resolved from the package location, so it holds inside the container, in a
+#: clone on a host, and when this script is invoked by absolute path from some
+#: other working directory. The fallback here used to be relative to the
+#: current directory, which covered only the middle case.
+SCHEMA_DIR = schema_dir()
 
 
 def _git(*args: str) -> str:
@@ -198,9 +201,10 @@ def _validate_against_schema(document: dict[str, Any]) -> list[str]:
         # Never a silent skip. A lock that was not actually checked against its
         # schema, but reports as checked, is worse than no check at all.
         raise ProtocolLockError(
-            "jsonschema is unavailable, so the lock cannot be validated. Run "
-            "this inside the toolbox container (`make lock`), not on a bare "
-            f"host interpreter: {error}"
+            "jsonschema is unavailable, so the lock cannot be validated. "
+            "Install the pinned dependencies with "
+            "`pip install -r requirements.txt`, or run this through "
+            f"`make lock-check`, which executes inside the toolbox image: {error}"
         ) from error
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     validator = jsonschema.Draft202012Validator(schema)
