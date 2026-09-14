@@ -267,11 +267,19 @@ pip install -r requirements.txt      # or just: pip install jsonschema==4.23.0
 PYTHONPATH=src python scripts/analyse.py
 ```
 
-Both are **fail-closed**. If the library is absent or a schema file is missing,
-the run stops before reading any record — `analyse.py` with
-`FAIL (dependency)` — and says which of the two it was. Neither degrades to a
-weaker check: "could not validate" and "validated, found a problem" are
-different statements and are never merged.
+Both are **fail-closed**, and `analyse.py` separates the two ways validation
+can end badly. The verdict names the stage that failed; the message names the
+cause.
+
+| Verdict | Meaning | Causes |
+|---|---|---|
+| `FAIL (validation unavailable)` | nothing was checked | `jsonschema` absent, or a schema file missing from `results/schemas` |
+| `FAIL (schema)` | everything was checked and a record or manifest failed | the file and the violated constraint are named |
+
+The first stops the run before any record is read, so it never reports a data
+finding it did not make. Neither verdict degrades to a weaker check: "could not
+validate" and "validated, found a problem" are different statements and are
+never merged.
 
 Every reported statistic was recomputed this way — from a clean clone and a
 freshly unpacked archive, on a different interpreter and operating system

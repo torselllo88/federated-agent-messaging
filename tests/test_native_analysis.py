@@ -4,8 +4,9 @@
 dependencies are installed, so nothing here was ever exercised by it. Off
 container the schema directory resolved to a path that does not exist, every
 runner record was reported as unvalidatable, and the run stopped with
-`FAIL (schema)` before computing anything — a message that blamed the data for
-a broken lookup.
+`FAIL (schema)` before computing anything — a verdict that blamed the data for
+a broken lookup. That case is now `FAIL (validation unavailable)`, which is
+about the tool rather than the evidence.
 
 These tests run the real entry point from outside the container. Asserting
 that `SCHEMA_DIR.exists()` would not have caught it: the old value was a
@@ -14,9 +15,9 @@ constant that is perfectly valid in the one environment nobody was testing.
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -140,12 +141,17 @@ def _tree(tmp_path: Path, *, runner: dict, agent: dict, manifest: dict) -> Path:
     root = tmp_path / "results"
     (root / "raw" / "e0").mkdir(parents=True)
     (root / "manifests").mkdir(parents=True)
-    (root / "raw" / "e0" / "run-01.runner.jsonl").write_text(
-        json.dumps(runner) + "\n", encoding="utf-8"
-    )
+    runner_path = root / "raw" / "e0" / "run-01.runner.jsonl"
+    runner_path.write_text(json.dumps(runner) + "\n", encoding="utf-8")
     (root / "raw" / "e0" / "run-01.agent.jsonl").write_text(
         json.dumps(agent) + "\n", encoding="utf-8"
     )
+    # The manifest's digest has to match what was just written, or the run
+    # stops at provenance before it reaches the stage under test.
+    for artifact in manifest.get("raw_artifacts", []):
+        target = root / artifact["path"]
+        if target.exists():
+            artifact["sha256"] = hashlib.sha256(target.read_bytes()).hexdigest()
     (root / "manifests" / "run-01.manifest.json").write_text(
         json.dumps(manifest), encoding="utf-8"
     )
@@ -153,13 +159,32 @@ def _tree(tmp_path: Path, *, runner: dict, agent: dict, manifest: dict) -> Path:
 
 
 def _records(**overrides):
+    """A tree the real schemas accept.
+
+    Assembled against the schemas rather than against their top-level
+    ``required`` lists, which are the smaller half of what they demand: a
+    non-marker runner record picks up ten more fields from a conditional
+    branch, and the manifest constrains several values by ``const`` and by
+    manifest type. A stand-in validator that checks only the top level calls
+    this conforming; the real one does not, which is the difference between
+    testing the wiring and testing the validation.
+    """
     runner = {
         "schema_version": "2",
         "stream": "runner",
         "experiment": "E0",
         "run_id": "run-01",
         "record_type": "interaction",
+        "topology": "local",
+        "sequence_id": 1,
+        "run_phase": "measured",
+        "room_id": "!room:hs-a.test",
+        "sender": "@human:hs-a.test",
+        "request_txn_id": "fam-test-request-00001",
+        "initiated_monotonic_ns": 1_000_000,
         "outcome": "success",
+        "ack_count": 1,
+        "duplicate_ack_count": 0,
     }
     agent = {
         "schema_version": "2",
@@ -170,8 +195,8 @@ def _records(**overrides):
         "action": "responded",
     }
     manifest = {
-        "manifest_type": "run_manifest",
-        "manifest_schema_version": 1,
+        "manifest_type": "automated_experiment_manifest",
+        "manifest_schema_version": "1",
         "experiment": "E0",
         "execution_protocol_version": "1.2",
         "execution_analysis_spec_version": "1.2",
@@ -181,11 +206,19 @@ def _records(**overrides):
         "run_id": "run-01",
         "room_id": "!room:hs-a.test",
         "room_version": "12",
-        "participants": ["@agent:hs-a.test"],
+        "participants": {"agent": "@agent:hs-a.test"},
         "execution_host_identifier": "test",
         "start_timestamp": "2026-01-01T00:00:00Z",
         "completion_status": "pass",
         "validity_classification": {"valid": True, "invalid_class": None},
+        "topology": "local",
+        "raw_artifacts": [
+            {
+                "role": "runner_interaction_stream",
+                "path": "raw/e0/run-01.runner.jsonl",
+                "sha256": "0" * 64,
+            }
+        ],
     }
     runner.update(overrides.get("runner", {}))
     agent.update(overrides.get("agent", {}))
@@ -275,6 +308,67 @@ def test_manifests_are_validated_rather_than_skipped(tmp_path):
 
     assert not ok
     assert any("run-01.manifest.json" in p for p in problems), problems
+
+
+# -------------------------------------------------------------- the verdicts
+
+
+def _run_main(root: Path, monkeypatch, capsys) -> tuple[int, str]:
+    monkeypatch.setenv("FAM_RESULTS_DIR", str(root))
+    code = analyse.main()
+    return code, capsys.readouterr().out
+
+
+@needs_jsonschema
+def test_the_label_names_the_stage_and_the_message_names_the_cause(
+    tmp_path, monkeypatch, capsys
+):
+    """Two causes, one verdict, because what is known afterwards is the same.
+
+    An absent library and an absent schema file differ in what to do about
+    them and not in what they leave established, which is nothing. Both are
+    `validation unavailable`; the message separates them. The verdict this
+    must never collide with is `FAIL (schema)`, which asserts the opposite --
+    that validation ran and the data failed it.
+    """
+    runner, agent, manifest = _records()
+    root = _tree(tmp_path, runner=runner, agent=agent, manifest=manifest)
+
+    missing = tmp_path / "no-schemas"
+    missing.mkdir()
+    monkeypatch.setattr(analyse, "schema_dir", lambda: missing)
+    code, out = _run_main(root, monkeypatch, capsys)
+
+    assert code == 1
+    assert "FAIL (validation unavailable)" in out
+    assert "FAIL (schema)" not in out
+    assert "results/schemas" in out
+
+
+@needs_jsonschema
+def test_a_schema_violation_keeps_its_own_verdict(tmp_path, monkeypatch, capsys):
+    runner, agent, manifest = _records()
+    del runner["outcome"]
+    root = _tree(tmp_path, runner=runner, agent=agent, manifest=manifest)
+
+    code, out = _run_main(root, monkeypatch, capsys)
+
+    assert code == 1
+    assert "FAIL (schema)" in out
+    assert "validation unavailable" not in out
+    assert "'outcome' is a required property" in out
+
+
+def test_missing_library_reaches_the_same_verdict(tmp_path, monkeypatch, capsys):
+    runner, agent, manifest = _records()
+    root = _tree(tmp_path, runner=runner, agent=agent, manifest=manifest)
+    monkeypatch.setitem(sys.modules, "jsonschema", None)
+
+    code, out = _run_main(root, monkeypatch, capsys)
+
+    assert code == 1
+    assert "FAIL (validation unavailable)" in out
+    assert "requirements.txt" in out
 
 
 @needs_jsonschema

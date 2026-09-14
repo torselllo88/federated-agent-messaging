@@ -756,11 +756,14 @@ def main() -> int:
     try:
         schema_ok, schema_problems = validate_streams(root)
     except ValidationUnavailable as exc:
-        # Not a finding about the data: validation never ran. Reported apart
-        # from FAIL (schema) so that "we could not check" is never read as
-        # "we checked and it was wrong".
+        # The label names the stage that failed, the message names the cause.
+        # Validation never ran here, so this stays apart from FAIL (schema):
+        # "we could not check" must never be read as "we checked and it was
+        # wrong". Both causes -- an absent library and an absent schema file
+        # -- land here, because they are the same fact about what is known
+        # afterwards, which is nothing.
         print(f"   ! {exc}")
-        print("\nANALYSE: FAIL (dependency)")
+        print("\nANALYSE: FAIL (validation unavailable)")
         return 1
     for problem in schema_problems:
         print(f"   ! {problem}")
