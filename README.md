@@ -62,6 +62,8 @@ results/
     processed/                   analysis outputs and the E3 tables
     figures/                     3 SVG figures, generated from the tables
     environment/                 lock inputs, collection freeze, archive inventory
+    errata/                      dataset errata and the regeneration layer,
+                                 mirroring what accompanies the deposited archive
 LICENSE
 .gitignore
 ```
@@ -96,12 +98,23 @@ this repository, so there is one place to change when the analysis is rerun:
 | Raw observations, manifests, environment records | [`10.5281/zenodo.22727175`](https://doi.org/10.5281/zenodo.22727175) — outside this repository |
 | Headline comparison, raw-archive record, reproduction path | [`results/README.md`](results/README.md) |
 | Latency percentiles, paired comparison, per-run throughput, stationarity | [`results/processed/e3-tables/`](results/processed/e3-tables) |
+| Round-trip decomposition and agent service interval | [`results/processed/e3-tables/rtt_decomposition.csv`](results/processed/e3-tables/rtt_decomposition.csv) |
 | Full analysis output with provenance | [`results/processed/`](results/processed) |
 | Figures | [`results/figures/`](results/figures) |
 | Which frozen requirement each result satisfies | [`docs/evidence-matrix.md`](docs/evidence-matrix.md) |
+| Known metadata defects and what cannot be reproduced | [`results/errata/`](results/errata) |
 
 `make analyse` regenerates the tables from the raw archive and `make figures`
-redraws the figures from the tables. No number in a figure is written by hand.
+redraws the figures from the tables. `scripts/decompose.py` produces the
+round-trip decomposition, which is a post-collection explanatory analysis over
+the same archive and derives no primary metric. No number in a figure is written
+by hand.
+
+The dataset carries an errata layer recording nine metadata defects, none of
+which affects a number, and one reproducibility limit: the E1 federation
+comparison cannot be regenerated from the raw streams, because the two domain
+views it rests on were collected live during execution and never written to
+one. See [`results/README.md`](results/README.md).
 
 ## Experimental program
 

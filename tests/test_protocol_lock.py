@@ -616,6 +616,12 @@ def test_no_entry_point_reintroduces_a_placeholder_constant():
     """The regression: a per-file ANALYSIS_CODE_COMMIT naming a working tree."""
     import re
 
+    # Assignment, not mention. scripts/build_errata.py quotes these labels in
+    # the errata text that describes the defect, which is the opposite of
+    # reintroducing one.
+    assigned = re.compile(r"^\s*[A-Z_]*ANALYSIS_CODE_COMMIT\s*=\s*[\"']", re.M)
+    literal_at_write_site = re.compile(r"[\"']analysis_code_commit[\"']\s*:\s*[\"']")
+
     offenders = []
     for directory in ("src", "experiments", "scripts"):
         base = Path(directory)
@@ -623,10 +629,10 @@ def test_no_entry_point_reintroduces_a_placeholder_constant():
             continue
         for path in base.rglob("*.py"):
             text = path.read_text(encoding="utf-8")
-            if re.search(r'^ANALYSIS_CODE_COMMIT\s*=\s*["\']', text, re.M):
-                offenders.append(str(path))
-            if re.search(r'["\']task-\d+-working-tree["\']', text):
-                offenders.append(f"{path} (working-tree label)")
+            if assigned.search(text):
+                offenders.append(f"{path}: module-level constant")
+            if literal_at_write_site.search(text):
+                offenders.append(f"{path}: literal value at a write site")
     assert not offenders, offenders
 
 

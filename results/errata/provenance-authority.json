@@ -1,0 +1,277 @@
+{
+  "artifact": "dataset_provenance_authority",
+  "errata_version": "1",
+  "issued": "2026-09-13",
+  "dataset_doi": "10.5281/zenodo.22727175",
+  "applies_to": {
+    "archive_file": "fam-formal-raw-b260ac4df1f524a5.tar.gz",
+    "archive_sha256": "c9ded3458c0cc4717be812e6b693561934fd1c69caa67565f6e8c4551b855d6d",
+    "aggregate_sha256": "391712ab516049b19689f3b897c398096c8b8d05df358493b470d7b99838cc07",
+    "files_in_aggregate": 433,
+    "aggregate_definition": "SHA-256 over the sorted '<sha256>  <path>' lines of environment/raw-archive-inventory.json, which excludes itself and environment/collection-completion.json because both are written after the inventory is computed."
+  },
+  "archive_unchanged": true,
+  "archive_note": "The campaign archive is preserved byte for byte. The files of this errata layer were added to the Zenodo record beside it and are not inside it, so the archive digest above is unchanged from the original deposit.",
+  "formal_campaign_id": "fam-formal-651a6ef1b2062472",
+  "campaign_id_as_executed": "fam-formal-b260ac4df1f524a5",
+  "protocol_lock_tag": "protocol-v1.2-lock2",
+  "protocol_lock_commit": "f7bcc00002ddbc1eab17e17d97b3746040db06af",
+  "affects_numerical_results": false,
+  "authoritative_summary": {
+    "path": "processed/experiment-summary-20260907T084415Z.json",
+    "sha256": "ba988e3287cd04507c6f6edd67df7babdab249609acacac2eef15635d5acf834"
+  },
+  "reproducibility_rerun": {
+    "path": "processed/experiment-summary-20260907T085121Z.json",
+    "sha256": "c48822fb5d629e505371a4983b36696030baf9a908b39ba3555354b26f92ceb1",
+    "relationship": "independent rerun of the same analysis over the same archive; differs from the authoritative summary in generated_at only, and in no analytical field"
+  },
+  "authoritative_environment": {
+    "path": "environment/environment-latest.json",
+    "sha256": "80bd0ee52ef302f7dab1a43a9a4c21786cfa82da33536dbd86d82df3a0bc062c",
+    "referenced_by_every_formal_run": [
+      "environment/environment-latest.json"
+    ]
+  },
+  "root_cause": "One cause produces D1, D2, D3 and D8: descriptive strings and fields were written during the development phase, when they were true, and were never made conditional on the publication flag the run actually carries. One earlier instance was found and corrected before deposit, the analysis summary note. A second, the E4 session validator, was corrected only in the gating that would have failed three valid formal sessions; the strings it writes were left alone, which is D8. The instances listed here reached the deposited archive.",
+  "known_metadata_defects": [
+    {
+      "id": "D1",
+      "type": "false_descriptive_publication_status",
+      "severity": "the artifact states the opposite of its own machine-readable status",
+      "affected_count": 123,
+      "affected_by_experiment": {
+        "E4": 3,
+        "E3": 120
+      },
+      "selection_predicate": "every manifest whose experiment is E3 or E4; manifests for E0, E1, E2 carry no scope_note field at all",
+      "incorrect_field": "scope_note",
+      "incorrect_values": {
+        "E4": "Development validation. publication_data is false; C4 is not marked collected and no evidence counter is updated.",
+        "E3": "Development E3 run. publication_data is false; these numbers are implementation validation and are not publication evidence."
+      },
+      "authoritative_field": "publication_data",
+      "authoritative_value": true,
+      "consumed_by_analysis": false,
+      "verification": "grep -rn 'scope_note' src/ scripts/ in the implementation repository returns writes only and no reads; the freeze gate, audit and analysis all branch on publication_data",
+      "affects_numerical_results": false
+    },
+    {
+      "id": "D2",
+      "type": "retained_pre_fix_analysis_summaries",
+      "severity": "non-authoritative copies present without an authority marker",
+      "affected_count": 3,
+      "affected_paths": [
+        "processed/experiment-summary-20260906T193827Z.json",
+        "processed/experiment-summary-20260906T193934Z.json",
+        "processed/experiment-summary-20260906T194040Z.json"
+      ],
+      "explanation": "analysis runs made while the provenance fields were being completed; they carry development-era labels and no publication_data field",
+      "authoritative_source": "processed/experiment-summary-20260907T084415Z.json",
+      "verification": "the authoritative summary is the only one carrying publication_data true whose digest matches the copy committed to results/processed/ in the implementation repository",
+      "affects_numerical_results": false
+    },
+    {
+      "id": "D3",
+      "type": "container_image_unobservable_at_run_time",
+      "severity": "value absent, not incorrect",
+      "affected_count": 120,
+      "affected_experiment": "E3",
+      "field": "host_diagnostics.synapse_image",
+      "recorded_value": "unset",
+      "explanation": "the runner executes inside a container that cannot query Docker; 120 of the 120 affected manifests record host_diagnostics.docker_cli_present false in the same object, which states why",
+      "authoritative_source": [
+        "environment/environment-latest.json",
+        "environment/protocol-lock.json",
+        "environment/image-digests.json"
+      ],
+      "verification": "the pinned image and its digest appear in all three sources above, and every formal manifest references the environment manifest by path",
+      "affects_numerical_results": false
+    },
+    {
+      "id": "D4",
+      "type": "unpopulated_convenience_field",
+      "severity": "cosmetic",
+      "field": "e3_summary.campaign_inventory.*.runtime_code_revision",
+      "recorded_value": null,
+      "explanation": "initialised and never assigned; run manifests do not carry the field for the analysis to read",
+      "authoritative_source": [
+        "environment/protocol-lock.json -> campaign.campaign_parameters.runtime_code_revision",
+        "campaigns/*.json -> parameters.runtime_code_revision"
+      ],
+      "authoritative_value": "task-07-r4",
+      "affects_numerical_results": false
+    },
+    {
+      "id": "D5",
+      "type": "superseded_environment_snapshots_retained",
+      "severity": "cosmetic",
+      "affected_count": 2,
+      "affected_paths": [
+        "environment/environment-20260906T151128Z.json",
+        "environment/environment-20260906T151400Z.json"
+      ],
+      "explanation": "snapshots taken before the image fields were corrected, kept as provenance history; no formal run references them",
+      "verification": "every one of the 132 formal manifests names environment/environment-latest.json in environment_manifest",
+      "affects_numerical_results": false
+    },
+    {
+      "id": "D6",
+      "type": "auxiliary_artifact_outside_normative_layout",
+      "severity": "cosmetic",
+      "affected_paths": [
+        "e3-campaign.log"
+      ],
+      "explanation": "the campaign's console log, retained for provenance. It sits outside the frozen directory layout and no analysis reads it. It was scanned for credentials with the rest of the collection.",
+      "affects_numerical_results": false
+    },
+    {
+      "id": "D7",
+      "type": "unresolvable_analysis_revision",
+      "severity": "§54 satisfied in form only for these artifacts",
+      "affected_count": 7,
+      "affected_paths": [
+        "processed/e1-20260906T160546Z-01.federation-comparison.json",
+        "processed/e1-20260906T160546Z-02.federation-comparison.json",
+        "processed/e1-20260906T160546Z-03.federation-comparison.json",
+        "processed/e2-20260906T160654Z-01.recovery-comparison.json",
+        "processed/e2-20260906T160654Z-02.recovery-comparison.json",
+        "processed/e2-20260906T160654Z-03.recovery-comparison.json",
+        "processed/e4-validation-latest.json"
+      ],
+      "field": "analysis_code_commit",
+      "recorded_values": [
+        "task-02-working-tree",
+        "task-03-working-tree",
+        "task-06-working-tree"
+      ],
+      "explanation": "each entry point carried a constant of its own naming a working tree, which cannot be checked out. The revision behind those labels is not recoverable and is not guessed at.",
+      "still_traceable_by": "protocol_git_commit, which reads cd3f3c2aaae54be74728bb242f6bd7d606768ef8 in all of them -- the tagged commit the campaign executed -- and identifies the code that produced the raw data",
+      "remediation": {
+        "in_the_implementation": "the seven constants were replaced by one shared definition, fam.common.env.analysis_code_commit, resolved on the host and forwarded by every target that writes a processed artifact. Future runs record a commit or say 'unresolved'.",
+        "for_this_archive": "the derived content was regenerated from the immutable raw data by a named commit; see regeneration below"
+      },
+      "affects_numerical_results": false
+    },
+    {
+      "id": "D8",
+      "type": "false_descriptive_publication_status",
+      "severity": "the only E4 summary in the archive declares itself non-publication data while the manifests it summarises declare the opposite",
+      "affected_count": 1,
+      "affected_paths": [
+        "processed/e4-validation-latest.json"
+      ],
+      "sha256": "2a73fa71ab598dd556b53dfeecd03e0d97bae9af4dbd1ffc296e07e734fc7aac",
+      "incorrect_fields": {
+        "publication_data": false,
+        "scope_note": "Development validation. C4 is not marked collected and no evidence counter is updated (Task 06 §33)."
+      },
+      "authoritative_field": "publication_data on the three E4 run manifests, which is true in all of them",
+      "authoritative_value": true,
+      "explanation": "the same cause as D1, reaching a summary rather than a manifest. The validator's gating logic was corrected before the formal sessions ran -- which is why this file records the verdict '3/3 PASS' over 3 sessions instead of failing them -- but its descriptive fields were left as the development-phase constants they had always been.",
+      "why_it_matters": "E4 supplies the human component of C4 and this is the only file in the archive that summarises it. A reader who opens it first finds an artifact that appears to disclaim the result the publication reports. The session manifests, transcripts and the regeneration under reproduced/e4 all state otherwise.",
+      "consumed_by_analysis": false,
+      "verification": "all three manifests/e4-*.manifest.json carry publication_data true; the session verdicts, participants and answered-request counts in this file agree with them and with the archived transcripts",
+      "affects_numerical_results": false
+    },
+    {
+      "id": "D9",
+      "type": "interpretive_note_contradicts_its_own_data",
+      "severity": "a descriptive note states a direction the numbers beside it reverse",
+      "affected_count": 1,
+      "affected_paths": [
+        "processed/experiment-summary-20260907T084415Z.json"
+      ],
+      "field": "e3_summary.environment_drift.note",
+      "incorrect_claim": "runs get FASTER as the campaign proceeds",
+      "measured_direction": {
+        "local": {
+          "first_half_mean_p50_ms": 103.579,
+          "second_half_mean_p50_ms": 104.567,
+          "direction": "slower",
+          "change_percent": 0.95,
+          "pearson_p50_vs_campaign_position": 0.3859
+        },
+        "federated": {
+          "first_half_mean_p50_ms": 184.413,
+          "second_half_mean_p50_ms": 185.755,
+          "direction": "slower",
+          "change_percent": 0.73,
+          "pearson_p50_vs_campaign_position": 0.767
+        }
+      },
+      "explanation": "the note argues that execution position rather than accumulated rooms is the axis to report, and rests that argument on runs getting faster as the campaign proceeds. They get slightly slower: both topologies show a higher mean p50 in the second half of the campaign, and the reported Pearson correlation between p50 and campaign position is positive in both. The stated reasoning is therefore withdrawn, not restated with the sign flipped -- with the real direction, room accumulation becomes a candidate explanation rather than an excluded one, and the two remain perfectly confounded, which is the part of the note that stands.",
+      "what_is_unaffected": "the numbers themselves. p50_by_campaign_half, the correlation coefficients and the per-run records are correct and are what the published limitation cites: drift of roughly one percent across the campaign, against which the paired comparison is protected by counterbalancing, both topologies of a block executing adjacently. No reported result depends on which mechanism produces the drift.",
+      "consumed_by_analysis": false,
+      "affects_numerical_results": false
+    }
+  ],
+  "archived_derived_artifacts": {
+    "note": "Pinned here by digest because the run manifests reference these files by path without one. They are covered by the archive aggregate digest, so tampering after deposit is detectable, but within the manifest chain they are named and not digested.",
+    "by_experiment": {
+      "E1": [
+        {
+          "path": "processed/e1-20260906T160546Z-01.federation-comparison.json",
+          "sha256": "8e49e03f76c20eea0b9daf9eebbdd29d139f4558d1a20599cbd0b12bffe98c94"
+        },
+        {
+          "path": "processed/e1-20260906T160546Z-02.federation-comparison.json",
+          "sha256": "fb5edf47006b8297437d6d16bfa081d51dcbbbbc024bb360189c4d7bf004bd8b"
+        },
+        {
+          "path": "processed/e1-20260906T160546Z-03.federation-comparison.json",
+          "sha256": "7f60b56b6c13c35a9a87c38dbf86ee93fe4ba1ea5a7af76d5962c7f89920def9"
+        }
+      ],
+      "E2": [
+        {
+          "path": "processed/e2-20260906T160654Z-01.recovery-comparison.json",
+          "sha256": "8d7b704fa3ed14d702891bf512c07e1a2aaf45c1cebecf68da7f235d1521d266"
+        },
+        {
+          "path": "processed/e2-20260906T160654Z-02.recovery-comparison.json",
+          "sha256": "7a4d82a3bb089a352718ae68719afe0efe469ac854c9117ee5e4f3cd4ff7ab83"
+        },
+        {
+          "path": "processed/e2-20260906T160654Z-03.recovery-comparison.json",
+          "sha256": "e608217a2a9d63ec612cc0a3fd2227207ea72f0cdeb6fff9e59c1111717bbff8"
+        }
+      ],
+      "E4": [
+        {
+          "path": "processed/e4-validation-latest.json",
+          "sha256": "2a73fa71ab598dd556b53dfeecd03e0d97bae9af4dbd1ffc296e07e734fc7aac"
+        }
+      ]
+    }
+  },
+  "regeneration": {
+    "layer": "reproduced/",
+    "regenerated_by_commit": "6bd35ad5423d94841b578788c78328b8b332ad9a",
+    "claim": "Derived content regenerated from the archived raw streams by the commit above and compared to the archived artifacts. This does not identify the code that produced the originals, which is unrecoverable; it establishes that the same content follows from the immutable raw data.",
+    "E2": {
+      "regenerable": true,
+      "method": "independent derivation from the raw runner and agent streams",
+      "runs": 3,
+      "fields_compared_per_run": 22,
+      "mismatches": 0
+    },
+    "E4": {
+      "regenerable": true,
+      "method": "re-run of the project's own validator over archived inputs",
+      "note": "weaker than the E2 entries: it shows the archived inputs still yield the archived verdict, not that the verdict follows from an independent reading of them"
+    },
+    "E1": {
+      "regenerable": false,
+      "reason": "the federation comparison rests on what each homeserver returned when queried live during the run. Those domain views were never written to a raw stream and both homeservers were destroyed with the formal host. The archived artifacts are the only copy of that observation, and are pinned by digest above."
+    }
+  },
+  "unaffected": [
+    "raw observations",
+    "run validity classification",
+    "experiment outcomes",
+    "processed numerical results",
+    "published figures",
+    "reported confidence intervals"
+  ]
+}

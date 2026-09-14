@@ -1,0 +1,23 @@
+{
+  "artifact": "independent_regeneration",
+  "generated_at": "2026-09-13T14:19:45Z",
+  "analysis_code_commit": "6bd35ad5423d94841b578788c78328b8b332ad9a",
+  "analysis_spec_version": "1.2",
+  "claim": "Regenerated from the archived raw streams by the commit named above. This does not identify the code that produced the original artifact, which is unrecoverable; it establishes that the same content follows from the immutable raw data.",
+  "regenerable": false,
+  "reason": "The federation comparison rests on what each homeserver returned when queried live during the run. Those domain views were never written to a raw stream, and both homeservers were destroyed with the formal host. The archived artifacts below are the only copy of that observation.",
+  "archived_artifacts": [
+    {
+      "path": "processed/e1-20260906T160546Z-01.federation-comparison.json",
+      "sha256": "8e49e03f76c20eea0b9daf9eebbdd29d139f4558d1a20599cbd0b12bffe98c94"
+    },
+    {
+      "path": "processed/e1-20260906T160546Z-02.federation-comparison.json",
+      "sha256": "fb5edf47006b8297437d6d16bfa081d51dcbbbbc024bb360189c4d7bf004bd8b"
+    },
+    {
+      "path": "processed/e1-20260906T160546Z-03.federation-comparison.json",
+      "sha256": "7f60b56b6c13c35a9a87c38dbf86ee93fe4ba1ea5a7af76d5962c7f89920def9"
+    }
+  ]
+}

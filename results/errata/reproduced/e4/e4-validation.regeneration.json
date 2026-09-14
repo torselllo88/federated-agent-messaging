@@ -1,0 +1,13 @@
+{
+  "artifact": "independent_regeneration",
+  "generated_at": "2026-09-13T14:19:45Z",
+  "analysis_code_commit": "6bd35ad5423d94841b578788c78328b8b332ad9a",
+  "analysis_spec_version": "1.2",
+  "claim": "Regenerated from the archived raw streams by the commit named above. This does not identify the code that produced the original artifact, which is unrecoverable; it establishes that the same content follows from the immutable raw data.",
+  "regeneration_method": "re-run of scripts/e4_validate.py at the commit above, over the archived manifests and transcripts. Unlike the E2 entries, this reuses the project's own validator rather than an independent derivation, so it demonstrates that the archived inputs still yield the archived verdict -- not that the verdict follows from an independent reading of them.",
+  "original": {
+    "path": "processed/e4-validation-latest.json",
+    "sha256": "a81cd88b10a65a6029ebf23c75ccab37733523155b53767ae185f16c7b153f43"
+  },
+  "instructions": "FAM_RESULTS_DIR=<archive> FAM_PUBLICATION_DATA=true FAM_ANALYSIS_CODE_COMMIT=<commit> python scripts/e4_validate.py"
+}

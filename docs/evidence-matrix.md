@@ -140,6 +140,7 @@ Boundaries the frozen documents impose on what the collected evidence can suppor
 | The E3 service rate is set by the sequential deterministic agent, so `C = 32` returns no more than `C = 8`; the measurement characterises the tested closed-loop system and not the messaging layer | protocol §17 |
 | `/sync` delivers events in batches and the runner dispatches their callbacks sequentially, so T3 for a later acknowledgement in a batch can be stamped after the preceding callbacks have run. The bias can only delay T3. Measured on the development host at roughly 2.9 µs per preceding event; **not** remeasured on the formal host, so that magnitude is not carried across and no correction is applied | protocol §10 |
 | No terminal failure occurred in the formal campaign, so the evidence bounds behaviour under the tested workload and says nothing about behaviour under overload | §7 |
+| E1's independent two-domain event-set and membership observations — supporting C5 and the structural component of C4 — were collected by live queries during execution and exist only in the archived derived comparison artifacts; they cannot be regenerated from the lower-level raw streams | §7, dataset errata |
 
 ## 9. Out-of-scope observations log
 

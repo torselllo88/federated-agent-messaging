@@ -34,7 +34,7 @@ export FAM_PROTOCOL_GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo
 # that writes one.
 export FAM_ANALYSIS_CODE_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unresolved)
 
-.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 e4-prepare e4-ca e4 e4-validate inventory lock lock-validate lock-check freeze figures audit analyse spike test down clean logs
+.PHONY: help guard build tls config up wait provision hashes setup verify e0 e1 e2 e2-pilot e3-readiness e3-pilot e3 e4-prepare e4-ca e4 e4-validate inventory lock lock-validate lock-check freeze figures audit analyse decompose spike test down clean logs
 
 help:
 	@echo "make setup    - build, generate TLS and configs, start both domains, provision accounts"
@@ -59,6 +59,7 @@ help:
 	@echo "make audit    - final evidence-integrity audit over the formal collection"
 	@echo "make figures  - publication figures as SVG from the processed tables"
 	@echo "make analyse  - digest verification, schema validation, E0-E3 summaries"
+	@echo "make decompose- post-collection round-trip decomposition (explanatory)"
 	@echo "make test     - unit tests"
 	@echo "make down     - stop containers"
 	@echo "make clean    - stop containers and delete all volumes (destructive)"
@@ -255,6 +256,12 @@ analyse: guard
 	$(COMPOSE) run --rm -e FAM_E3_BOOTSTRAP_REPLICATES -e FAM_E3_BOOTSTRAP_SEED \
 		-e FAM_ANALYSIS_CODE_COMMIT -e FAM_PUBLICATION_DATA \
 		--no-deps toolbox python scripts/analyse.py
+
+# Post-collection decomposition of the round trip, from the same archive.
+# Explanatory: it derives no primary metric and changes no acceptance criterion.
+decompose: guard
+	$(COMPOSE) run --rm -e FAM_ANALYSIS_CODE_COMMIT -e FAM_PUBLICATION_DATA \
+		--no-deps toolbox python scripts/decompose.py
 
 test: build
 	$(COMPOSE) run --rm --no-deps -e FAM_RESULTS_DIR=/tmp/fam-test-results toolbox \
