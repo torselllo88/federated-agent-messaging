@@ -1,10 +1,10 @@
 {
   "artifact": "e3_rtt_decomposition",
   "analysis_spec_version": "1.2",
-  "analysis_code_commit": "unresolved",
+  "analysis_code_commit": "32e81c7fb1ab869206dbbeba6a8ec5a3dd0359bf",
   "protocol_git_commit": "cd3f3c2aaae54be74728bb242f6bd7d606768ef8",
   "campaign_id": "fam-formal-b260ac4df1f524a5",
-  "generated_at": "2026-09-13T17:23:35Z",
+  "generated_at": "2026-09-14T11:23:52Z",
   "publication_data": true,
   "scope_note": "Post-collection explanatory analysis over already archived telemetry. It derives no primary metric and changes no acceptance criterion; the predefined primary latency measure remains T0 -> T3.",
   "latency_decomposition": {
