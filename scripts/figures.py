@@ -23,8 +23,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, "/app/src")
-sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fam.common.results import ensure_layout, resolve_results_dir  # noqa: E402
 
@@ -215,6 +214,7 @@ def figure_latency(tables: Path, out: Path) -> Path:
             "percentile, with the paired bootstrap ratio for each.",
         ),
         encoding="utf-8",
+        newline="\n",
     )
     return path
 
@@ -343,6 +343,7 @@ def figure_throughput(tables: Path, out: Path) -> Path:
             "federated, with the sample median marked.",
         ),
         encoding="utf-8",
+        newline="\n",
     )
     return path
 
@@ -437,6 +438,7 @@ def figure_ratios(tables: Path, out: Path) -> Path:
             "tested concurrency, with 95% paired bootstrap intervals.",
         ),
         encoding="utf-8",
+        newline="\n",
     )
     return path
 

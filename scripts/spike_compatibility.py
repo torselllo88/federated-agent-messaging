@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from pathlib import Path
 from importlib.metadata import version as pkg_version
 
-sys.path.insert(0, "/app/src")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fam.common.env import account  # noqa: E402
 from fam.common.frozen import ROOM_VERSION  # noqa: E402

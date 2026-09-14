@@ -19,8 +19,7 @@ import sys
 from pathlib import Path
 from typing import Any, Iterable
 
-sys.path.insert(0, "/app/src")
-sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fam.common.digests import file_sha256  # noqa: E402
 from fam.common.lock import compare, load as load_lock  # noqa: E402

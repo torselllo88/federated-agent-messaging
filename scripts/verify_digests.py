@@ -16,7 +16,7 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/app/src")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fam.common.digests import file_sha256  # noqa: E402
 from fam.common.results import manifests_dir, resolve_results_dir  # noqa: E402

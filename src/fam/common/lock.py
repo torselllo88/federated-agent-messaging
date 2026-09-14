@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from fam.common.results import repository_root
 from fam.common.frozen import (
     DEFAULT_INTERACTION_TIMEOUT_SECONDS,
     E0_REQUESTS_PER_PHASE,
@@ -57,9 +58,22 @@ from fam.common.frozen import (
 LOCK_ARTIFACT = "formal_protocol_lock"
 LOCK_SCHEMA_VERSION = "1"
 
-#: Tracked location. The lock is committed and tagged (§21), so it lives in the
-#: worktree rather than under $FAM_RESULTS_DIR — unlike every run artifact.
-DEFAULT_LOCK_PATH = Path("/app/results/protocol-lock.json")
+def default_lock_path() -> Path:
+    """Tracked location of the lock.
+
+    The lock is committed and tagged (§21), so it lives in the worktree rather
+    than under $FAM_RESULTS_DIR — unlike every run artifact. Resolved from this
+    package's own location, which holds in the container, in a clone, and when
+    an entry point is invoked by absolute path from some other directory. It
+    used to name the container path and then fall back to a path relative to
+    the working directory, on the stated assumption that "outside the container
+    image the repository root is wherever we are"; that is true only when the
+    caller happens to be standing in it.
+    """
+    root = repository_root()
+    if root is None:  # pragma: no cover - only outside any checkout
+        return Path("results/protocol-lock.json")
+    return root / "results" / "protocol-lock.json"
 
 
 class ProtocolLockError(RuntimeError):
@@ -116,10 +130,7 @@ def lock_path() -> Path:
     override = os.environ.get("FAM_PROTOCOL_LOCK", "").strip()
     if override:
         return Path(override)
-    if DEFAULT_LOCK_PATH.exists():
-        return DEFAULT_LOCK_PATH
-    # Outside the container image the repository root is wherever we are.
-    return Path("results/protocol-lock.json")
+    return default_lock_path()
 
 
 def load(path: Path | None = None) -> dict[str, Any] | None:

@@ -103,20 +103,24 @@ CONTAINER_ONLY = {
 GIT_PROBE = re.compile(r"/app/\.git")
 
 
-def test_no_entry_point_hardcodes_the_container_path_for_tracked_inputs():
-    """`/app` is fine for imports and wrong for tracked inputs.
+def test_no_entry_point_hardcodes_the_container_path():
+    """No script may name `/app` to find anything.
 
-    ``sys.path.insert(0, "/app/src")`` is harmless off container — the path is
-    simply absent and the next entry wins. A schema read from ``/app`` has no
-    such second chance: it resolves to nothing, and the caller decides what
-    that silence means. That is how this failed.
+    Both halves of this were wrong in the same way. The schema directory was
+    `/app/results/schemas`, which off container resolves to nothing and left
+    the caller to interpret the silence. The import bootstrap was
+    `/app/src`, which off container fails differently but just as flatly, and
+    the working-directory fallback some scripts carried only helped when they
+    were run from the repository root. Both now resolve from `__file__`, which
+    is correct in the container, in a clone, and under an absolute path from
+    anywhere.
 
-    Asserting ``SCHEMA_DIR.exists()`` would not have caught the original bug,
+    Asserting `SCHEMA_DIR.exists()` would not have caught the original bug,
     because the constant was valid in the one environment being tested. This
     looks for the shape instead.
     """
     offenders = []
-    pattern = re.compile(r"""["']/app/(?!src|scripts|experiments|tests)""")
+    pattern = re.compile(r"""["']/app/""")
     for path in sorted((ROOT / "scripts").glob("*.py")):
         if path.name in CONTAINER_ONLY:
             continue
@@ -369,6 +373,98 @@ def test_missing_library_reaches_the_same_verdict(tmp_path, monkeypatch, capsys)
     assert code == 1
     assert "FAIL (validation unavailable)" in out
     assert "requirements.txt" in out
+
+
+@needs_jsonschema
+def test_a_conforming_tree_that_passes_its_criteria_reaches_PASS(
+    tmp_path, monkeypatch, capsys
+):
+    """The baseline the other verdicts are measured against."""
+    runner, agent, manifest = _records()
+    root = _tree(tmp_path, runner=runner, agent=agent, manifest=manifest)
+
+    code, out = _run_main(root, monkeypatch, capsys)
+
+    assert code == 0
+    assert "ANALYSE: PASS" in out
+
+
+@needs_jsonschema
+def test_a_run_that_did_not_pass_is_an_acceptance_failure(
+    tmp_path, monkeypatch, capsys
+):
+    """The one verdict that is a statement about the experiments.
+
+    Everything else says the pipeline could not reach a statement. This one
+    says it did, and the evidence fell short — so it must not be reachable by
+    breaking the tool, and the tool failures must not be reachable by failing
+    an experiment.
+    """
+    runner, agent, manifest = _records()
+    manifest["completion_status"] = "fail"
+    root = _tree(tmp_path, runner=runner, agent=agent, manifest=manifest)
+
+    code, out = _run_main(root, monkeypatch, capsys)
+
+    assert code == 1
+    assert "FAIL (acceptance)" in out
+    assert "validation unavailable" not in out
+    assert "FAIL (schema)" not in out
+
+
+@needs_jsonschema
+def test_a_broken_analysis_still_ends_on_a_verdict(tmp_path, monkeypatch, capsys):
+    """A crash used to print a traceback and no verdict at all.
+
+    Anything reading the last line for a result then saw whatever the run had
+    printed before it died, which for a long analysis is a list of passing
+    experiments. The traceback is still printed — it is what makes the failure
+    fixable — and the verdict follows it.
+    """
+    runner, agent, manifest = _records()
+    root = _tree(tmp_path, runner=runner, agent=agent, manifest=manifest)
+
+    def explode(*_args, **_kwargs):
+        raise RuntimeError("deliberate")
+
+    monkeypatch.setattr(analyse, "summarize_e0", explode)
+    code, out = _run_main(root, monkeypatch, capsys)
+
+    assert code == 1
+    assert "FAIL (analysis)" in out
+    assert "FAIL (acceptance)" not in out
+
+
+def test_an_unusable_results_directory_is_a_precondition_failure(monkeypatch, capsys):
+    monkeypatch.delenv("FAM_RESULTS_DIR", raising=False)
+
+    code = analyse.main()
+    out = capsys.readouterr().out
+
+    assert code == 2
+    assert "FAIL (precondition)" in out
+    assert "FAM_RESULTS_DIR" in out
+
+
+@needs_jsonschema
+def test_a_failing_stage_leaves_no_partial_artifact(tmp_path, monkeypatch, capsys):
+    """Fail-closed means nothing is written, not that nothing is reported.
+
+    A half-written summary is worse than none: it carries the provenance
+    triple, looks complete, and is wrong. Checked on the validation stage,
+    which is the one that used to fail on every off-container run.
+    """
+    runner, agent, manifest = _records()
+    root = _tree(tmp_path, runner=runner, agent=agent, manifest=manifest)
+    monkeypatch.setitem(sys.modules, "jsonschema", None)
+
+    code, out = _run_main(root, monkeypatch, capsys)
+
+    assert code == 1
+    assert "FAIL (validation unavailable)" in out
+    processed = root / "processed"
+    written = sorted(p.name for p in processed.rglob("*")) if processed.exists() else []
+    assert written == [], f"partial output after a failed run: {written}"
 
 
 @needs_jsonschema

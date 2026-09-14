@@ -267,19 +267,29 @@ pip install -r requirements.txt      # or just: pip install jsonschema==4.23.0
 PYTHONPATH=src python scripts/analyse.py
 ```
 
-Both are **fail-closed**, and `analyse.py` separates the two ways validation
-can end badly. The verdict names the stage that failed; the message names the
-cause.
+Both are **fail-closed**. `analyse.py` ends on exactly one verdict line, and
+the split that matters runs between a finding about the evidence and a failure
+to reach one. The label names the stage; the message above it names the cause.
 
-| Verdict | Meaning | Causes |
+| Verdict | Exit | What it establishes |
 |---|---|---|
-| `FAIL (validation unavailable)` | nothing was checked | `jsonschema` absent, or a schema file missing from `results/schemas` |
-| `FAIL (schema)` | everything was checked and a record or manifest failed | the file and the violated constraint are named |
+| `PASS` | 0 | every gate passed |
+| `FAIL (precondition)` | 2 | cannot start: results directory unset, inside the repository, or unwritable |
+| `FAIL (provenance)` | 1 | a file's digest disagrees with its manifest |
+| `FAIL (validation unavailable)` | 1 | nothing was validated: `jsonschema` absent, or a schema missing from `results/schemas` |
+| `FAIL (schema)` | 1 | validated, and a record or manifest fails it — the file and the violated constraint are named |
+| `FAIL (acceptance)` | 1 | the analysis ran; the evidence does not meet the frozen criteria, or a gate tripped |
+| `FAIL (analysis)` | 1 | the analysis itself raised. The traceback is printed with it |
 
-The first stops the run before any record is read, so it never reports a data
-finding it did not make. Neither verdict degrades to a weaker check: "could not
-validate" and "validated, found a problem" are different statements and are
-never merged.
+Only `acceptance` is a statement about the experiments. The rest say the
+pipeline could not reach one, which is why they are never merged: "could not
+validate" must not be readable as "validated, found a problem".
+
+Every failure that stops the pipeline returns **before** a processed artifact
+is written, so a failed run leaves no partial summary or table behind.
+`FAIL (acceptance)` is the exception and deliberately so — the analysis
+completed, and the summary it writes is the record of the negative finding,
+not a fragment of an abandoned one.
 
 Every reported statistic was recomputed this way — from a clean clone and a
 freshly unpacked archive, on a different interpreter and operating system

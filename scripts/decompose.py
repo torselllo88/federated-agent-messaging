@@ -47,8 +47,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, "/app/src")
-sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fam.analysis import e3 as e3_analysis  # noqa: E402
 from fam.common.env import (  # noqa: E402
@@ -474,7 +473,9 @@ def main() -> int:
     }
     json_path = processed / f"rtt-decomposition-{stamp}.json"
     json_path.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+        json.dumps(payload, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+        newline="\n",
     )
 
     print(f"\n   table:     {table_path}")

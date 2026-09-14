@@ -11,6 +11,27 @@ readiness summary, and the development E3 metrics: latency percentiles,
 observed throughput at tested concurrency, stationarity, failure rates and
 paired-block bootstrap intervals. Every processed artifact carries the frozen
 provenance triple plus source digests and run ids.
+
+The run ends on exactly one verdict line. The label names the stage that
+failed; the message above it names the cause.
+
+    PASS                            every gate passed
+    FAIL (precondition)             cannot start: results directory unset,
+                                    inside the repository, or unwritable
+    FAIL (provenance)               a file's digest disagrees with its manifest
+    FAIL (validation unavailable)   nothing was validated: jsonschema absent,
+                                    or a schema missing from results/schemas
+    FAIL (schema)                   validated, and a record or manifest fails
+    FAIL (acceptance)               the analysis ran; the evidence does not
+                                    meet the frozen criteria, or a gate tripped
+    FAIL (analysis)                 the analysis itself raised; nothing is
+                                    established. The traceback is printed too.
+
+Only `acceptance` is a statement about the experiments. The rest say the
+pipeline could not reach one, which is why they are never merged: "could not
+check" must not be readable as "checked and it was wrong". Each failing stage
+returns before writing a processed artifact, so a failed run leaves no partial
+summary or table behind.
 """
 
 from __future__ import annotations
@@ -18,10 +39,11 @@ from __future__ import annotations
 import json
 import os
 import sys
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, "/app/src")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fam.common.digests import file_sha256  # noqa: E402
 from fam.common.env import (  # noqa: E402
@@ -38,10 +60,11 @@ from fam.common.results import (  # noqa: E402
     resolve_results_dir,
     schema_dir,
 )
+from fam.common.validity import InvalidRun  # noqa: E402
 from fam.analysis import e3 as e3_analysis  # noqa: E402
 from fam.analysis import integrity  # noqa: E402
 
-sys.path.insert(0, "/app/scripts")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from verify_digests import verify as verify_digests  # noqa: E402
 
 #: The analysis implementation may be written or corrected after collection;
@@ -736,7 +759,7 @@ def print_e3(summary: dict) -> None:
     )
 
 
-def main() -> int:
+def _analyse() -> int:
     root = resolve_results_dir(create=False)
     print(f"analysis over {root}\n")
 
@@ -875,7 +898,11 @@ def main() -> int:
             print(f"   development table: {table}")
 
     path = processed_dir / f"experiment-summary-{stamp}.json"
-    path.write_text(json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8")
+    path.write_text(
+        json.dumps(output, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+        newline="\n",
+    )
     print(f"\n   processed artifact: {path}")
     print(f"   sha256 {file_sha256(path)}")
 
@@ -899,8 +926,40 @@ def main() -> int:
         # H1 is a hard gate: analysing inputs that disagree with the raw
         # evidence would produce a plausible number from a wrong parameter.
         ok = ok and not (e3.get("input_integrity") or {}).get("mismatches")
-    print(f"\nANALYSE: {'PASS' if ok else 'FAIL'}")
+    # A finding about the evidence, not about the tool: the analysis ran to
+    # completion and the runs do not meet the frozen acceptance criteria, or a
+    # gate above tripped. Named apart from the three tool failures so that a
+    # reader who sees it knows the pipeline worked.
+    print(f"\nANALYSE: {'PASS' if ok else 'FAIL (acceptance)'}")
     return 0 if ok else 1
+
+
+def main() -> int:
+    """Run the analysis and always end on one verdict line.
+
+    Five verdicts, and the split that matters runs between the first three and
+    the last two: `provenance`, `validation unavailable` and `schema` are
+    failures of the evidence or of the tool reaching it, `acceptance` is a
+    finding the analysis made, and `analysis` means the analysis itself broke
+    and established nothing.
+
+    Previously an unexpected exception printed a traceback and no verdict, so
+    anything reading the last line for a result saw whatever came before the
+    crash. The traceback is still printed -- it is the only thing that makes
+    the failure fixable -- and a verdict now follows it.
+    """
+    try:
+        return _analyse()
+    except InvalidRun as exc:
+        # A precondition of running at all, not a property of the data:
+        # FAM_RESULTS_DIR unset, pointing inside the repository, unwritable.
+        print(f"\n! {exc}")
+        print("\nANALYSE: FAIL (precondition)")
+        return 2
+    except Exception:  # noqa: BLE001 - reported with its traceback, not swallowed
+        traceback.print_exc()
+        print("\nANALYSE: FAIL (analysis)")
+        return 1
 
 
 def _protocol_commits(root: Path) -> dict[str, list[str]]:

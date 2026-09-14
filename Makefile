@@ -263,8 +263,13 @@ decompose: guard
 	$(COMPOSE) run --rm -e FAM_ANALYSIS_CODE_COMMIT -e FAM_PUBLICATION_DATA \
 		--no-deps toolbox python scripts/decompose.py
 
+# FAM_PUBLICATION_DATA is pinned rather than inherited: compose passes the
+# host's value through, and during a formal campaign the operator holds it at
+# true, which fails the tests that assert development defaults. The test suite
+# must not depend on which phase the shell happens to be in.
 test: build
-	$(COMPOSE) run --rm --no-deps -e FAM_RESULTS_DIR=/tmp/fam-test-results toolbox \
+	$(COMPOSE) run --rm --no-deps -e FAM_RESULTS_DIR=/tmp/fam-test-results \
+		-e FAM_PUBLICATION_DATA=false toolbox \
 		python -m pytest tests -q
 
 down:

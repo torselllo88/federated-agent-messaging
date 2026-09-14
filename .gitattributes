@@ -1,0 +1,16 @@
+# Line endings are part of the evidence here.
+#
+# The protocol lock records a SHA-256 for each tracked JSON Schema, and the
+# published tables and figures are compared byte for byte against regenerated
+# copies. A checkout that rewrites line endings changes those bytes, so on a
+# Windows clone with the default `core.autocrlf=true` all five schema digests
+# disagree with the lock and `make lock-check` stops the run — on a repository
+# that is in fact intact.
+#
+# Normalise to LF in the working tree on every platform, which is what the
+# recorded digests were taken over.
+* text=auto eol=lf
+
+# Everything a digest or a byte comparison is taken over: never transformed,
+# on checkout or on commit, whatever the platform or the local Git config.
+results/** -text

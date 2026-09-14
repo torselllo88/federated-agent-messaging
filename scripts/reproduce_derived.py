@@ -43,8 +43,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, "/app/src")
-sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fam.common.digests import file_sha256  # noqa: E402
 from fam.common.env import analysis_code_commit  # noqa: E402
