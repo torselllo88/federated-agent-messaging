@@ -8,7 +8,42 @@
     "archive_sha256": "c9ded3458c0cc4717be812e6b693561934fd1c69caa67565f6e8c4551b855d6d",
     "aggregate_sha256": "391712ab516049b19689f3b897c398096c8b8d05df358493b470d7b99838cc07",
     "files_in_aggregate": 433,
-    "aggregate_definition": "SHA-256 over the sorted '<sha256>  <path>' lines of environment/raw-archive-inventory.json, which excludes itself and environment/collection-completion.json because both are written after the inventory is computed."
+    "aggregate_definition": "SHA-256 over the '<sha256>  <path>' lines of environment/raw-archive-inventory.json. Entries sorted by POSIX path -- not by the joined line, which would sort by digest. Two spaces between the fields, lines joined with LF and not terminated by one, so the payload carries no trailing newline, and hashed as UTF-8. The inventory excludes itself and environment/collection-completion.json because both are written after it is computed.",
+    "aggregate_recipe": "python - <<'EOF'\nimport hashlib, json\ninv = json.load(open('environment/raw-archive-inventory.json'))\nrows = sorted(inv['files'], key=lambda e: e['path'])\n# Two spaces; joined with LF, not terminated by one.\npayload = '\\n'.join(f\"{e['sha256']}  {e['path']}\" for e in rows)\nprint(hashlib.sha256(payload.encode('utf-8')).hexdigest())\nEOF"
+  },
+  "errata_layer": {
+    "files": [
+      {
+        "path": "reproduced/e1-not-regenerable.json",
+        "sha256": "9fb690543f9b98e44b8430eba5693b211328aba4f867ea378c2eed8570068817",
+        "bytes": 1309
+      },
+      {
+        "path": "reproduced/e2/e2-20260906T160654Z-01.recovery-comparison.regenerated.json",
+        "sha256": "2b1021f456867bad2f8975f846796e7ca0263b87c813560cd600b0fd680c692f",
+        "bytes": 17987
+      },
+      {
+        "path": "reproduced/e2/e2-20260906T160654Z-02.recovery-comparison.regenerated.json",
+        "sha256": "1d73875683652580962810a2885f89cd8279355089000fa3733405f0b7e3e8d8",
+        "bytes": 17987
+      },
+      {
+        "path": "reproduced/e2/e2-20260906T160654Z-03.recovery-comparison.regenerated.json",
+        "sha256": "0ae5786e178f27de4eb315d787e2091f28d79b16d90ac63204a221c9688f883d",
+        "bytes": 17987
+      },
+      {
+        "path": "reproduced/e4/e4-validation.regeneration.json",
+        "sha256": "0c96aa6469125a0a452a93ef55f6f66acb28e9af7dc3735fb6e910c47c9053fb",
+        "bytes": 1106
+      }
+    ],
+    "self_excluded": [
+      "ERRATA.md",
+      "provenance-authority.json"
+    ],
+    "composition": "The layer is the files listed above plus the two named in self_excluded, which this generator writes and therefore cannot digest here. Anything else beside the archive in the deposit is not part of it."
   },
   "archive_unchanged": true,
   "archive_note": "The campaign archive is preserved byte for byte. The files of this errata layer were added to the Zenodo record beside it and are not inside it, so the archive digest above is unchanged from the original deposit.",
@@ -112,6 +147,9 @@
         "environment/environment-20260906T151400Z.json"
       ],
       "explanation": "snapshots taken before the image fields were corrected, kept as provenance history; no formal run references them",
+      "authoritative_source": [
+        "environment/environment-latest.json"
+      ],
       "verification": "every one of the 132 formal manifests names environment/environment-latest.json in environment_manifest",
       "affects_numerical_results": false
     },
@@ -123,6 +161,8 @@
         "e3-campaign.log"
       ],
       "explanation": "the campaign's console log, retained for provenance. It sits outside the frozen directory layout and no analysis reads it. It was scanned for credentials with the rest of the collection.",
+      "authoritative_source": null,
+      "authoritative_source_note": "none, and none is needed: this file is authoritative for nothing. No analysis reads it and no result depends on it. Every fact it narrates is recorded independently in the manifests, the environment manifest and the protocol lock.",
       "affects_numerical_results": false
     },
     {

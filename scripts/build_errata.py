@@ -61,6 +61,14 @@ def sha(path):
 tar = _TARBALL
 archive_sha = sha(tar)
 
+#: Counted from the tarball rather than from the inventory, because the two
+#: differ by exactly the files the inventory cannot list. Stating one number
+#: for both invites a reader who untars and counts to think something is wrong.
+import tarfile  # noqa: E402 - local to this block, not a module dependency
+
+with tarfile.open(tar, "r:gz") as _tf:
+    members = [m.name for m in _tf if m.isfile()]
+
 inventory = json.loads(
     (ROOT / "environment" / "raw-archive-inventory.json").read_text(encoding="utf-8")
 )
@@ -204,11 +212,52 @@ authority = {
         "archive_sha256": archive_sha,
         "aggregate_sha256": inventory["aggregate_sha256"],
         "files_in_aggregate": inventory["file_count"],
+        # Say which key the sort uses. "Sorted lines" reads as sorting the
+        # joined strings, which sorts by digest -- the digest comes first --
+        # and yields a different and wrong value. The inventory in the archive
+        # states it correctly; this restatement did not.
         "aggregate_definition": (
-            "SHA-256 over the sorted '<sha256>  <path>' lines of "
-            "environment/raw-archive-inventory.json, which excludes itself and "
+            "SHA-256 over the '<sha256>  <path>' lines of "
+            "environment/raw-archive-inventory.json. Entries sorted by POSIX "
+            "path -- not by the joined line, which would sort by digest. Two "
+            "spaces between the fields, lines joined with LF and not "
+            "terminated by one, so the payload carries no trailing newline, "
+            "and hashed as UTF-8. The inventory excludes itself and "
             "environment/collection-completion.json because both are written "
-            "after the inventory is computed."
+            "after it is computed."
+        ),
+        "aggregate_recipe": (
+            "python - <<'EOF'\n"
+            "import hashlib, json\n"
+            "inv = json.load(open('environment/raw-archive-inventory.json'))\n"
+            "rows = sorted(inv['files'], key=lambda e: e['path'])\n"
+            "# Two spaces; joined with LF, not terminated by one.\n"
+            "payload = '\\n'.join(f\"{e['sha256']}  {e['path']}\" for e in rows)\n"
+            "print(hashlib.sha256(payload.encode('utf-8')).hexdigest())\n"
+            "EOF"
+        ),
+    },
+    #: What this layer consists of, so a missing or added file is detectable
+    #: from inside it. The two documents the generator writes are excluded for
+    #: the same reason the archive excludes its own inventory: a file cannot
+    #: carry its own digest, and listing one computed before the file was
+    #: finished would record something that never existed.
+    "errata_layer": {
+        "files": [
+            {
+                "path": f"reproduced/{p.relative_to(_REPRODUCED).as_posix()}",
+                "sha256": sha(p),
+                "bytes": p.stat().st_size,
+            }
+            for p in sorted(_REPRODUCED.rglob("*"))
+            if p.is_file()
+        ],
+        "self_excluded": ["ERRATA.md", "provenance-authority.json"],
+        "composition": (
+            "The layer is the files listed above plus the two named in "
+            "self_excluded, which this generator writes and therefore cannot "
+            "digest here. Anything else beside the archive in the deposit is "
+            "not part of it."
         ),
     },
     "archive_unchanged": True,
@@ -345,6 +394,7 @@ authority = {
                 "snapshots taken before the image fields were corrected, kept as "
                 "provenance history; no formal run references them"
             ),
+            "authoritative_source": ["environment/environment-latest.json"],
             "verification": (
                 "every one of the 132 formal manifests names "
                 "environment/environment-latest.json in environment_manifest"
@@ -360,6 +410,15 @@ authority = {
                 "the campaign's console log, retained for provenance. It sits "
                 "outside the frozen directory layout and no analysis reads it. "
                 "It was scanned for credentials with the rest of the collection."
+            ),
+            # Stated rather than left blank: an empty authority slot reads as
+            # an omission, and here the absence is the point.
+            "authoritative_source": None,
+            "authoritative_source_note": (
+                "none, and none is needed: this file is authoritative for "
+                "nothing. No analysis reads it and no result depends on it. "
+                "Every fact it narrates is recorded independently in the "
+                "manifests, the environment manifest and the protocol lock."
             ),
             "affects_numerical_results": False,
         },
@@ -563,6 +622,18 @@ The campaign archive is **preserved byte for byte**. Its digest is unchanged
 from the original deposit:
 
 {block(f"archive   {tar.name}\nsha256    {archive_sha}\n\naggregate {inventory['aggregate_sha256']}\n          over {inventory['file_count']} files, defined in environment/raw-archive-inventory.json")}
+
+The aggregate is taken over the inventory rather than over a container, so it
+depends on what the files contain and what they are called and not on tar
+format, compression or timestamps. It is reproducible from the archive alone —
+entries sorted **by path**, not by the joined line, which would sort by the
+digest that starts it; two spaces between the fields; lines joined with LF and
+not terminated by one; hashed as UTF-8:
+
+{block("python - <<'EOF'\nimport hashlib, json\ninv = json.load(open('environment/raw-archive-inventory.json'))\nrows = sorted(inv['files'], key=lambda e: e['path'])\n# Two spaces; joined with LF, not terminated by one.\npayload = '\\n'.join(f\"{e['sha256']}  {e['path']}\" for e in rows)\nprint(hashlib.sha256(payload.encode('utf-8')).hexdigest())\nEOF")}
+
+The tarball holds {len(members)} files: the {inventory['file_count']} the
+inventory covers, plus the two it excludes by construction.
 
 The files of this errata layer were added to the Zenodo record **beside** the
 archive, not inside it. Nothing in the archive was edited, replaced or removed.

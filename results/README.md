@@ -203,7 +203,23 @@ both outputs are byte-identical to the copies committed here.
 
 ## Reproduction path
 
-Regenerating the reported tables and figures from the archived raw data:
+### What it costs
+
+Measured on the archive below, on one core of an ordinary laptop.
+
+| | |
+|---|---|
+| Download | 19 MB (`fam-formal-raw-b260ac4df1f524a5.tar.gz`) |
+| Disk after extraction | 208 MB, and ~210 MB once the outputs are written beside it |
+| Peak memory | ~420 MB for `analyse` and `decompose`, ~45 MB for the rest |
+| Wall clock | ~60 s for the whole chain: `analyse` 44 s, `audit` 11 s, `decompose` 3 s, `verify_digests` and `figures` under a second |
+| Python | 3.12 frozen in the image; also exercised on 3.14 |
+| Dependencies | only `jsonschema==4.23.0` for the two entry points that validate; the numerical core is standard library |
+
+No network access is needed after the archive is fetched. Nothing here starts a
+testbed: these commands read an archive.
+
+### The commands
 
 ```bash
 # fetch and unpack the dataset: doi.org/10.5281/zenodo.22727175
@@ -217,6 +233,57 @@ make audit                        # impossible states, provenance, secrets
 make analyse                      # processed datasets and tables
 make figures                      # SVG from the processed tables
 make decompose                    # round-trip decomposition, explanatory
+```
+
+`make lock-check` belongs at the tag and only there. The lock binds the
+implementation that **collected** the data, so it passes at
+`protocol-v1.2-lock2` and is expected to fail at any later commit, which
+necessarily carries analysis work the campaign never ran. Everything after it
+reads the archive and is version-independent in that sense.
+
+### What lands where
+
+`FAM_RESULTS_DIR` gains exactly these, and nothing else is touched:
+
+```text
+processed/experiment-summary-<stamp>.json     analyse    every summary and the provenance triple
+processed/e3-tables/latency_percentiles.csv   analyse
+processed/e3-tables/paired_comparison.csv     analyse
+processed/e3-tables/throughput_runs.csv       analyse
+processed/e3-tables/stationarity.csv          analyse
+processed/e3-tables/rtt_decomposition.csv     decompose
+processed/rtt-decomposition-<stamp>.json      decompose  provenance for the table above
+figures/e3-latency-percentiles.svg            figures
+figures/e3-paired-ratios.svg                  figures
+figures/e3-throughput-runs.svg                figures
+```
+
+A successful analysis ends like this — the verdict is always the last line:
+
+```text
+1. digest verification
+   artifacts checked 264, failures 0
+
+2. schema validation
+   raw schema versions present: {'2': 261}
+   ok
+...
+   processed artifact: /results/processed/experiment-summary-20260907T084415Z.json
+   sha256 ba988e3287cd04507c6f6edd67df7babdab249609acacac2eef15635d5acf834
+
+ANALYSE: PASS
+```
+
+and a fail-closed run like this, having written nothing:
+
+```text
+2. schema validation
+   raw schema versions present: {'2': 261}
+   ! jsonschema is required to validate raw records and manifests. Install the
+     pinned dependencies with `pip install -r requirements.txt`, or run this
+     through `make analyse`, which executes inside the toolbox image.
+
+ANALYSE: FAIL (validation unavailable)
 ```
 
 `make decompose` is separate from `make analyse` because it is a
@@ -244,6 +311,32 @@ raw -> processed -> figure script -> SVG
 
 No number in any figure is written by hand; each is read from
 `processed/e3-tables/*.csv`.
+
+### Artifact map
+
+Every reported quantity, back to the file it came from. Read a row right to
+left to check a number; left to right to regenerate it.
+
+| Reported as | Produced by | Read from | Derived from |
+|---|---|---|---|
+| Functional results, E0/E1/E2 | `analyse.py` | `experiment-summary-<stamp>.json` → `e0_summary`, `e1_summary`, `e2_summary` | `manifests/e{0,1,2}-*`, `raw/e{0,1,2}/*.jsonl` |
+| E4 verdict, participants, answered requests | `e4_validate.py` | `processed/e4-validation-latest.json` | `manifests/e4-*`, `evidence/e4-*/transcript.json` |
+| Latency percentiles, local and federated | `analyse.py` | `e3-tables/latency_percentiles.csv` | `raw/e3/latency/*.runner.jsonl` |
+| Paired ratios and differences, with intervals | `analyse.py` | `e3-tables/paired_comparison.csv` | the same, resampled by paired block |
+| Per-run observed throughput | `analyse.py` | `e3-tables/throughput_runs.csv` | `raw/e3/throughput/*.runner.jsonl` |
+| First-half against second-half rate | `analyse.py` | `e3-tables/stationarity.csv` | the same |
+| Round-trip decomposition, T0→T1→T2→T3 | `decompose.py` | `e3-tables/rtt_decomposition.csv` (rows with `workload=latency`) | `raw/e3/latency/*.runner.jsonl` joined to `*.agent.jsonl` on `(run_id, sequence_id)` |
+| Agent service interval and implied rate | `decompose.py` | the same table, rows with `workload=throughput` | `raw/e3/throughput/*.agent.jsonl`, bounded by the frozen measurement window |
+| Latency drift across the campaign | `analyse.py` | `experiment-summary` → `e3_summary.environment_drift` | per-run p50 against campaign position |
+| Zero timeouts, late ACKs, duplicate ACKs, send failures | `analyse.py` | `experiment-summary` → `e3_summary.diagnostics`, `.agent_send_failures` | every `raw/e3/**/*.jsonl` |
+| Figure: latency percentiles | `figures.py` | `figures/e3-latency-percentiles.svg` | `latency_percentiles.csv` + `paired_comparison.csv` |
+| Figure: per-run throughput | `figures.py` | `figures/e3-throughput-runs.svg` | `throughput_runs.csv` |
+| Figure: paired ratios | `figures.py` | `figures/e3-paired-ratios.svg` | `paired_comparison.csv` |
+
+The two provenance JSONs — `experiment-summary-<stamp>.json` and
+`rtt-decomposition-<stamp>.json` — each carry the run ids and the per-file
+SHA-256 of every raw stream they consumed, so any row above can be traced to
+exact bytes rather than to a filename.
 
 ### Running this without Docker
 
@@ -291,19 +384,74 @@ is written, so a failed run leaves no partial summary or table behind.
 completed, and the summary it writes is the record of the negative finding,
 not a fragment of an abandoned one.
 
-Every reported statistic was recomputed this way — from a clean clone and a
-freshly unpacked archive, on a different interpreter and operating system
-(Python 3.14 on Windows, against the frozen Python 3.12 on Linux) — and
-reproduced exactly: all six latency percentiles, three latency ratios and two
-throughput ratios, each with its bootstrap interval, to the last recorded
-digit. The four `e3-tables/*.csv` come back byte-identical to the copies
-committed here, and the regenerated summary differs from the committed one in
-`generated_at` and `analysis_code_commit` and in no analytical field.
+### What comes back identical, and what moves
+
+Run from a clean clone and a freshly unpacked archive, both paths independently
+— the container, and a bare interpreter on Windows/Python 3.14 against the
+frozen Linux/Python 3.12:
+
+| | |
+|---|---|
+| **Byte-identical** | all five `e3-tables/*.csv` and all three `figures/*.svg` |
+| **Identical in every analytical field** | `experiment-summary-<stamp>.json`, `rtt-decomposition-<stamp>.json` |
+| **Expected to move** | `generated_at`, and `analysis_code_commit`, which names whichever revision produced this copy |
+
+Nothing else differs. A JSON that differs in any third field is a finding, not
+noise, and is worth reporting.
+
+Line endings are pinned for exactly this reason: without `.gitattributes` a
+clone on Windows rewrites every tracked file to CRLF, which changes the bytes
+of the schemas the protocol lock digests and of the tables being compared. The
+repository normalises to LF on checkout on every platform.
 
 One caution when re-running against an extracted archive: `analyse.py` writes a
 new `processed/experiment-summary-<stamp>.json` each time. Point
 `FAM_RESULTS_DIR` at a copy, or the archive gains a summary the errata does not
 list.
+
+### Reproducing this is not replicating it
+
+Two different claims, and only the first is supported end to end here.
+
+**Reproduction — supported.** The published numbers follow from the archived
+observations. Anyone can take the deposit, run the chain above, and get the
+same tables and figures byte for byte. This is what the digests, the lock and
+the two independent paths are for, and it is what the errata's second
+reproduction — an implementation of the estimators written from the paper's
+prose, importing none of this code — was meant to close.
+
+**Replication — not supported, and cannot be.** The two homeservers were
+destroyed with the formal host when the campaign ended. A new two-domain
+testbed built from this repository will run the same protocol and produce *its
+own* numbers. Absolute latency depends on the machine, and the absolute values
+here describe one 4-vCPU VM with both homeservers co-located. What travelled
+across campaigns on different hosts during development was the **paired
+ratio**, which counterbalancing protects; the milliseconds did not, and nothing
+here claims they would.
+
+So: a reviewer checking arithmetic reproduces. A reviewer checking the finding
+replicates, gets different milliseconds, and should compare ratios.
+
+## Citing and reusing this
+
+The deposited dataset is licensed under the Creative Commons Attribution 4.0
+International license (CC BY 4.0). Repository code and documentation remain
+licensed under the Apache License 2.0 ([`LICENSE`](../LICENSE)).
+
+The two are separate works and the split is deliberate: Apache 2.0 speaks about
+source and object code and carries a patent grant, which fits an implementation
+and fits observations poorly.
+
+Cite both: [`CITATION.cff`](../CITATION.cff) in the repository root gives the
+software entry and, under `references`, the dataset entry with its DOI, the
+archive SHA-256 and the aggregate inventory digest. The contact address is in
+the same file.
+
+| | |
+|---|---|
+| Implementation | `protocol-v1.2-lock2` is the revision the campaign executed |
+| Dataset | `10.5281/zenodo.22727175` — archive plus the errata layer beside it |
+| Errata version | recorded in `errata/ERRATA.md` and `errata/provenance-authority.json` |
 
 ## Integrity rules
 

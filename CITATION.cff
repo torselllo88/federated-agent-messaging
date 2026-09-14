@@ -22,6 +22,7 @@ authors:
   - family-names: Nikitinsky
     given-names: Nikita
     email: torselllo88@gmail.com
+    orcid: https://orcid.org/0000-0002-2501-7760
 
 keywords:
   - Matrix
@@ -38,8 +39,10 @@ references:
     authors:
       - family-names: Nikitinsky
         given-names: Nikita
+        orcid: https://orcid.org/0000-0002-2501-7760
     doi: 10.5281/zenodo.22727175
     year: 2026
+    license: CC-BY-4.0
     notes: >-
       The immutable raw evidence the reported results derive from. Archive
       SHA-256 c9ded3458c0cc4717be812e6b693561934fd1c69caa67565f6e8c4551b855d6d;

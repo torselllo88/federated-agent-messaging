@@ -83,7 +83,7 @@ Raw experiment data is deliberately **not** in this tree. Formal runs write to `
 | Protocol lock | `protocol-v1.2-lock2`, created before collection and tagged |
 | Experiments E0–E4 | complete — 129 automated runs and 3 E4 sessions, all valid |
 | Evidence collected | 132 manifests, 12 processed artifacts, 3 figures |
-| Raw archive | 433 files, 216.8 MB, deposited as [`10.5281/zenodo.22727175`](https://doi.org/10.5281/zenodo.22727175) |
+| Raw archive | 435 files, 216.9 MB — the 433 the inventory covers plus the two it excludes by construction — deposited as [`10.5281/zenodo.22727175`](https://doi.org/10.5281/zenodo.22727175) |
 | Related-work review | complete |
 
 Campaign `fam-formal-b260ac4df1f524a5`. No run was discarded, repeated or excluded, and no invalidity class was needed.
@@ -268,3 +268,5 @@ Where both homeservers run inside the same controlled infrastructure, performanc
 Apache License 2.0 — see [`LICENSE`](LICENSE).
 
 One permissive licence covers both the research code and the documentation, and it carries an explicit patent grant.
+
+The deposited dataset is a separate work under the Creative Commons Attribution 4.0 International license (CC BY 4.0). Apache 2.0 speaks about source and object code and fits an implementation; observations are licensed for attribution and reuse instead. Both are recorded in [`CITATION.cff`](CITATION.cff) — the repository at the top level, the dataset in its reference entry.

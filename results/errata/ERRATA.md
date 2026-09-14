@@ -15,6 +15,27 @@ aggregate 391712ab516049b19689f3b897c398096c8b8d05df358493b470d7b99838cc07
           over 433 files, defined in environment/raw-archive-inventory.json
 ```
 
+The aggregate is taken over the inventory rather than over a container, so it
+depends on what the files contain and what they are called and not on tar
+format, compression or timestamps. It is reproducible from the archive alone —
+entries sorted **by path**, not by the joined line, which would sort by the
+digest that starts it; two spaces between the fields; lines joined with LF and
+not terminated by one; hashed as UTF-8:
+
+```text
+python - <<'EOF'
+import hashlib, json
+inv = json.load(open('environment/raw-archive-inventory.json'))
+rows = sorted(inv['files'], key=lambda e: e['path'])
+# Two spaces; joined with LF, not terminated by one.
+payload = '\n'.join(f"{e['sha256']}  {e['path']}" for e in rows)
+print(hashlib.sha256(payload.encode('utf-8')).hexdigest())
+EOF
+```
+
+The tarball holds 435 files: the 433 the
+inventory covers, plus the two it excludes by construction.
+
 The files of this errata layer were added to the Zenodo record **beside** the
 archive, not inside it. Nothing in the archive was edited, replaced or removed.
 
