@@ -218,6 +218,27 @@ def test_service_interval_ignores_arrivals_outside_the_window(tmp_path):
     assert block["observations"] == len(inside)
 
 
+def test_the_table_is_written_with_lf_only(tmp_path):
+    """The csv dialect terminates lines, not the platform.
+
+    `DictWriter` emits CRLF everywhere unless pinned — inside the Linux image
+    too — while the copy committed to the repository is LF. The two matched
+    only by accident: `core.autocrlf` normalised on commit and converted back
+    on checkout, so a Windows working tree held CRLF and compared equal to its
+    own output. Pinning line endings in `.gitattributes` removed the second
+    half of that accident and this table stopped reproducing byte for byte
+    from a clean clone.
+    """
+    path = tmp_path / "rtt_decomposition.csv"
+    decompose.write_table(
+        [{"workload": "latency", "component": "request_path_t0_t1", "local": 1.0}],
+        path,
+    )
+    raw = path.read_bytes()
+    assert b"\r\n" not in raw, "rtt_decomposition.csv carries CRLF"
+    assert raw.endswith(b"\n")
+
+
 def test_table_carries_both_topologies_and_their_difference(tmp_path):
     runs = _latency_pair(tmp_path, [(0, 10 * MS, 11 * MS, 50 * MS)])
     latency = decompose.decompose_latency(tmp_path, runs)

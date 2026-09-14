@@ -15,6 +15,7 @@ constant that is perfectly valid in the one environment nobody was testing.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib.util
 import json
@@ -465,6 +466,88 @@ def test_a_failing_stage_leaves_no_partial_artifact(tmp_path, monkeypatch, capsy
     processed = root / "processed"
     written = sorted(p.name for p in processed.rglob("*")) if processed.exists() else []
     assert written == [], f"partial output after a failed run: {written}"
+
+
+# --------------------------------------------------------------- line endings
+
+
+def _crlf(path: Path) -> int:
+    return path.read_bytes().count(b"\r\n")
+
+
+def test_analysis_tables_are_written_with_lf_only(tmp_path):
+    """The csv dialect terminates lines, not the platform.
+
+    `DictWriter` emits CRLF everywhere unless pinned — inside the Linux image
+    too — while the copies committed to the repository are LF. The two matched
+    only by accident: `core.autocrlf` normalised on commit and converted back
+    on checkout, so a Windows working tree held CRLF and compared equal to its
+    own output. Pinning line endings in `.gitattributes` removed the second
+    half of that accident, and the tables stopped reproducing byte for byte
+    from a clean clone. This is the assertion that would have caught it.
+    """
+    from fam.analysis import e3
+
+    summary = {
+        "latency": {
+            "by_topology": {
+                "local": {
+                    "p50_ms": 1.0, "p95_ms": 2.0, "p99_ms": 3.0,
+                    "successful_interactions": 1, "initiated_interactions": 1,
+                    "failure_rate": 0.0, "runs": 1,
+                }
+            },
+            "bootstrap": {},
+        },
+        "throughput": {"by_concurrency": {}},
+    }
+    written = e3.write_tables(summary, tmp_path)
+    assert written, "the writer produced no table to check"
+    for path in written:
+        assert _crlf(path) == 0, f"{path.name} carries CRLF"
+        assert path.read_bytes().endswith(b"\n")
+
+
+def _csv_writer_calls(tree: ast.AST):
+    """Yield every `csv.DictWriter(...)` or `csv.writer(...)` call node.
+
+    Parsed rather than scanned. A text scanner has to decide where the
+    argument list ends, and the arguments here contain calls of their own —
+    the first attempt read `lineterminator` as absent because a non-greedy
+    match stopped at the `)` of an inner call. The parser already knows.
+    """
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if (
+            isinstance(func, ast.Attribute)
+            and func.attr in {"DictWriter", "writer"}
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "csv"
+        ):
+            yield node
+
+
+def test_no_csv_writer_leaves_its_line_terminator_to_the_dialect():
+    """Guards the writers this repository has not written yet.
+
+    The tests above assert the output of the two that exist. A third added
+    later would default to CRLF and reintroduce exactly this, so the
+    constructor is checked as well as its result.
+    """
+    unpinned = []
+    for path in sorted((ROOT / "scripts").glob("*.py")) + sorted(
+        (ROOT / "src").rglob("*.py")
+    ):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for call in _csv_writer_calls(tree):
+            if not any(kw.arg == "lineterminator" for kw in call.keywords):
+                unpinned.append(f"{path.name}:{call.lineno}")
+    assert not unpinned, (
+        "csv writers default to CRLF on every platform; pin "
+        'lineterminator="\\n" in:\n  ' + "\n  ".join(unpinned)
+    )
 
 
 @needs_jsonschema

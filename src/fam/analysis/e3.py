@@ -1283,8 +1283,13 @@ def write_tables(summary: dict[str, Any], directory: Path) -> list[Path]:
             continue
         path = directory / f"{name}.csv"
         columns = list(rows[0].keys())
+        # lineterminator is pinned because the csv dialect, not the platform,
+        # decides it: DictWriter emits CRLF everywhere unless told otherwise,
+        # including inside the Linux image. These tables are compared byte for
+        # byte against the copies committed to the repository, so the bytes
+        # must not depend on which writer produced them.
         with path.open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=columns)
+            writer = csv.DictWriter(handle, fieldnames=columns, lineterminator="\n")
             writer.writeheader()
             writer.writerows(rows)
         written.append(path)

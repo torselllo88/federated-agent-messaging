@@ -85,8 +85,9 @@ that tie the two together.
 | Campaign | `fam-formal-651a6ef1b2062472` (as named by the lock) |
 | Campaign as executed | `fam-formal-b260ac4df1f524a5` |
 | Aggregate SHA-256 | `391712ab516049b19689f3b897c398096c8b8d05df358493b470d7b99838cc07` |
-| Files | 433 |
-| Size | 216.8 MB |
+| Files covered by the aggregate | 433 |
+| Files in the tarball | 435 — the 433 above plus the inventory and the completion record, which it cannot list |
+| Size | 216.8 MB inventoried, 216.9 MB unpacked |
 | Format | JSON Lines, one stream per run |
 | Archive file | `fam-formal-raw-b260ac4df1f524a5.tar.gz`, 19.0 MB gzip |
 | Archive SHA-256 | `c9ded3458c0cc4717be812e6b693561934fd1c69caa67565f6e8c4551b855d6d` |
@@ -110,7 +111,7 @@ and what they are called, not on tar format, compression or timestamps. That
 inventory is committed here, so the digest can be recomputed from this repository
 against any copy of the raw collection. The collection contains more than one `processed/experiment-summary-*.json`: the analysis was re-run to confirm §63 reproduction, and the copies differ only in `generated_at`. The one committed here is the authoritative summary.
 
-Two files are excluded from the inventory and named in it: the inventory itself and `collection-completion.json`. Both are written after the inventory is computed, so including them would record their previous contents and make the aggregate digest unverifiable against the collection it describes. Skip those two and it recomputes exactly — checked by extracting the archive on a different machine and recomputing from scratch, 433 files, zero per-file mismatches.
+Two files are excluded from the inventory and named in it: the inventory itself and `collection-completion.json`. Both are written after the inventory is computed, so including them would record their previous contents and make the aggregate digest unverifiable against the collection it describes. Skip those two and it recomputes exactly — checked by extracting the archive on a different machine and recomputing from scratch, over all 433 inventoried files, zero per-file mismatches. The tarball itself holds 435: those 433 and the two excluded here.
 
 **The two campaign identifiers differ, and both are recorded on purpose.** A lock
 cannot name the commit that carries it: the artifact has to exist before it can be

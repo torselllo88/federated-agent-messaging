@@ -362,8 +362,13 @@ def rows(latency: dict[str, Any], interval: dict[str, Any]) -> list[dict[str, An
 
 def write_table(table: list[dict[str, Any]], path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # See fam.analysis.e3.write_tables: the csv dialect terminates lines with
+    # CRLF on every platform unless pinned, and this table is compared byte
+    # for byte against its committed copy.
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(table[0].keys()))
+        writer = csv.DictWriter(
+            handle, fieldnames=list(table[0].keys()), lineterminator="\n"
+        )
         writer.writeheader()
         writer.writerows(table)
     return path
