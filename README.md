@@ -270,3 +270,7 @@ Apache License 2.0 — see [`LICENSE`](LICENSE).
 One permissive licence covers both the research code and the documentation, and it carries an explicit patent grant.
 
 The deposited dataset is a separate work under the Creative Commons Attribution 4.0 International license (CC BY 4.0). Apache 2.0 speaks about source and object code and fits an implementation; observations are licensed for attribution and reuse instead. Both are recorded in [`CITATION.cff`](CITATION.cff) — the repository at the top level, the dataset in its reference entry.
+
+## Acknowledgements
+
+The author gratefully acknowledges support from the 8LENDS project and its management team.
